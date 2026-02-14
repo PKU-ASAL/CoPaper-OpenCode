@@ -13,4 +13,4 @@
 <!-- System Comments: What are the components in your system or approach. What are their relationships? Don't remove this comment.-->
 
 
-<!-- System Comments: For each component, write a subsection. This section first introduce the high-level goal, workflow of the component, and possible input and output. Then discuss the technicall challenges to implement the component, if there is any. Then introduce detailed algorithms or designs that can address the challenges. Use pseudo code list or figures if it is necessary.Don't remove this comment.-->
+<!-- System Comments: For each component, write a subsection. This section first introduce the high-level goal, workflow of the component, and possible input and output. Then discuss the technicall challenges to implement the component, if there is any. Then introduce detailed algorithms or designs that can address the challenges. Use pseudo code list or figures if it is necessary. Each component need to be in a dedicated section (level 2 headings), organize your paragraphs with level 3 headings (the headings should be the toplic sentence)Don't remove this comment.-->

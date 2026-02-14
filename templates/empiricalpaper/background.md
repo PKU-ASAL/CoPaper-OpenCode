@@ -6,7 +6,7 @@
 <!-- System Comments: What are the basic concepts for the kwowledgble outsiders to understand the problem? Exaplain each of them. Ensure we have enough details. Use equations or formal definitions if needed. Don't remove this comment.-->
 
 
-<!-- System Comments:  What are the key limittaions forexisting approaches? Use numbers and evidences to explain the reason in details. Don't remove this comment. -->
+<!-- System Comments:  Are there any important factors for the problem that has not been studied by existing approaches? What are they? Use numbers and evidences to explain the reason in details. Don't remove this comment. -->
 
-<!-- System Comments:  What is the core reason that existing approaches are limited? Use numbers and evidences to explain the reason in details. Don't remove this comment. -->
+<!-- System Comments:  What is the core reason that existing approaches miss the importance factors? Use numbers and evidences to explain the reason in details. Don't remove this comment. -->
 
