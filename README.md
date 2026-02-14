@@ -50,117 +50,29 @@ cp -r vibepaper-skill/.github/skills /your-project/.github/
 
 安装完成后，重启 VS Code 或重新加载窗口（Cmd/Ctrl + Shift + P → "Reload Window"），Skills 即可生效。
 
-## 可用的 Skills
+## 使用方法
 
-### 1. markdown2latex
+1. 初始化项目
+- 目前提供三个选项，technical paper，empirical paper，nsfc proposal 
+- 使用initailizer skill: initailize a techinical paper/ empirical paper/nsfc proposal
 
-**名称：** `markdown2latex`
+2. 使用helper写general.md, general.md是整个论文的大纲，请先编写general.md再编写其他章节
+- 使用markdown-helper skill: help me write the paper/ help me write general.md
+- agent会问你若干问题，按照agent的提示回答
 
-**功能：** 将 markdown 学术论文内容转换为高质量的 LaTeX 格式，适用于顶级会议和期刊投稿。
+3. 学生，AI，老师协同迭代完成主要内容
+- 可以使用markdown-review skill来让AI审阅你的内容，AI会将带有AI suggestion: 字样的HTML注释插入到相应位置：
+- 人类可以写带有Human Comment：字样的HTML注释来添加注释
+- 你可以在内容中插入`{需要内容的描述}`的占位符，然后让helper来帮你填写相关内容：  `help me write design.md`,`帮助我写 design.md`
 
-**使用场景：**
-- 从 markdown 生成完整的 LaTeX 文档
-- 转换特定章节到 LaTeX
-- 学术论文格式化
+4. 你可以使用relatedwork-finder帮你去搜索和下载相关工作，agent会自己形成bibtex文档，对关键文献写总结
+- `find related work`
 
-**示例提示：**
-```
-- "生成 paper.md 对应的 latex"
-- "Convert the Introduction section from paper.md to LaTeX"
-- "将 methodology.md 转换为 LaTeX 格式"
-```
-
-**特点：**
-- 遵循学术写作规范
-- 主题句-支撑结构的段落组织
-- 保留数学公式和引用
-- 自动补充必要的学术内容
-
-### 2. markdown-review
-
-**名称：** `markdown-review`
-
-**功能：** 审查和改进 markdown 学术论文内容，专注于论点清晰度、论证充分性和逻辑连贯性。
-
-**使用场景：**
-- 审查 markdown 论文内容
-- 改进学术写作质量
-- 获取详细的改进建议
-
-**两种模式：**
-
-**模式 1：直接修订（默认）**
-```
-- "Review paper.md"
-- "评审 introduction.md"
-- "Improve the Methodology section"
-```
-输出：直接返回修订后的内容
-
-**模式 2：详细建议**
-```
-- "Give me suggestions for paper.md"
-- "提供 paper.md 的改进建议"
-- "What should I improve in my paper?"
-```
-输出：按优先级分组的结构化建议
-
-**审查重点：**
-1. 论点清晰度
-2. 论证充分性
-3. 逻辑连贯性
-4. 段落结构（主题句+支撑细节）
-5. 学术严谨性
-
-### 3. latex-review
-
-**名称：** `latex-review`
-
-**功能：** 审查和改进 LaTeX 学术论文内容，分析论文质量和出版准备度。
-
-**使用场景：**
-- 审查 LaTeX 论文文件
-- 改进 LaTeX 文档质量
-- 投稿前检查
-
-**两种模式：**
-
-**模式 1：直接修订（默认）**
-```
-- "Review paper.tex"
-- "评审这个 LaTeX 文件"
-- "Improve the Results section in paper.tex"
-```
-输出：返回修订后的 LaTeX 内容
-
-**模式 2：详细建议**
-```
-- "Give me suggestions for paper.tex"
-- "提供 LaTeX 改进建议"
-- "Is my paper ready for submission?"
-```
-输出：结构化建议，包含具体章节引用和可操作的修改建议
-
-**审查重点：**
-1. 逻辑连贯性和流畅度
-2. 段落结构
-3. 核心论点的清晰度
-4. 创新性和原创性
-5. 学术严谨性和语调
-6. LaTeX 格式和技术细节
+5. 提供一个novelty-checker,可以根据下载的文献，检查你的insight的novelty如何
+- `check the novelty of this paper`
 
 ## Skills 文件结构
 
 这些 Skills 的文件存放在 `.github/skills/` 目录下：
-
-```
-.github/skills/
-├── markdown2latex/
-│   └── SKILL.md          # Markdown 转 LaTeX 的指令
-├── markdown-review/
-│   └── SKILL.md          # Markdown 审查指令
-└── latex-review/
-    └── SKILL.md          # LaTeX 审查指令
-```
 
 Skills 会根据你的提示自动激活，无需手动选择。Copilot 会自动发现并加载相应的 `SKILL.md` 文件来执行任务。
