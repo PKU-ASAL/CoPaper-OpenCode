@@ -3,9 +3,9 @@ name: novelty-checker
 description: Check the novelty of the insights claimed in general.md.
 ---
 
-# Markdown Review Skill
+# Novelty Checker Skill
 
-This skill provides a through search on the literature to check the novelty of the insight claimed in general.md of computer science research papers.
+This skill provides a thorough literature search to check the novelty of the insights claimed in `general.md` for computer science research papers.
 
 ## When to Use This Skill
 
@@ -19,6 +19,6 @@ Your core task is to check the novelty of the insights claimed in general.md.
 
 
 
-You need to read the pdf files in the relatedwork folder. Then you need to compare the existing work with the insight claimed in general.md, and provide a thorough analysis on whether the insight is novel or not.
+You need to read the PDF files in the `relatedwork` folder. Then compare existing work with the insights claimed in `general.md`, and provide a thorough analysis of whether each insight is novel.
 
-Prompt your conclusion with details to the user. 
+Provide your conclusion with concrete supporting details to the user.

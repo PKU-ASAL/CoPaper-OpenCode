@@ -3,7 +3,7 @@ name: relatedwork-finder
 description: Find the related work papers in the relatedwork folder.
 ---
 
-# Markdown Review Skill
+# Related Work Finder Skill
 
 This skill automatically finds the related work papers in the relatedwork folder.
 
@@ -16,9 +16,9 @@ This skill automatically finds the related work papers in the relatedwork folder
 Read the general.md to understand every section.
 
 
-You need to search the web to find about 50 papers that are related to the insight claimed in general.md and another 30 papers that are related to the solutions to the challenges mentioned in general.md.
+You need to search the web to find high-quality papers related to the insights claimed in `general.md` and additional papers related to solutions for the challenges mentioned in `general.md`.
 
-The user can request you to find papers about a specific section in general.md. You need to read that sepcific section and find related work for that. 
+The user can request you to find papers about a specific section in `general.md`. You need to read that specific section and find related work for it.
 
 You need to find papers that address problems in the same problem domain as the one mentioned in general.md, even if they do not share the same insight. This will help provide a comprehensive view of the existing literature in the problem area.
 
@@ -26,7 +26,7 @@ You need to find papers that have similar insights but in different problem doma
 
 You need to find papers that may contain alternative solutions to the challenges mentioned in general.md. This will help to understand how other researchers have approached similar problems and whether the proposed insight offers a unique or more effective solution.
 
-First, Create a bibtext file paper_list.bib under the related work folder to list all the papers you have found, with their titles, authors, publication venues. 
+First, create a BibTeX file `paper_list.bib` under the `relatedwork` folder to list all the papers you have found, with their titles, authors, and publication venues.
 
 Then, for each paper, generate a .md file that contains a detailed summary about the paper's insight, technology, and its connection to the insight or the challenges in the general.md. This .md file should be located under the papers folder, a sub-folder of the relatedwork folder. The filename should be the corresponding bibtex key.
 
@@ -37,5 +37,4 @@ The user can provide you with some seed papers to start with. You need to make s
 Write a summary.md that categorizes and summarizes all the related work papers you have found, highlighting their connections to the insight and challenges mentioned in general.md.
 
 When finished, respond to the user with "Found X related work papers in the relatedwork folder." Remove the created temporary files if any.
-
 
