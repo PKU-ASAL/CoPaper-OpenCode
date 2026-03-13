@@ -21,3 +21,5 @@ This skill currently provides three options for repository initialization: techn
 ## Instructions
 
 Copy the content of the corresponding template files into the root directory of the repository. The template files are located in the `templates` directory and are organized by type (e.g., `nsfc`, `technicalpaper`, `empiricalpaper`). Each template file contains the necessary structure and content for that type of project.
+
+Use headings of markdown files to organize the content.
