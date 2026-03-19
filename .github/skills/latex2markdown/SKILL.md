@@ -35,6 +35,8 @@ Before converting, read `writingrules.md` to understand the full structure. Key 
 
 **You can leave empty sections if there is no corresponding content in the LaTeX files.**
 
+**Do not use the comments in Latex**
+
 ### Step-by-Step Process
 
 1. **Read paper.md**: Understand the existing structure and `description` fields
