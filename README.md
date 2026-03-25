@@ -29,6 +29,6 @@
 
 ## Skills 文件结构
 
-这些 Skills 的文件存放在 `.github/skills/` 目录下：
+这些 Skills 的文件存放在 `.agents/skills/` 目录下：
 
 Skills 会根据你的提示自动激活，无需手动选择。Copilot 会自动发现并加载相应的 `SKILL.md` 文件来执行任务。
