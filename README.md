@@ -2,10 +2,11 @@
 
 这个仓库包含了用于学术论文写作和审查的三个 Agent Skills，遵循 [Agent Skills 标准](https://agentskills.io/)。
 
+**请注意：本工具起主要作用的是模板，而不是大模型。AI只能帮助你优化文字，不能帮助你生成具体的有意义的内容。我们试过包括Opus和GPT5.4在内的所有模型，都不能帮你生成具体的内容。但是AI可以帮你按照模板去检查论文是否有遗漏或者帮你完善文字。我目前使用GLM-5和opencode。**
+
 ## 安装
 
 - 请把这个项目当作一个template，以此为基础创建你自己的项目
-- 如果你在使用vscode之外的IDE（如Windsurf），请根据相应IDE的文档修改配置skills(copilot 是.github/skills,windsurf 是.windsurf/skills)
 
 ## 使用方法
 
