@@ -35,6 +35,7 @@ Before reviewing, read `writingrules.md` to understand the full structure. Key r
 - [ ] Correctness of the insight
 
 ### Approach Quality
+- [ ] There is no undefined terms
 - [ ] Approach contains enough design details (not too simple)
 - [ ] No mistakes in the approach
 
