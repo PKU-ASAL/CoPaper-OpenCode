@@ -1,43 +1,91 @@
 ---
 name: relatedwork-finder
-description: Find the related work papers in the relatedwork folder based on paper.md content.
+description: Find the related work papers in the relatedwork folder based on storyline.md or paper.md content.
 ---
 
 # Related Work Finder Skill
 
-This skill automatically finds the related work papers in the relatedwork folder based on the paper content.
+This skill automatically finds related work papers, downloads PDFs, and generates summaries based on the research storyline or paper content.
 
 ## When to Use This Skill
 
-- User requests to find relatedwork (e.g., "find related work")
+- User requests to find related work (e.g., "find related work").
 
 ## VibePaper Structure Rules
 
 Before searching, read `writingrules.md` to understand the paper structure. The main paper file is `paper.md`.
 
-## Instructions
+## Input Sources
 
-Read `paper.md` to understand every section.
+This skill prioritizes input sources in the following order:
 
-You need to search the web to find high-quality papers related to the insights claimed in `paper.md` and additional papers related to solutions for the challenges mentioned in `paper.md`.
+1. **Primary Source**: `storyline.md` - If this file exists, parse it first to extract research keywords, core research questions, proposed methods, and key challenges.
+2. **Fallback Source**: `paper.md` - If `storyline.md` does not exist, fall back to reading `paper.md`.
 
-The user can request you to find papers about a specific section in `paper.md`. You need to read that specific section and find related work for it.
+## Search & Caching Strategy
 
-You need to find papers that address problems in the same problem domain as the one mentioned in paper.md, even if they do not share the same insight. This will help provide a comprehensive view of the existing literature in the problem area.
+1. **Stateful Search**: To avoid redundant API calls and information drift, you MUST cache the metadata of all found papers during Step 2.
+2. **Cache File**: Create `relatedwork/search_cache.json` to store:
+   - `title`, `authors`, `year`, `venue/journal`
+   - `bibtex` (fetched from source during Step 2)
+   - `arxiv_id` (if applicable)
+   - `pdf_url` (direct link to PDF or landing page)
+3. **arXiv Search**: Use `websearch_web_search_exa` with `includeDomains: ["arxiv.org"]` to find recent preprints.
+4. **Google Scholar Search**: MUST use `serper_google_search_scholar` (Google Scholar API via Serper MCP) to find published papers and citations.
+5. **BibTeX Accuracy**: Fetch the paper's metadata from the source (e.g., arXiv abstract page or Google Scholar snippet) IMMEDIATELY during the search phase. Do NOT wait for user confirmation to fetch metadata.
 
-You need to find papers that have similar insights but in different problem domains. This will help to check whether the insight has been discovered in other domains, which can also indicate the novelty of the insight in the context of the problem domain mentioned in paper.md.
+## PDF Download
 
-You need to find papers that may contain alternative solutions to the challenges mentioned in paper.md. This will help to understand how other researchers have approached similar problems and whether the proposed insight offers a unique or more effective solution.
+1. **Storage Location**: Save all downloaded PDFs to `relatedwork/pdfs/`.
+2. **Naming Convention**: Name PDF files using the BibTeX key from the cache (e.g., `shi2026streamingvla.pdf`).
+3. **Manual Upload Fallback**: If a PDF cannot be downloaded after 3 retries, mark the paper in the summary file with `[TODO: Manual Upload]`.
 
-First, create a BibTeX file `paper_list.bib` under the `relatedwork` folder to list all the papers you have found, with their titles, authors, and publication venues.
+## Instructions (STRICT INTERACTIVE WORKFLOW)
 
-Then, for each paper, generate a .md file that contains a detailed summary about the paper's insight, technology, and its connection to the insight or the challenges in the paper.md. This .md file should be located under the papers folder, a sub-folder of the relatedwork folder. The filename should be the corresponding bibtex key.
+You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
 
-If the bibtext file already exists, you need to update it with the new papers you have found.
+### Step 1: Parse Input & Extract Keywords [WAIT FOR CONFIRMATION]
+- Read `storyline.md` (or `paper.md`).
+- Extract 5-10 research keywords and search queries.
+- **ACTION**: Present the extracted keywords and queries to the user.
+- **STOP**: Ask "These are the keywords and search queries I extracted. Do you want to modify or add any before I start the search?"
 
-The user can provide you with some seed papers to start with. You need to make sure that these seed papers are included in the related work papers you find.
+### Step 2: Search & Cache Metadata [WAIT FOR CONFIRMATION]
+- Perform searches on arXiv and Google Scholar.
+- For EVERY promising result, fetch its BibTeX, ArXiv ID, and PDF URL.
+- **CRITICAL**: You MUST also search for and explicitly extract the publication venue or journal (e.g., CVPR, NeurIPS, IEEE T-RO, or arXiv preprint) for each paper during the search.
+- **ACTION**: Save all metadata (including `venue/journal`) to `relatedwork/search_cache.json`.
+- **ACTION**: Present a numbered list of found papers (with authors, years, and venue) to the user.
+- **STOP**: Ask "Here is the list of papers I found. Which ones should I keep? (Metadata is already cached for all entries)."
 
-Write a summary.md that categorizes and summarizes all the related work papers you have found, highlighting their connections to the insight and challenges mentioned in paper.md.
+### Step 3: Formalize BibTeX List [WAIT FOR CONFIRMATION]
+- Read `relatedwork/search_cache.json`.
+- Filter entries based on user selection from Step 2.
+- Create/Update `relatedwork/paper_list.bib`.
+- **ACTION**: Show the final BibTeX entries to the user.
+- **STOP**: Ask "I have formalized the BibTeX entries in paper_list.bib. Should I proceed to download PDFs and write summaries?"
 
-When finished, respond to the user with "Found X related work papers in the relatedwork folder." Remove the created temporary files if any.
+### Step 4: Download PDFs [WAIT FOR CONFIRMATION]
+- Read the cached `pdf_url` from `search_cache.json`.
+- Download PDFs to `relatedwork/pdfs/`.
+- Mark missing PDFs with `[TODO: Manual Upload]`.
+- **ACTION**: Present the status of downloaded PDFs to the user.
+- **STOP**: Ask "I have finished downloading the PDFs. Should I proceed to summarize each paper one by one sequentially?"
 
+### Step 5: Sequential PDF Summaries [WAIT FOR CONFIRMATION PER PAPER]
+- **CRITICAL - MULTI-MODAL & ISOLATED CONTEXT**: You MUST NOT summarize the PDFs yourself in the current context. You MUST ensure each PDF is summarized in its own dedicated context window using the multi-modal model.
+- **Approach**: Process each paper **ONE BY ONE sequentially**. Do NOT launch multiple tasks in parallel.
+- For each paper, ask "Should I spawn the agent to summarize [Paper Title]?"
+- Once confirmed, spawn a `task` agent (`category="deep"`, `run_in_background=false`) to summarize it. 
+- In the `prompt`, provide the absolute path of the PDF, `storyline.md`, and `.agents/skills/relatedwork-finder/template.md`.
+- Explicitly instruct the sub-agent to:
+  1. Use the `Read` tool on the PDF (which loads it as a multi-modal attachment).
+  2. Use the `Read` tool on `template.md`.
+  3. Generate a detailed summary `.md` file in `relatedwork/papers/` strictly following the sections and structure defined in `template.md`, filling in the publication venue from the cache.
+- After the task completes, present the summary status and ask for confirmation before moving to the next paper.
+- Repeat this sequential process for all downloaded PDFs.
+
+### Step 6: Write Final Summary Document
+- Write `relatedwork/summary.md` categorizing the literature.
+- Respond with "Found X related work papers in the relatedwork folder."
+- Remove `relatedwork/search_cache.json` after final completion.

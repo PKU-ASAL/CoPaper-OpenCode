@@ -1,0 +1,8 @@
+.sisyphus
+.ruff_cache
+opencode*
+oh-my-opencode.json
+storyline.md
+relatedwork/
+fig/
+paper.md

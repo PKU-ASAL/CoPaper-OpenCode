@@ -1,37 +1,50 @@
 # VibePaper Agent Skills
 
-这个仓库包含了用于学术论文写作和审查的三个 Agent Skills，遵循 [Agent Skills 标准](https://agentskills.io/)。
+这个仓库包含了用于学术论文检索、阅读、写作和审查的 Agent Skills。本项目基于 OpenCode 和 Oh-My-OpenCode (Sisyphus) 架构开发，深度集成了多模态模型和 MCP (Model Context Protocol) 插件。
 
-**请注意：本工具起主要作用的是模板，而不是大模型。AI只能帮助你优化文字，不能帮助你生成具体的有意义的内容。我们试过包括Opus和GPT5.4在内的所有模型，都不能帮你生成具体的内容。但是AI可以帮你按照模板去检查论文是否有遗漏或者帮你完善文字。**
+**核心理念：本工具起主要作用的是“结构与模板”，而不是大模型的自由发挥。** 
+AI 只能基于你提供的 Insight 和实验数据来帮你组织语言、优化文字。但如果你遵循模板，AI 能完美地帮你检查逻辑漏洞、完善文字表达、甚至自动化繁琐的文献检索与对比阅读工作。
 
-**我目前使用vscode+opencode+glm5。我一般在vscode里面看markdown，看git的修改历史，在vscode里面的terminal开opencode+glm5，glm5我推荐使用opencode go包含的10每月每个月的包，稳定且速度快。国内code plan的不稳定且似乎会降智**
+## 环境配置与依赖要求
 
-## 安装
+为了充分发挥本项目的自动化能力（特别是单篇文献的深度多模态阅读与严格的段落级协助写作），你需要以下环境：
 
-- 请把这个项目当作一个template，以此为基础创建你自己的项目
+1. **基础运行环境**：
+   - 使用 VSCode 作为主力编辑器。
+   - 在终端中运行 [OpenCode](https://github.com/opencode-ai/opencode) 或基于它的增强版架构 [Oh-My-OpenCode](https://github.com/oh-my-opencode/oh-my-opencode)（推荐使用 Sisyphus 代理模式）。
+   
+2. **多模态大模型配置**：
+   - 必须为底层的 subagent (例如 `Sisyphus-Junior`) 配置**支持多模态输入（原生读取 PDF/图片）且上下文窗口极长**的强大模型。
+   - **强烈推荐**：`google/gemini-3.1-pro-preview` 或能够直接处理多模态文件的强模型。因为在 `relatedwork-finder` 和 `markdown-helper` 的子任务中，Sisyphus-Junior 会直接挂载原版 PDF 文献和上万字的 `paper.md` / `storyline.md` 作为上下文。如果模型多模态能力弱或上下文短，将导致严重的幻觉或任务崩溃。
+   - （日常配置参考：VSCode + OpenCode终端 + Opencode Go 接入 GLM-5 + API 中转站接入 Gemini 3.1 Pro 用于多模态理解写作）。
 
-## 使用方法
+3. **文献检索依赖 (MCP)**：
+   - 本项目依赖网络检索能力来自动查找和下载学术论文。
+   - **必须安装并配置**：[Serper MCP Server](https://github.com/garylab/serper-mcp-server) 或类似的支持网页搜索与下载的 MCP 插件。请确保你的 OpenCode 环境已正确加载该 MCP。
 
-1. 初始化项目
-- 目前提供两个选项，technical_paper，empirical_paper
-- 请把对应的模板从template中复制到当前项目目录下，命名为paper.md
+## 使用工作流
 
-2. 请查看writingrules.md，按照其中的要求去写paper.md
+1. **初始化项目**
+   - 模板选择：项目中提供了 `technical_paper` 和 `empirical_paper`。
+   - 复制所需的模板从 `template` 文件夹到项目根目录，并重命名为 `paper.md`。
 
-3. paper.md是整个论文，请按照论文的标准去写paper
+2. **制定核心研究主线**
+   - 必须首先完善 `storyline.md`（实验室的小组会讨论模板，把它转为markdown即可）。这是整篇论文的灵魂，包含了你的核心 Insight、问题定义、方法架构和实验预期。**后续所有的 AI 写作和文献总结都将以此文件为最高指导准则。**
 
-3. 使用helper写paper.md
-- 使用markdown-helper skill: help me write the paper/ help me write paper.md
-- agent会问你若干问题，按照agent的提示回答
+3. **文献检索与阅读 (`relatedwork-finder`)**
+   - 指令：`"find related work"`
+   - 流程：Agent 会自动根据 `storyline.md` 生成关键词，调用 Serper MCP 检索最新相关文献，下载 PDF，并在你的**每一步确认**下，启动独立的多模态上下文窗口逐篇阅读并生成结构化总结（输出到 `relatedwork/papers/`）。
 
-4. 你可以使用relatedwork-finder帮你去搜索和下载相关工作，agent会自己形成bibtex文档，对关键文献写总结
-- `find related work`
+4. **交互式辅助写作 (`markdown-helper`)**
+   - 指令：`"help me write the paper"` 或 `"help me write paper.md"`
+   - 流程：Agent 会自上而下扫描 `paper.md`。遇到空白的底层节点时，它会综合 `storyline.md`、`paper.md` 已写内容以及下载的文献总结，启动独立的写作子 Agent 为你**起草一段（且严格只起草一段）**内容。
+   - **强控设计**：每次起草前需要你确认；起草后你可以直接接受，也可以提出修改意见让它重写。绝不多线程暴走。
 
-5. 提供一个novelty-checker,可以根据下载的文献，检查你的insight的novelty如何
-- `check the novelty of this paper`
+5. **论文结构与质量审查 (`markdown-review`)**
+   - 请严格查看 `writingrules.md`，了解论文的具体层级规范。AI 会基于此规范来约束自己。
+   - 你可以使用额外的指令检查新颖度（例如："check the novelty of this paper"）。
 
 ## Skills 文件结构
 
-这些 Skills 的文件存放在 `.agents/skills/` 目录下：
-
-Skills 会根据你的提示自动激活，无需手动选择。Copilot 会自动发现并加载相应的 `SKILL.md` 文件来执行任务。
+这些核心控制逻辑文件存放在 `.agents/skills/` 目录下。
+Skills 会根据你的自然语言提示自动激活，Opencode 会自动发现并加载相应的 `SKILL.md` 文件来分配给特定的 Subagent 执行任务。
