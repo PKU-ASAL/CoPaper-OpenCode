@@ -113,3 +113,119 @@ class TestStatus:
             "No project found" in result.output
             or "Run 'vibe init' first" in result.output
         )
+
+
+class TestSkip:
+    """Tests for the 'vibe skip' command."""
+
+    def test_skip_phase_updates_state(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "skip",
+                "experiments",
+                "--reason",
+                "user provided data",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "skipped" in result.output.lower()
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        assert state["phases"]["experiments"]["status"] == "skipped"
+
+
+class TestLog:
+    """Tests for the 'vibe log' command."""
+
+    def test_log_shows_entries(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+        result = _invoke(runner, ["--root", str(tmp_path), "log", "--last", "5"])
+        assert result.exit_code == 0, result.output
+        assert "init_project" in result.output
+
+    def test_log_empty(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        (tmp_path / ".agents").mkdir(parents=True, exist_ok=True)
+        result = _invoke(runner, ["--root", str(tmp_path), "log"])
+        assert result.exit_code == 0, result.output
+        assert "No log entries" in result.output
+
+
+class TestCommit:
+    """Tests for the 'vibe commit' command."""
+
+    def test_commit_creates_phase_commit(self, tmp_path: Path) -> None:
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        repo.config_writer().set_value("user", "name", "Test").release()
+        repo.config_writer().set_value("user", "email", "t@t.com").release()
+        (tmp_path / "README.md").write_text("# Test", encoding="utf-8")
+        repo.index.add(["README.md"])
+        repo.index.commit("Initial commit")
+
+        runner = CliRunner()
+        _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        (tmp_path / "draft.md").write_text("Draft content", encoding="utf-8")
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "commit",
+                "-m",
+                "initial draft",
+                "--phase",
+                "storyline",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Committed" in result.output
+        assert "storyline" in result.output
+
+
+class TestRollback:
+    """Tests for the 'vibe rollback' command."""
+
+    def test_rollback_to_phase(self, tmp_path: Path) -> None:
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        repo.config_writer().set_value("user", "name", "Test").release()
+        repo.config_writer().set_value("user", "email", "t@t.com").release()
+        (tmp_path / "README.md").write_text("# Test", encoding="utf-8")
+        repo.index.add(["README.md"])
+        repo.index.commit("Initial commit")
+
+        runner = CliRunner()
+        _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        (tmp_path / "draft.md").write_text("Draft v1", encoding="utf-8")
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "commit", "-m", "v1", "--phase", "storyline"],
+        )
+
+        result = _invoke(
+            runner, ["--root", str(tmp_path), "rollback", "storyline", "-y"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Rolled back" in result.output
