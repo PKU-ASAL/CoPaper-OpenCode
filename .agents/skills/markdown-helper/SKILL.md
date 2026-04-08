@@ -39,6 +39,9 @@ Every writing task MUST be informed by these sources:
 1. **storyline.md**: The core research narrative, insights, and method.
 2. **paper.md**: The paper's current state and structural constraints.
 3. **relatedwork/papers/**: Individual markdown summaries of related literature. The agent can dynamically read these to cite properly.
+4. **Experiment Data** (conditional): Read `.agents/state.json` and check the `experiments` phase status. If experiments are `complete`, read the experiment data files listed in `state.json`'s `data_files` field. When writing experiment-related sections (e.g., Experimental Setup, Results, Analysis), pass the experiment data as context to the subagent.
+5. **Figures** (conditional): Check the `fig/` directory for available figures and charts. When writing sections that may reference visual data, pass the list of available figure paths to the subagent so it can reference them (e.g., `![caption](fig/result_comparison.png)`).
+6. **.agents/cross_index.json** (conditional): Query the cross-reference index for technical points related to the current section. Extract relevant paper references and pass them to the subagent as citation candidates.
 
 ## Strict Step-by-Step Writing Workflow
 
@@ -60,6 +63,9 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
    - "Read `storyline.md` for core narrative."
    - "Read `paper.md` to understand context and what has been written so far."
    - "Read relevant summaries in `relatedwork/papers/` to support your writing. Use the `Read` tool to fetch specific summaries if needed."
+   - "If `.agents/state.json` shows experiments phase is `complete`, read the experiment data files from `state.json`'s `data_files` field and use them as context for experiment-related sections."
+   - "Check `fig/` directory with `Glob('fig/*')`. If relevant figures exist, reference them in your writing using markdown image syntax."
+   - "Read `.agents/cross_index.json` to find papers related to the current section's technical points. Use these as citation candidates."
    - "Output ONLY the drafted Level 6 node (###### Title + Content). DO NOT edit `paper.md` yourself."
    - "**Writing Style Instructions**: 
      1. Strictly follow the writing guidelines in `writingrules.md`.
