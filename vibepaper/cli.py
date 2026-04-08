@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 import click
 
@@ -239,6 +240,54 @@ def skip(ctx, phase, reason):
     click.echo(f"Phase '{phase}' skipped.")
     if reason:
         click.echo(f"Reason: {reason}")
+
+
+@main.command()
+@click.option(
+    "--since",
+    default=None,
+    help="Show entries since date (ISO format, e.g. 2026-04-01)",
+)
+@click.option(
+    "--output", "-o", default=None, help="Write report to file instead of stdout"
+)
+@click.pass_context
+def report(ctx: click.Context, since: str | None, output: str | None) -> None:
+    """Generate a weekly progress report."""
+    root = ctx.obj["root"]
+
+    from vibepaper.report import generate_weekly_report
+
+    try:
+        md = generate_weekly_report(repo_path=root, since_date=since)
+    except Exception as exc:
+        click.echo(f"Error generating report: {exc}", err=True)
+        sys.exit(1)
+
+    if output:
+        Path(output).write_text(md, encoding="utf-8")
+        click.echo(f"Report written to {output}")
+    else:
+        click.echo(md)
+
+
+@main.command(name="diff")
+@click.argument("phase_a")
+@click.argument("phase_b")
+@click.pass_context
+def diff_cmd(ctx: click.Context, phase_a: str, phase_b: str) -> None:
+    """Show diff between two phases."""
+    root = ctx.obj["root"]
+
+    from vibepaper.report import generate_diff_report
+
+    try:
+        result = generate_diff_report(root, phase_a, phase_b)
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    click.echo(result)
 
 
 if __name__ == "__main__":
