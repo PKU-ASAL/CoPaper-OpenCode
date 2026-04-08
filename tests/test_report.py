@@ -85,3 +85,34 @@ class TestGenerateDiffReport:
 
         result = generate_diff_report(str(tmp_path), "storyline", "literature")
         assert "Diff:" in result or "No diff" in result
+
+
+class TestWeeklyReportFormat:
+    def test_report_is_valid_markdown(self, tmp_path: Path) -> None:
+        from vibepaper.state import StateManager
+
+        sm = StateManager(str(tmp_path))
+        sm.init_project("P", "D")
+
+        from vibepaper.eventlog import EventLogger
+
+        EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
+
+        report = generate_weekly_report(str(tmp_path))
+        assert report.startswith("# ")
+        assert "## Phase Progress" in report
+        assert "## Commit Summary" in report
+        assert "## Event Log Statistics" in report
+
+    def test_report_no_events(self, tmp_path: Path) -> None:
+        from vibepaper.state import StateManager
+
+        sm = StateManager(str(tmp_path))
+        sm.init_project("P", "D")
+
+        from vibepaper.eventlog import EventLogger
+
+        EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
+
+        report = generate_weekly_report(str(tmp_path))
+        assert "No events found" in report or "Event Log Statistics" in report

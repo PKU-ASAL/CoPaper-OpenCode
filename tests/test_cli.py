@@ -229,3 +229,71 @@ class TestRollback:
         )
         assert result.exit_code == 0, result.output
         assert "Rolled back" in result.output
+
+
+class TestReport:
+    """Tests for the 'vibe report' command."""
+
+    def test_report_generates_output(self, tmp_path: Path) -> None:
+        """Test that 'vibe report' generates markdown output."""
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+        result = _invoke(runner, ["--root", str(tmp_path), "report"])
+        assert result.exit_code == 0, result.output
+        assert "Weekly Report" in result.output
+        assert "TestPaper" in result.output
+
+    def test_report_with_since(self, tmp_path: Path) -> None:
+        """Test report with --since flag."""
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+        result = _invoke(
+            runner, ["--root", str(tmp_path), "report", "--since", "2020-01-01"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "since 2020-01-01" in result.output
+
+    def test_report_output_to_file(self, tmp_path: Path) -> None:
+        """Test report with --output flag writes to file."""
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+        out_file = str(tmp_path / "report.md")
+        result = _invoke(
+            runner, ["--root", str(tmp_path), "report", "--output", out_file]
+        )
+        assert result.exit_code == 0, result.output
+        assert Path(out_file).exists()
+        content = Path(out_file).read_text(encoding="utf-8")
+        assert "Weekly Report" in content
+
+
+class TestDiff:
+    """Tests for the 'vibe diff' command."""
+
+    def test_diff_no_git_repo(self, tmp_path: Path) -> None:
+        """Test diff command when no git repo exists."""
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+        result = runner.invoke(
+            main,
+            ["--root", str(tmp_path), "diff", "storyline", "literature"],
+            catch_exceptions=True,
+        )
+        # Should handle gracefully (error or message)
+        assert (
+            result.exit_code != 0
+            or "Error" in result.output
+            or "No diff" in result.output
+        )
