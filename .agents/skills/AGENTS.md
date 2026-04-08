@@ -23,6 +23,7 @@ Skills prioritize structural adherence to `writingrules.md` and `paper.md` templ
 - `markdown-review`: Quality assurance check for novelty, importance, and correctness.
 - `markdown2latex`: High-quality export from `paper.md` to conference-ready LaTeX.
 - `relatedwork-finder`: Automated literature search and BibTeX/summary generation.
+- `storyline-helper`: Interactive, section-by-section guidance for constructing and refining the research storyline in `storyline.md`.
 
 ## CONVENTIONS
 ###### Requirements for skill definition and activation
