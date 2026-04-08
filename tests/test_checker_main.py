@@ -16,7 +16,7 @@ class TestCheckerIntegration:
 
     def test_format_checker_results_callable(self) -> None:
         result = format_checker_results({})
-        assert result is None
+        assert isinstance(result, str)
 
 
 class TestMainEntryPoint:
