@@ -85,7 +85,19 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 - After the task completes, present the summary status and ask for confirmation before moving to the next paper.
 - Repeat this sequential process for all downloaded PDFs.
 
-### Step 6: Write Final Summary Document
+### Step 6: Build Cross-Index [WAIT FOR CONFIRMATION]
+- After all paper summaries are complete, build the cross-reference index.
+- Run `vibepaper/crossindex.py`'s `CrossIndex.build_from_papers()` to scan all `relatedwork/papers/*.md` summaries.
+- For more accurate tech point extraction, spawn a `task` agent to analyze each paper summary and extract key technical concepts.
+- Save the index to `.agents/cross_index.json`.
+- Generate a coverage report by comparing against `storyline.md`.
+- **ACTION**: Present the coverage report to the user, showing:
+  - Covered technical points (with paper references)
+  - Gap areas (technical points in storyline with no literature coverage)
+  - Overall coverage ratio
+- **STOP**: Ask "Here is the literature coverage report. Would you like to search for more papers to fill the gaps?"
+
+### Step 7: Write Final Summary Document
 - Write `relatedwork/summary.md` categorizing the literature.
 - Respond with "Found X related work papers in the relatedwork folder."
 - Remove `relatedwork/search_cache.json` after final completion.
