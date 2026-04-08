@@ -1,6 +1,6 @@
 ---
 name: markdown2latex
-description: Converts markdown academic paper content to high-quality LaTeX format suitable for top-tier conferences and journals. Use this skill when the user wants to generate LaTeX from paper.md.
+description: Converts markdown academic paper content to high-quality LaTeX format suitable for top-tier conferences and journals. Supports user-provided conference templates for format adaptation. Use this skill when the user wants to generate LaTeX from paper.md.
 ---
 
 # Markdown to LaTeX Conversion Skill
@@ -68,6 +68,57 @@ Your task is to write a full, high-quality academic paper section in English tar
   - If the markdown suggests a figure or table, create a placeholder LaTeX environment.
 - **Output**: Output ONLY valid LaTeX code. No surrounding markdown code blocks.
 
+
+## Conference Template Adaptation
+
+This skill supports user-provided LaTeX templates for specific conferences or journals.
+
+### Template Workflow
+
+Before converting, check if a template is configured:
+
+1. **Check Template Configuration**: Read `.agents/state.json` and look for `"latex_template"` field.
+   - If present, read the template file at the specified path.
+   - If absent, ask the user: *"Do you have a specific conference/journal LaTeX template? Please provide the file path, or I'll use a generic article format."*
+
+2. **Analyze Template Structure**: When a template is provided:
+   - Read the `.tex` file to identify:
+     - Document class and options (e.g., `\documentclass[sigconf]{acmart}`)
+     - Required packages
+     - Page limits or formatting constraints (from comments or class options)
+     - Section structure requirements (e.g., some templates require specific section names)
+     - Author/affiliation format
+     - Bibliography style
+   - Report findings to the user before proceeding.
+
+3. **Adapt Conversion**: During LaTeX generation:
+   - Use the template's `\documentclass` instead of generic `article`
+   - Follow the template's package requirements
+   - Adapt section naming if the template requires specific names
+   - Use the template's bibliography style (e.g., `\bibliographystyle{ACM-Reference-Format}`)
+   - Respect page limits by adjusting content density if needed
+
+4. **Record Template**: After successful configuration, update `.agents/state.json`:
+   ```json
+   {
+     "latex_template": "path/to/template.tex",
+     "target_venue": "ICSE 2026"
+   }
+   ```
+
+### Supported Template Formats
+
+| Format | Example |
+|--------|---------|
+| ACM (acmart) | ICSE, FSE, ASE |
+| IEEE (IEEEtran) | TSE, ICPC, SANER |
+| Springer (llncs) | LNCS series |
+| Custom | Any user-provided .tex template |
+
+### Important Notes
+- Templates are NOT built-in. The user must provide their own template file.
+- Templates are NOT auto-downloaded. The user places the file in their project.
+- The skill adapts to the template; it does not modify the template itself.
 
 ## Input Format
 
