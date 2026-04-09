@@ -6,3 +6,6 @@ relatedwork/
 fig/
 paper.md
 项目计划.md
+**/__pycache__
+.coverage
+AutoResearchClaw/

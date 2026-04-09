@@ -5,7 +5,7 @@
 <!-- description: Purpose of the skills directory and its role in VibePaper -->
 The `.agents/skills/` directory contains the reusable skill library shipped with VibePaper.
 Each skill is a self-contained module that extends the agent's capabilities for a specific academic task or workflow-management task.
-These skills are also bundled into `vibepaper/scaffold/skills/` so that `vibe init` can copy them into any new project directory.
+These skills are bundled into initialized projects by `vibe init`.
 
 ## STRUCTURE
 ###### Standardized skill module organization
@@ -38,7 +38,7 @@ These skills are also bundled into `vibepaper/scaffold/skills/` so that `vibe in
 - **Format Mapping**: Conversion skills must maintain semantic meaning across formats.
 - **Math Support**: Preserve `$...$` and `$$...$$` during all transformations.
 - **CLI Accuracy**: Any skill that instructs agents to use `vibe` must match the actual commands implemented in `vibepaper/cli.py`.
-- **Scaffold Sync**: New or changed skills must be mirrored into `vibepaper/scaffold/skills/`.
+- **Scaffold Sync**: New or changed skills must be mirrored into the packaged scaffold.
 
 ## ANTI-PATTERNS
 ###### Common mistakes in skill usage and development

@@ -11,6 +11,7 @@ import click
 import vibepaper
 from vibepaper.constants import PHASE_ORDER, PhaseStatus
 from vibepaper.eventlog import EventLogger
+from vibepaper.scaffold import scaffold_project
 from vibepaper.state import StateFileError, StateManager
 
 _STATUS_DISPLAY = {
@@ -56,12 +57,14 @@ def init(ctx: click.Context, name: str, domain: str) -> None:
             return
 
     sm.init_project(name, domain)
+    scaffold_project(root)
 
     log_path = str(sm.project_root / ".agents" / "events.jsonl")
     el = EventLogger(log_path)
     el.log("init_project", "user", "success", phase="storyline")
 
     click.echo(f"Project '{name}' ({domain}) initialised at {sm._state_file}")
+    click.echo("Scaffolded: .agents/skills/, storyline.md, writingrules.md, AGENTS.md")
 
 
 @main.command()
@@ -176,9 +179,13 @@ def rollback(ctx, phase, yes):
         sys.exit(1)
 
     try:
+        state = sm.load()
+    except StateFileError:
+        state = None
+
+    if state is not None and phase in state.get("phases", {}):
         sm.rollback_phase(phase)
-    except Exception:
-        pass
+        sm.save()
 
     click.echo(f"Rolled back to [{phase}] at {sha[:8]}")
 

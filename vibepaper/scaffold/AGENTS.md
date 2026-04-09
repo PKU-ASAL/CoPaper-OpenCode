@@ -11,23 +11,21 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 ###### Runtime package, scaffold bundle, and skill assets
 <!-- description: File organization and structural rules -->
 - `vibepaper/`: Python package implementing CLI, state management, event logs, git integration, reports, and scaffold copy logic.
-- `vibepaper/scaffold/`: Bundled package data copied into new projects by `vibe init`.
-- `.agents/skills/`: Source skill library tracked in this repository.
-- `storyline.md`: Research storyline starter template copied into new projects.
+- `.agents/skills/`: Skill library available inside the initialized project.
+- `storyline.md`: Research storyline starter template copied by `vibe init`.
 - `writingrules.md`: Definitive guide for structural and content constraints.
 - `templates/`: Template guidance and LaTeX template drop-in directory.
-- `tests/`: Automated verification for CLI, scaffold, git, reports, and checker integration.
+- `.agents/state.json` and `.agents/events.jsonl`: Shared workflow state and append-only event log.
 
 ## WHERE TO LOOK
-###### Key implementation entry points
+###### Key workflow files inside an initialized project
 <!-- description: Critical paths for development and usage -->
-- `vibepaper/cli.py`: Click entry point for `vibe` and `python -m vibepaper`.
-- `vibepaper/scaffold.py`: Copies bundled skills and starter files into new project roots.
-- `vibepaper/state.py`: Reads and writes `.agents/state.json`.
-- `vibepaper/eventlog.py`: Appends and queries `.agents/events.jsonl`.
-- `vibepaper/git_ops.py`: Phase-aware commit and rollback helpers.
-- `.agents/skills/vibepaper-manage/`: Guidance for automating project management through the `vibe` CLI.
-- `tests/test_cli.py` and `tests/test_scaffold.py`: Fastest way to verify workflow behavior.
+- `.agents/skills/vibepaper-manage/`: CLI automation guidance for agents managing the project lifecycle.
+- `.agents/skills/storyline-helper/`: Interactive storyline refinement.
+- `.agents/skills/writing-orchestrator/`: Writing progress scan and routing.
+- `.agents/state.json`: Phase status, git identity, and checker summary.
+- `.agents/events.jsonl`: Operational event history.
+- `storyline.md` and `paper.md`: Human-authored core content.
 
 ## CONVENTIONS
 ###### CLI and document handling rules
@@ -51,7 +49,6 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - Do not place `--root` after subcommands such as `init` or `status`.
 - Do not assume `commit`, `rollback`, or `diff` work outside a Git repository.
 - Do not assume `report` requires Git; it runs without Git and reports the missing repository in the output.
-- Do not hand-edit scaffolded skills when the same change must also exist in `vibepaper/scaffold/`.
 
 ## COMMANDS
 ###### Current CLI behaviors agents should rely on
@@ -69,5 +66,4 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - LaTeX support: Use `$...$` for inline and `$$...$$` for block formulas.
 - Node expansion: Nodes ending in numbers (e.g., "Challenge 1") can be duplicated.
 - Image handling: JPG/PNG/GIF supported, max 5MB, stored in `fig/`.
-- `vibe init` is intentionally non-destructive for existing `storyline.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories in the target project.
-- The packaged scaffold lives in `vibepaper/scaffold/` and must stay synchronized with the source assets in this repository.
+- `vibe init` is intentionally non-destructive for existing `storyline.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories.

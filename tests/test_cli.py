@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 
 from vibepaper.cli import main
 
 
-def _invoke(runner: CliRunner, args: list[str]) -> object:
+def _invoke(runner: CliRunner, args: list[str]) -> Result:
     """Invoke CLI with catch_exceptions=False for clearer tracebacks."""
     return runner.invoke(main, args, catch_exceptions=False)
 
@@ -34,10 +34,30 @@ class TestInit:
         assert state["project"]["name"] == "TestPaper"
         assert state["project"]["domain"] == "SE"
 
+    def test_init_scaffolds_skills_and_storyline(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Scaffolded" in result.output
+
+        skills_dir = tmp_path / ".agents" / "skills"
+        assert skills_dir.is_dir()
+        assert (skills_dir / "AGENTS.md").exists()
+        assert (skills_dir / "storyline-helper").is_dir()
+        assert (skills_dir / "markdown-helper").is_dir()
+        assert (skills_dir / "vibepaper-manage").is_dir()
+
+        assert (tmp_path / "storyline.md").exists()
+        assert (tmp_path / "writingrules.md").exists()
+        assert (tmp_path / "AGENTS.md").exists()
+
     def test_init_existing_project_warns(self, tmp_path: Path) -> None:
         runner = CliRunner()
         # First init succeeds
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "A", "--domain", "B"]
         )
         # Second init — decline confirmation
@@ -52,7 +72,7 @@ class TestInit:
 
     def test_init_creates_event_log(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "X", "--domain", "Y"]
         )
 
@@ -70,7 +90,7 @@ class TestStatus:
 
     def test_status_shows_phases(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
         )
 
@@ -92,7 +112,7 @@ class TestStatus:
 
     def test_status_json_output(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "J", "--domain", "SE"]
         )
 
@@ -120,7 +140,7 @@ class TestSkip:
 
     def test_skip_phase_updates_state(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
         )
         result = _invoke(
@@ -148,7 +168,7 @@ class TestLog:
 
     def test_log_shows_entries(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
         )
         result = _invoke(runner, ["--root", str(tmp_path), "log", "--last", "5"])
@@ -177,7 +197,7 @@ class TestCommit:
         repo.index.commit("Initial commit")
 
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
         )
 
@@ -214,7 +234,7 @@ class TestRollback:
         repo.index.commit("Initial commit")
 
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
         )
 
@@ -230,6 +250,44 @@ class TestRollback:
         assert result.exit_code == 0, result.output
         assert "Rolled back" in result.output
 
+    def test_rollback_resets_phase_state(self, tmp_path: Path) -> None:
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        repo.config_writer().set_value("user", "name", "Test").release()
+        repo.config_writer().set_value("user", "email", "t@t.com").release()
+        _ = (tmp_path / "README.md").write_text("# Test", encoding="utf-8")
+        repo.index.add(["README.md"])
+        repo.index.commit("Initial commit")
+
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        state_path = tmp_path / ".agents" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["phases"]["storyline"]["status"] = "complete"
+        state["phases"]["storyline"]["completed_at"] = "2026-04-09T00:00:00+00:00"
+        state_path.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        _ = (tmp_path / "draft.md").write_text("Draft v1", encoding="utf-8")
+        _ = _invoke(
+            runner,
+            ["--root", str(tmp_path), "commit", "-m", "v1", "--phase", "storyline"],
+        )
+
+        result = _invoke(
+            runner, ["--root", str(tmp_path), "rollback", "storyline", "-y"]
+        )
+        assert result.exit_code == 0, result.output
+
+        updated = json.loads(state_path.read_text(encoding="utf-8"))
+        assert updated["phases"]["storyline"]["status"] == "not_started"
+        assert updated["phases"]["storyline"].get("completed_at") is None
+
 
 class TestReport:
     """Tests for the 'vibe report' command."""
@@ -237,7 +295,7 @@ class TestReport:
     def test_report_generates_output(self, tmp_path: Path) -> None:
         """Test that 'vibe report' generates markdown output."""
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner,
             ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
         )
@@ -249,7 +307,7 @@ class TestReport:
     def test_report_with_since(self, tmp_path: Path) -> None:
         """Test report with --since flag."""
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner,
             ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
         )
@@ -262,7 +320,7 @@ class TestReport:
     def test_report_output_to_file(self, tmp_path: Path) -> None:
         """Test report with --output flag writes to file."""
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner,
             ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
         )
@@ -282,7 +340,7 @@ class TestDiff:
     def test_diff_no_git_repo(self, tmp_path: Path) -> None:
         """Test diff command when no git repo exists."""
         runner = CliRunner()
-        _invoke(
+        _ = _invoke(
             runner,
             ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
         )
