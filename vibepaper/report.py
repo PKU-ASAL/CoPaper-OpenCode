@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from vibepaper.constants import PHASE_ORDER
 from vibepaper.eventlog import EventLogger
@@ -28,6 +29,9 @@ def generate_weekly_report(
     """
     sm = StateManager(repo_path)
     state = sm.load()
+    sm.recompute_current_phase()
+    sm.save()
+    state = sm._state
 
     log_path = str(sm.project_root / ".agents" / "events.jsonl")
     el = EventLogger(log_path)
@@ -37,6 +41,7 @@ def generate_weekly_report(
     lines.append(f"# Weekly Report — {state['project']['name']}")
     lines.append("")
     lines.append(f"Generated: {datetime.now().isoformat()[:19]}")
+    lines.append(f"Current Phase: {state['current_phase']}")
     if since_date:
         lines.append(f"Period: since {since_date}")
     lines.append("")
@@ -55,7 +60,7 @@ def generate_weekly_report(
     lines.append("")
     try:
         gm = GitManager(repo_path)
-        commits_by_author: dict[str, list[dict]] = {}
+        commits_by_author: dict[str, list[dict[str, Any]]] = {}
         for phase in PHASE_ORDER:
             for c in gm.get_phase_commits(phase.value):
                 # Filter by since_date if provided

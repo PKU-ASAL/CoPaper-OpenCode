@@ -1,6 +1,6 @@
 ---
 name: storyline-helper
-description: Guides users through constructing and refining their research storyline in storyline.md. Interactive, section-by-section workflow that polishes user input without auto-generating content. Triggers on "help me write storyline", "帮我写 storyline", "构建研究主线".
+description: Guides users through constructing and refining their research storyline in storyline.md. It can also reverse-extract storyline structure from an existing paper.md. Interactive, section-by-section workflow that polishes user input without inventing content. Triggers on "help me write storyline", "帮我写 storyline", "构建研究主线".
 ---
 
 # Storyline Helper Skill
@@ -12,6 +12,7 @@ This skill guides users through constructing their research storyline in `storyl
 - User requests to help write storyline (e.g., "help me write storyline", "帮我写 storyline", "构建研究主线")
 - User wants to systematically fill in their storyline section by section
 - User wants to refine or improve existing storyline content
+- User already has `paper.md` and wants to reverse-extract or backfill `storyline.md`
 
 ## Storyline Structure Overview
 
@@ -54,7 +55,28 @@ A section is considered **filled** if it contains substantive content beyond TOD
 This skill updates `.agents/state.json` to track progress:
 - When the first section is filled: set `phases.storyline.status` to `"in_progress"`
 - When all sections are filled: set `phases.storyline.status` to `"complete"`
-- Use `StateManager.set_phase_status("storyline", status)` via the Python CLI, or directly update the JSON file
+- There is currently no dedicated `vibe` CLI command for these storyline progress transitions; in automation, use `StateManager.set_phase_status("storyline", status)` directly and preserve the rest of the state structure.
+
+## Reverse Extraction Mode (`paper.md` → `storyline.md`)
+
+This skill also supports a reverse path when the user already has substantial `paper.md` content but wants to reconstruct or refine `storyline.md`.
+
+Use this mode when:
+
+- `storyline.md` is sparse but `paper.md` already contains concrete claims, motivation, method, or evaluation planning
+- the user explicitly asks to derive storyline from paper
+- the user wants to compare the current paper draft against the original storyline and backfill missing storyline sections
+
+Reverse extraction rules:
+
+1. Read both `paper.md` and `storyline.md`.
+2. Select exactly one storyline section at a time.
+3. Extract only claims, evidence, constraints, or design points that already appear in `paper.md`.
+4. Rewrite the extracted content so it fits the selected storyline section's template and TODO slots.
+5. Preserve unresolved TODO placeholders for anything not supported by `paper.md`.
+6. Present the candidate storyline section to the user for confirmation before editing `storyline.md`.
+
+This is still a controlled polishing workflow, not autonomous content creation.
 
 ## Strict Step-by-Step Workflow
 
@@ -120,6 +142,7 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 - **NEVER** work on multiple sections at once. One section at a time.
 - **NEVER** remove or alter TODO placeholders that the user has not addressed. Only replace TODOs that correspond to the user's input.
 - **NEVER** add insights, data, or arguments that the user did not provide. The storyline must reflect the user's research, not AI fabrications.
+- **NEVER** invent storyline content that is not present in the user's input or the existing `paper.md` when using reverse extraction mode.
 
 ## Trigger Words
 

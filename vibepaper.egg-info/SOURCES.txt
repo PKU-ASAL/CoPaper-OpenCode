@@ -32,6 +32,7 @@ vibepaper.egg-info/entry_points.txt
 vibepaper.egg-info/requires.txt
 vibepaper.egg-info/top_level.txt
 vibepaper/scaffold/AGENTS.md
+vibepaper/scaffold/paper.md
 vibepaper/scaffold/storyline.md
 vibepaper/scaffold/writingrules.md
 vibepaper/scaffold/skills/AGENTS.md
@@ -56,4 +57,5 @@ vibepaper/scaffold/skills/socratic-discussion/SKILL.md
 vibepaper/scaffold/skills/storyline-helper/SKILL.md
 vibepaper/scaffold/skills/submission-precheck/SKILL.md
 vibepaper/scaffold/skills/technical-depth-checker/SKILL.md
+vibepaper/scaffold/skills/vibepaper-manage/SKILL.md
 vibepaper/scaffold/skills/writing-orchestrator/SKILL.md

@@ -1,7 +1,7 @@
 """Scaffold logic for `vibe init`.
 
-Copies bundled .agents/skills/ and storyline.md into a new project directory.
-The scaffold templates live under vibepaper/scaffold/ as package data.
+Copies bundled skills and starter documents into a new project directory.
+The scaffold templates live under ``vibepaper/scaffold/`` as package data.
 """
 
 from __future__ import annotations
@@ -66,6 +66,23 @@ def copy_storyline(project_root: str | Path) -> Path:
     return dst
 
 
+def copy_paper(project_root: str | Path) -> Path:
+    """Copy bundled ``paper.md`` into *project_root*.
+
+    If the file already exists it is **not** overwritten.
+
+    Returns:
+        The destination file path.
+    """
+    src = _scaffold_dir() / "paper.md"
+    dst = Path(project_root) / "paper.md"
+
+    if not dst.exists() and src.exists():
+        shutil.copy2(str(src), str(dst))
+
+    return dst
+
+
 def copy_writingrules(project_root: str | Path) -> Path:
     """Copy bundled ``writingrules.md`` into *project_root*.
 
@@ -101,8 +118,9 @@ def copy_agents_md(project_root: str | Path) -> Path:
 
 
 def scaffold_project(project_root: str | Path) -> None:
-    """Run the full scaffold: skills, storyline, writingrules, AGENTS.md."""
+    """Run the full scaffold: skills and starter markdown files."""
     copy_skills(project_root)
     copy_storyline(project_root)
+    copy_paper(project_root)
     copy_writingrules(project_root)
     copy_agents_md(project_root)

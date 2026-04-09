@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
 import vibepaper
 from vibepaper.constants import PHASE_ORDER, PhaseStatus
 from vibepaper.eventlog import EventLogger
+from vibepaper.literature import LiteratureCatalog, LiteratureCatalogError
 from vibepaper.scaffold import scaffold_project
 from vibepaper.state import StateFileError, StateManager
 
@@ -20,6 +22,51 @@ _STATUS_DISPLAY = {
     PhaseStatus.SKIPPED: "[skip]",
     PhaseStatus.NOT_STARTED: "[    ]",
 }
+
+
+def _load_state_manager_or_exit(root: str) -> StateManager:
+    sm = StateManager(root)
+    try:
+        sm.load()
+    except StateFileError:
+        click.echo("Error: No project found. Run 'vibe init' first.", err=True)
+        sys.exit(1)
+    return sm
+
+
+def _sync_literature_phase_state(
+    sm: StateManager, catalog: LiteratureCatalog
+) -> dict[str, Any]:
+    summary = catalog.get_status_summary()
+    phase_data = sm._state["phases"]["literature"]
+    counts = summary["counts"]
+
+    phase_data["catalog_path"] = summary["catalog_path"]
+    phase_data["papers_found"] = counts["papers_found"]
+    phase_data["papers_downloaded"] = counts["papers_downloaded"]
+    phase_data["download_failures"] = counts["download_failures"]
+    phase_data["summaries_done"] = counts["summaries_done"]
+    phase_data["cross_index_built"] = counts["cross_index_built"]
+
+    if phase_data["status"] == PhaseStatus.NOT_STARTED and counts["papers_found"] > 0:
+        phase_data["status"] = PhaseStatus.IN_PROGRESS.value
+
+    sm.recompute_current_phase()
+    sm.save()
+    return summary
+
+
+def _load_relatedwork_records(input_path: Path) -> list[dict[str, Any]]:
+    payload = json.loads(input_path.read_text(encoding="utf-8"))
+    if isinstance(payload, list):
+        return [record for record in payload if isinstance(record, dict)]
+    if isinstance(payload, dict):
+        papers = payload.get("papers")
+        if isinstance(papers, list):
+            return [record for record in papers if isinstance(record, dict)]
+    raise ValueError(
+        "Expected a JSON array of papers or an object with a 'papers' array."
+    )
 
 
 @click.group()
@@ -64,7 +111,9 @@ def init(ctx: click.Context, name: str, domain: str) -> None:
     el.log("init_project", "user", "success", phase="storyline")
 
     click.echo(f"Project '{name}' ({domain}) initialised at {sm._state_file}")
-    click.echo("Scaffolded: .agents/skills/, storyline.md, writingrules.md, AGENTS.md")
+    click.echo(
+        "Scaffolded: .agents/skills/, storyline.md, paper.md, writingrules.md, AGENTS.md"
+    )
 
 
 @main.command()
@@ -77,6 +126,9 @@ def status(ctx: click.Context, as_json: bool) -> None:
 
     try:
         state = sm.load()
+        sm.recompute_current_phase()
+        sm.save()
+        state = sm._state
     except StateFileError as exc:
         click.echo(f"Error: {exc}", err=True)
         click.echo("No project found. Run 'vibe init' first.", err=True)
@@ -104,6 +156,317 @@ def status(ctx: click.Context, as_json: bool) -> None:
         click.echo(f"{phase_name:<20}{marker} {phase_status_str}")
 
 
+@main.group(name="relatedwork")
+@click.pass_context
+def relatedwork_group(ctx: click.Context) -> None:
+    """Manage related-work metadata, BibTeX, PDFs, and indices."""
+
+
+@relatedwork_group.command(name="status")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
+    """Show related-work catalog status."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    if as_json:
+        click.echo(json.dumps(summary, indent=2, ensure_ascii=False))
+        return
+
+    counts = summary["counts"]
+    click.echo(f"Catalog: {summary['catalog_path']}")
+    click.echo(f"BibTeX: {summary['bib_path']}")
+    click.echo(
+        "Papers: "
+        f"{counts['papers_found']} total, "
+        f"{counts['papers_downloaded']} downloaded, "
+        f"{counts['download_failures']} failed, "
+        f"{counts['summaries_done']} summarized"
+    )
+
+    papers = summary["papers"]
+    if not papers:
+        click.echo("No related-work metadata recorded yet.")
+        return
+
+    click.echo()
+    click.echo(f"{'ID':<24}{'PDF':<12}{'Summary':<10}{'Year':<8}Title")
+    click.echo("-" * 90)
+    for paper in papers:
+        year = paper.get("year") or ""
+        title = str(paper.get("title") or "")
+        click.echo(
+            f"{paper['paper_id']:<24}"
+            f"{paper.get('download_status', ''):<12}"
+            f"{('yes' if paper.get('summary_exists') else 'no'):<10}"
+            f"{str(year):<8}"
+            f"{title}"
+        )
+
+
+@relatedwork_group.command(name="import")
+@click.option(
+    "--input",
+    "input_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="JSON file containing literature metadata.",
+)
+@click.pass_context
+def relatedwork_import(ctx: click.Context, input_path: Path) -> None:
+    """Import related-work metadata from a JSON file."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+
+    try:
+        records = _load_relatedwork_records(input_path)
+    except (ValueError, json.JSONDecodeError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    result = catalog.import_records(records)
+    catalog.save()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "import_relatedwork_metadata",
+        "user",
+        "success",
+        phase="literature",
+        imported=result["imported"],
+        updated=result["updated"],
+        input_path=str(input_path),
+        papers_found=summary["counts"]["papers_found"],
+    )
+
+    click.echo(
+        f"Imported related-work metadata from {input_path}. "
+        f"Added {result['imported']} papers and updated {result['updated']} papers."
+    )
+
+
+@relatedwork_group.command(name="sync-bib")
+@click.pass_context
+def relatedwork_sync_bib(ctx: click.Context) -> None:
+    """Synchronize literature metadata with relatedwork/paper_list.bib."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    result = catalog.sync_bib()
+    catalog.save()
+    _ = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "sync_relatedwork_bib",
+        "user",
+        "success",
+        phase="literature",
+        added_from_bib=result["added_from_bib"],
+        written_to_bib=result["written_to_bib"],
+        total_entries=result["total_entries"],
+    )
+
+    click.echo(
+        "Synchronized relatedwork/paper_list.bib with literature metadata. "
+        f"Added {result['added_from_bib']} metadata entries from BibTeX and wrote {result['written_to_bib']} BibTeX entries."
+    )
+
+
+@relatedwork_group.command(name="download")
+@click.option("--paper-id", default=None, help="Download only one paper by ID")
+@click.option(
+    "--retry-failed",
+    is_flag=True,
+    help="Retry papers whose previous downloads failed",
+)
+@click.pass_context
+def relatedwork_download_cmd(
+    ctx: click.Context,
+    paper_id: str | None,
+    retry_failed: bool,
+) -> None:
+    """Download related-work PDFs recorded in literature metadata."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.relatedwork_download import download_papers
+
+    outcome = download_papers(root, paper_id=paper_id, retry_failed=retry_failed)
+
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    _ = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "download_relatedwork_pdfs",
+        "user",
+        "success",
+        phase="literature",
+        processed=outcome["processed"],
+        downloaded=outcome["downloaded"],
+        failed=outcome["failed"],
+        paper_id=paper_id,
+    )
+
+    for result in outcome["results"]:
+        if result["success"]:
+            click.echo(f"[downloaded] {result['paper_id']} -> {result['path']}")
+        else:
+            click.echo(f"[failed] {result['paper_id']} -> {result['error']}")
+
+    click.echo(
+        f"Processed {outcome['processed']} papers: "
+        f"{outcome['downloaded']} downloaded, {outcome['failed']} failed."
+    )
+
+
+@relatedwork_group.command(name="register-summary")
+@click.option("--paper-id", required=True, help="Paper ID in literature metadata")
+@click.option(
+    "--summary-path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Markdown summary path to register",
+)
+@click.pass_context
+def relatedwork_register_summary(
+    ctx: click.Context,
+    paper_id: str,
+    summary_path: Path,
+) -> None:
+    """Register a completed paper summary in literature metadata."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+
+    try:
+        catalog.register_summary(paper_id, summary_path)
+    except LiteratureCatalogError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    catalog.save()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "register_relatedwork_summary",
+        "user",
+        "success",
+        phase="literature",
+        paper_id=paper_id,
+        summary_path=str(summary_path),
+        summaries_done=summary["counts"]["summaries_done"],
+    )
+
+    click.echo(f"Registered summary for '{paper_id}' at {summary_path}.")
+
+
+@relatedwork_group.command(name="build-index")
+@click.pass_context
+def relatedwork_build_index(ctx: click.Context) -> None:
+    """Build the literature cross-index from relatedwork/papers/*.md."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    report = catalog.build_cross_index()
+    catalog.save()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "build_relatedwork_index",
+        "user",
+        "success",
+        phase="literature",
+        covered=len(report["covered"]),
+        gaps=len(report["gaps"]),
+        coverage_ratio=report["coverage_ratio"],
+    )
+
+    click.echo("Built .agents/cross_index.json from relatedwork/papers/*.md.")
+    click.echo(
+        "Coverage: "
+        f"{len(report['covered'])} covered, "
+        f"{len(report['gaps'])} gaps, ratio={report['coverage_ratio']}"
+    )
+    click.echo(
+        f"State updated: {summary['counts']['summaries_done']} summaries, "
+        f"cross_index_built={summary['counts']['cross_index_built']}"
+    )
+
+
+@main.command(name="set-phase")
+@click.argument(
+    "phase",
+    type=click.Choice([phase.value for phase in PHASE_ORDER], case_sensitive=False),
+)
+@click.option(
+    "--status",
+    "new_status",
+    required=True,
+    type=click.Choice([status.value for status in PhaseStatus], case_sensitive=False),
+    help="New phase status.",
+)
+@click.option("--reason", "reason", default="", help="Reason when using skipped status")
+@click.pass_context
+def set_phase_cmd(ctx: click.Context, phase: str, new_status: str, reason: str) -> None:
+    """Set an explicit phase status and recompute current phase."""
+    root = ctx.obj["root"]
+    sm = StateManager(root)
+
+    try:
+        sm.load()
+    except StateFileError:
+        click.echo("Error: No project found. Run 'vibe init' first.", err=True)
+        sys.exit(1)
+
+    if new_status in (PhaseStatus.IN_PROGRESS, PhaseStatus.COMPLETE):
+        unmet = sm.check_dependencies(phase)
+        if unmet:
+            click.echo(
+                f"Warning: recommended dependencies for '{phase}' are not yet complete/skipped: {', '.join(unmet)}"
+            )
+
+    metadata: dict[str, str] = {}
+    if new_status == PhaseStatus.SKIPPED:
+        metadata["skip_reason"] = reason
+
+    sm.set_phase_status(phase, new_status, **metadata)
+    sm.save()
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "set_phase_status",
+        "user",
+        "success",
+        phase=phase,
+        status=new_status,
+        reason=reason,
+    )
+
+    click.echo(f"Phase '{phase}' set to {new_status}.")
+    click.echo(f"Current phase is now '{sm.get_current_phase()}'.")
+
+
 @main.command()
 @click.option(
     "--phase", default=None, help="Phase name (auto-detected from state if omitted)"
@@ -118,8 +481,10 @@ def commit(ctx, phase, message, force):
 
     if phase is None:
         try:
-            state = sm.load()
-            phase = state["current_phase"]
+            sm.load()
+            sm.recompute_current_phase()
+            sm.save()
+            phase = sm.get_current_phase()
         except StateFileError:
             click.echo("Error: No project found. Run 'vibe init' first.", err=True)
             sys.exit(1)
@@ -144,7 +509,10 @@ def commit(ctx, phase, message, force):
 
 
 @main.command()
-@click.argument("phase")
+@click.argument(
+    "phase",
+    type=click.Choice([phase.value for phase in PHASE_ORDER], case_sensitive=False),
+)
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 @click.pass_context
 def rollback(ctx, phase, yes):
@@ -223,7 +591,10 @@ def log_cmd(ctx, phase, operator, last_n, since):
 
 
 @main.command()
-@click.argument("phase")
+@click.argument(
+    "phase",
+    type=click.Choice([phase.value for phase in PHASE_ORDER], case_sensitive=False),
+)
 @click.option("--reason", "-r", default="", help="Reason for skipping")
 @click.pass_context
 def skip(ctx, phase, reason):
@@ -245,6 +616,7 @@ def skip(ctx, phase, reason):
     el.log("skip_phase", "user", "success", phase=phase, reason=reason)
 
     click.echo(f"Phase '{phase}' skipped.")
+    click.echo(f"Current phase is now '{sm.get_current_phase()}'.")
     if reason:
         click.echo(f"Reason: {reason}")
 

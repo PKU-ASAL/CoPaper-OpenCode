@@ -22,8 +22,8 @@ Requires-Dist: pytest-cov>=4.0; extra == "dev"
 VibePaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成：
 
 1. **Python 包 (`vibepaper/`)**：提供六阶段流水线的状态管理、事件日志、Git 操作、周报生成和 7-checker 集成。
-2. **Agent Skills (`.agents/skills/`)**：21 个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换的完整写作流程。
-3. **CLI (`vibe` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、阶段跳过、Git 提交/回滚、周报和差异对比。
+2. **Agent Skills (`.agents/skills/`)**：22 个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换的完整写作流程。
+3. **CLI (`vibe` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、显式阶段状态更新、阶段跳过、Git 提交/回滚、周报和差异对比。
 
 核心理念：**结构与模板优先，AI 辅助优化**。AI 基于你提供的 Insight 和实验数据组织语言、优化文字，而非自由发挥。
 
@@ -41,7 +41,7 @@ VibePaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成
 ### 前置条件
 
 - **Python ≥ 3.10**
-- **Git**（`commit`、`rollback`、`report`、`diff` 命令依赖 Git 仓库）
+- **Git**（`commit`、`rollback`、`diff` 命令依赖 Git 仓库；`report` 可在非 Git 仓库运行，但不会包含 Git 提交摘要）
 - 推荐使用 VSCode + OpenCode/Oh-My-OpenCode (Sisyphus 代理模式) 作为运行环境
 - 推荐为 subagent 配置支持多模态输入且上下文窗口长的模型（如 `google/gemini-3.1-pro-preview`）
 
@@ -81,6 +81,7 @@ VibePaper-Skill/
 │   ├── __init__.py             # 版本号与公共 API
 │   ├── __main__.py             # python -m vibepaper 入口
 │   ├── cli.py                  # Click CLI 命令定义
+│   ├── scaffold/               # `vibe init` 复制到新项目的脚手架资源
 │   ├── constants.py            # 六阶段定义、状态枚举、依赖图
 │   ├── schema.py               # state.json 的 schema 与默认值
 │   ├── state.py                # StateManager：读写 state.json
@@ -92,7 +93,7 @@ VibePaper-Skill/
 │   ├── dimensions.py           # 讨论维度定义
 │   └── identity.py             # Git 身份管理
 ├── .agents/
-│   ├── skills/                 # 21 个 Agent Skills 目录
+│   ├── skills/                 # 22 个 Agent Skills 目录
 │   │   ├── storyline-helper/   # 研究主线构建
 │   │   ├── relatedwork-finder/  # 文献检索与阅读
 │   │   ├── socratic-discussion/ # 苏格拉底式讨论
@@ -113,7 +114,8 @@ VibePaper-Skill/
 │   │   ├── data-checker/        # 数据真实性检查
 │   │   ├── bogus-data-helper/   # 占位数据生成
 │   │   ├── human-comment-helper/ # 人工评审注释
-│   │   └── mad-writer/          # 自动写作循环
+│   │   ├── mad-writer/          # 自动写作循环
+│   │   └── vibepaper-manage/    # CLI 工作流管理
 │   ├── state.json              # 项目状态文件（init 后生成）
 │   └── events.jsonl            # 事件日志（追加式 JSON Lines）
 ├── relatedwork/                # 文献存储目录
@@ -133,27 +135,52 @@ VibePaper-Skill/
 │   ├── conftest.py             # 测试 fixtures
 │   └── acceptance_checklist.md # 手动验收清单
 ├── pyproject.toml              # 包配置
+├── workflow-dataflow.md         # storyline.md / paper.md / skills 数据流分析
 ├── writingrules.md              # 写作规范
-├── paper.md                     # 论文主文档（用户创建）
-└── storyline.md                 # 研究主线文档（用户创建）
+├── paper.md                     # 论文主文档模板（`vibe init` 会复制）
+└── storyline.md                 # 研究主线模板（`vibe init` 会复制）
 ```
 
 ## 六阶段流水线
 
 VibePaper 定义了六个写作阶段，按顺序推进：
 
-| 阶段 | 名称 | 说明 | 依赖 | 可否跳过 |
-|------|------|------|------|----------|
-| 1 | `storyline` | 定义研究主线与核心 Insight | 无 | 否 |
+| 阶段 | 名称 | 说明 | 推荐前置 | 工具层面可跳过 |
+|------|------|------|----------|----------------|
+| 1 | `storyline` | 定义研究主线与核心 Insight | 无 | 是 |
 | 2 | `literature` | 检索、阅读、交叉索引相关文献 | storyline | 是 |
 | 3 | `discussion` | 多轮苏格拉底式讨论，精炼论证 | storyline, literature | 是 |
 | 4 | `experiments` | 运行实验或跳过并说明理由 | discussion | 是 |
-| 5 | `writing` | 逐节撰写 paper.md | discussion | 否 |
+| 5 | `writing` | 逐节撰写 paper.md | discussion | 是 |
 | 6 | `latex_review` | 转换为 LaTeX 并审查 | writing | 是 |
 
-**依赖关系**：每个阶段依赖其前置阶段完成（complete 或 skipped）。例如 `discussion` 依赖 `storyline` 和 `literature` 都完成或跳过。
+**依赖关系**：`vibepaper/constants.py` 中的 `PHASE_DEPENDENCIES` 定义的是**推荐正向推进顺序**，用于状态检查与默认流程编排；它不是对内容工作的硬禁止。实际技能层面允许重入、补跑与部分逆向工作流。
 
-**跳过规则**：CLI 当前允许对任意有效阶段名执行 `vibe skip <phase>`；`--reason` 是**可选**参数，但强烈建议填写，便于后续追踪。实践上最常跳过的是 `experiments`，而 `storyline` / `writing` 虽然工具层面可跳过，但通常不建议在真实论文流程中这样做。
+**当前阶段语义**：`current_phase` 不再只是初始化时的默认值。CLI 现在会根据真实 phase 状态自动重算它：优先选择 `in_progress` 的 phase；如果没有，则选择第一个既不是 `complete` 也不是 `skipped` 的 phase。
+
+**跳过规则**：CLI 当前允许对任意有效阶段名执行 `vibe skip <phase>`；`--reason` 是**可选**参数，但强烈建议填写，便于后续追踪。实践上最常跳过的是 `experiments`，但其它阶段在工具层面也都可以跳过、回退后重做或在必要时补做。
+
+## 文档与 Skill 数据流
+
+VibePaper 的核心不是“阶段本身”，而是几个关键工件之间的数据流：`storyline.md`、`paper.md`、`relatedwork/`、`.agents/state.json`。
+
+推荐正向路径是：
+
+1. `storyline.md`：先明确问题、insight、设计与评测思路
+2. `relatedwork/`：根据 storyline 或 paper 补齐相关工作
+3. `paper.md`：把 narrative 转换为正式论文框架与段落
+4. `checkers` / `review-revise`：围绕 `paper.md` 做质量闭环
+5. `latex`：从 `paper.md` 导出投稿格式
+
+但当前实现已经支持若干“非单向”路径：
+
+- `relatedwork-finder` 以 `storyline.md` 为主输入，但缺失时会回退到 `paper.md`
+- `storyline-helper` 可以把已有 `paper.md` 中已经写出的内容反向提炼回 `storyline.md`
+- `socratic-discussion`、`experiment-analyzer`、`review-revise` 会同时读取 `storyline.md` 与 `paper.md`
+- `latex2markdown` 可以把已有 LaTeX 导入到 `paper.md`
+- 多数 skill 都可以重复执行，而不是“一次性过阶段”
+
+更详细的输入/输出矩阵、可跳过/可重入语义，以及当前结构缺陷分析见 `workflow-dataflow.md`。
 
 ## CLI 快速上手
 
@@ -185,7 +212,7 @@ vibe init --name "My Paper" --domain "software engineering"
 vibe --root /path/to/project init --name "My Paper" --domain SE
 ```
 
-创建 `.agents/` 目录、`state.json` 和 `events.jsonl`。如果 `state.json` 已存在，会提示确认是否重新初始化。
+创建 `.agents/` 目录、`state.json`、`events.jsonl`，并复制 `.agents/skills/`、`storyline.md`、`paper.md`、`writingrules.md`、`AGENTS.md`。如果 `state.json` 已存在，会提示确认是否重新初始化。
 
 #### `vibe status` — 查看项目状态
 
@@ -205,7 +232,7 @@ Current Phase: storyline
 
 Phase               Status
 ----------------------------
-storyline           [>>] in_progress
+storyline           [    ] not_started
 literature          [    ] not_started
 discussion          [    ] not_started
 experiments         [    ] not_started
@@ -224,6 +251,23 @@ vibe skip experiments
 ```
 
 **注意**：`skip` 的参数是阶段名称（如 `experiments`），不是阶段字母（如 `D`）。有效名称为：`storyline`、`literature`、`discussion`、`experiments`、`writing`、`latex_review`。
+
+#### `vibe set-phase` — 显式设置阶段状态
+
+```bash
+# 将 storyline 标为完成，并自动推进 current_phase
+vibe set-phase storyline --status complete
+
+# 将 discussion 标为进行中；如果推荐前置阶段未完成，会给出 warning 但不会硬阻止
+vibe set-phase discussion --status in_progress
+
+# 将 experiments 标为 skipped
+vibe set-phase experiments --status skipped --reason "纯理论论文"
+```
+
+支持的状态值：`not_started`、`in_progress`、`complete`、`skipped`。
+
+这个命令适合 agent/脚本在不手改 `.agents/state.json` 的前提下，显式推进或回退工作流状态。
 
 #### `vibe log` — 查询操作日志
 

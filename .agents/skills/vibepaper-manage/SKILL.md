@@ -49,12 +49,19 @@ The currently supported commands are:
 
 - `init`
 - `status`
+- `set-phase`
 - `commit`
 - `rollback`
 - `log`
 - `skip`
 - `report`
 - `diff`
+- `relatedwork status`
+- `relatedwork import`
+- `relatedwork sync-bib`
+- `relatedwork download`
+- `relatedwork register-summary`
+- `relatedwork build-index`
 
 Use `python -m vibepaper ...` only when `vibe` is not available on PATH.
 
@@ -116,13 +123,14 @@ This creates:
 - `.agents/events.jsonl`
 - `.agents/skills/` with the bundled skills
 - `storyline.md`
+- `paper.md`
 - `writingrules.md`
 - `AGENTS.md`
 
 Initialization behavior:
 
 - works in any independent folder
-- does not overwrite existing `storyline.md`, `writingrules.md`, `AGENTS.md`, or already-existing skill directories
+- does not overwrite existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, or already-existing skill directories
 - prompts before reinitializing when `.agents/state.json` already exists
 
 If `vibe` is not on PATH, use:
@@ -150,6 +158,26 @@ vibe --root /path/to/project status --json
 ```
 
 Use `--json` when another tool or agent needs to parse the current phase or phase statuses.
+
+The CLI recomputes `current_phase` from actual phase statuses during `status`, and phase-mutating commands also keep `current_phase` aligned with the real workflow state.
+
+### `vibe set-phase`
+
+Use this when a phase should be explicitly marked `not_started`, `in_progress`, `complete`, or `skipped` without hand-editing `.agents/state.json`.
+
+Examples:
+
+```bash
+vibe --root /path/to/project set-phase storyline --status complete
+vibe --root /path/to/project set-phase discussion --status in_progress
+vibe --root /path/to/project set-phase experiments --status skipped --reason "the paper is theoretical"
+```
+
+Notes:
+
+- supported statuses are `not_started`, `in_progress`, `complete`, `skipped`
+- if you set a later phase to `in_progress` or `complete` before its recommended dependencies, the CLI warns but does not hard-block the update
+- `current_phase` is recomputed after the update
 
 ### `vibe log`
 
@@ -184,6 +212,7 @@ Notes:
 - `--reason` is optional in the implementation, but recommended
 - the phase argument must be a full phase name
 - the skip action is recorded in the event log
+- `current_phase` is recomputed after the skip
 
 ## Reporting
 
@@ -248,7 +277,7 @@ Behavior:
 
 - Git repository is required
 - the CLI asks for confirmation unless `-y` is used
-- phase state is reset after rollback when possible
+- phase state is reset after rollback when possible, and `current_phase` is recomputed
 
 ## Recommended Automation Patterns
 
@@ -284,7 +313,14 @@ Use the CLI action that matches the user intent:
 
 - user wants a project created → `init`
 - user wants current progress → `status`
+- user wants to explicitly move a phase to `in_progress` / `complete` / `not_started` / `skipped` → `set-phase`
 - user wants workflow history → `log`
+- user wants related-work metadata status → `relatedwork status`
+- user wants related-work metadata imported from search cache → `relatedwork import`
+- user wants BibTeX and literature metadata reconciled → `relatedwork sync-bib`
+- user wants related-work PDFs downloaded → `relatedwork download`
+- user wants a paper summary registered after a subagent run → `relatedwork register-summary`
+- user wants `.agents/cross_index.json` rebuilt from paper summaries → `relatedwork build-index`
 - user wants to skip a phase → `skip`
 - user wants a progress summary → `report`
 - user wants phase-to-phase comparison → `diff`

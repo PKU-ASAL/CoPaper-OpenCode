@@ -27,6 +27,7 @@ class TestInitProject:
 
         for phase_name, phase_data in data["phases"].items():
             assert phase_data["status"] == "not_started"
+            assert phase_data["completed_at"] is None
 
 
 class TestLoad:
@@ -60,6 +61,7 @@ class TestSetPhaseStatus:
         sm.set_phase_status("storyline", "complete")
         assert sm.get_phase_status("storyline") == "complete"
         assert sm._state["phases"]["storyline"]["completed_at"] is not None
+        assert sm.get_current_phase() == "literature"
 
     def test_set_phase_status_with_metadata(self, tmp_project_dir: Path) -> None:
         sm = StateManager(str(tmp_project_dir))
@@ -68,6 +70,7 @@ class TestSetPhaseStatus:
 
         sm.set_phase_status("literature", "in_progress", papers_found=10)
         assert sm._state["phases"]["literature"]["papers_found"] == 10
+        assert sm.get_current_phase() == "literature"
 
 
 class TestSkipPhase:
@@ -79,6 +82,14 @@ class TestSkipPhase:
         sm.skip_phase("experiments", "No GPU available")
         assert sm.get_phase_status("experiments") == "skipped"
         assert sm._state["phases"]["experiments"]["skip_reason"] == "No GPU available"
+
+    def test_skip_phase_recomputes_current_phase(self, tmp_project_dir: Path) -> None:
+        sm = StateManager(str(tmp_project_dir))
+        sm.init_project(name="P", domain="d")
+        sm.load()
+
+        sm.skip_phase("storyline", "Use existing draft")
+        assert sm.get_current_phase() == "literature"
 
 
 class TestRollbackPhase:
@@ -93,7 +104,8 @@ class TestRollbackPhase:
 
         sm.rollback_phase("storyline")
         assert sm.get_phase_status("storyline") == "not_started"
-        assert "completed_at" not in sm._state["phases"]["storyline"]
+        assert sm._state["phases"]["storyline"]["completed_at"] is None
+        assert sm.get_current_phase() == "storyline"
 
 
 class TestCheckDependencies:
@@ -156,3 +168,16 @@ class TestGetCurrentPhase:
         sm.init_project(name="P", domain="d")
         sm.load()
         assert sm.get_current_phase() == "storyline"
+
+    def test_get_current_phase_prefers_in_progress_phase(
+        self, tmp_project_dir: Path
+    ) -> None:
+        sm = StateManager(str(tmp_project_dir))
+        sm.init_project(name="P", domain="d")
+        sm.load()
+
+        sm.set_phase_status("storyline", "complete")
+        sm.set_phase_status("literature", "complete")
+        sm.set_phase_status("discussion", "in_progress")
+
+        assert sm.get_current_phase() == "discussion"

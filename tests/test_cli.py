@@ -34,7 +34,7 @@ class TestInit:
         assert state["project"]["name"] == "TestPaper"
         assert state["project"]["domain"] == "SE"
 
-    def test_init_scaffolds_skills_and_storyline(self, tmp_path: Path) -> None:
+    def test_init_scaffolds_skills_storyline_and_paper(self, tmp_path: Path) -> None:
         runner = CliRunner()
         result = _invoke(
             runner,
@@ -51,6 +51,7 @@ class TestInit:
         assert (skills_dir / "vibepaper-manage").is_dir()
 
         assert (tmp_path / "storyline.md").exists()
+        assert (tmp_path / "paper.md").exists()
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
 
@@ -125,6 +126,29 @@ class TestStatus:
         assert "phases" in data
         assert data["current_phase"] == "storyline"
 
+    def test_status_recomputes_current_phase_from_phase_state(
+        self, tmp_path: Path
+    ) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "J", "--domain", "SE"]
+        )
+
+        state_path = tmp_path / ".agents" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["phases"]["storyline"]["status"] = "complete"
+        state["phases"]["storyline"]["completed_at"] = "2026-04-09T00:00:00+00:00"
+        state["current_phase"] = "storyline"
+        state_path.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        result = _invoke(runner, ["--root", str(tmp_path), "status", "--json"])
+        assert result.exit_code == 0, result.output
+
+        updated = json.loads(result.output)
+        assert updated["current_phase"] == "literature"
+
     def test_status_no_project_shows_error(self, tmp_path: Path) -> None:
         runner = CliRunner()
         result = _invoke(runner, ["--root", str(tmp_path), "status"])
@@ -161,6 +185,74 @@ class TestSkip:
             (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
         )
         assert state["phases"]["experiments"]["status"] == "skipped"
+
+    def test_skip_phase_updates_current_phase(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "skip",
+                "storyline",
+                "--reason",
+                "use imported draft",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Current phase is now 'literature'" in result.output
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        assert state["current_phase"] == "literature"
+
+
+class TestSetPhase:
+    """Tests for the 'vibe set-phase' command."""
+
+    def test_set_phase_complete_advances_current_phase(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "set-phase", "storyline", "--status", "complete"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Current phase is now 'literature'" in result.output
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        assert state["phases"]["storyline"]["status"] == "complete"
+        assert state["current_phase"] == "literature"
+
+    def test_set_phase_warns_on_unmet_dependencies(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "set-phase",
+                "discussion",
+                "--status",
+                "in_progress",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "recommended dependencies" in result.output
+        assert "Current phase is now 'discussion'" in result.output
 
 
 class TestLog:
@@ -218,6 +310,39 @@ class TestCommit:
         assert result.exit_code == 0, result.output
         assert "Committed" in result.output
         assert "storyline" in result.output
+
+    def test_commit_auto_detects_recomputed_current_phase(self, tmp_path: Path) -> None:
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        repo.config_writer().set_value("user", "name", "Test").release()
+        repo.config_writer().set_value("user", "email", "t@t.com").release()
+        (tmp_path / "README.md").write_text("# Test", encoding="utf-8")
+        repo.index.add(["README.md"])
+        repo.index.commit("Initial commit")
+
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        state_path = tmp_path / ".agents" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["phases"]["storyline"]["status"] = "complete"
+        state["phases"]["storyline"]["completed_at"] = "2026-04-09T00:00:00+00:00"
+        state["current_phase"] = "storyline"
+        state_path.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        (tmp_path / "draft.md").write_text("Draft content", encoding="utf-8")
+
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "commit", "-m", "auto phase commit", "--force"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Committed [literature]" in result.output
 
 
 class TestRollback:
@@ -287,6 +412,7 @@ class TestRollback:
         updated = json.loads(state_path.read_text(encoding="utf-8"))
         assert updated["phases"]["storyline"]["status"] == "not_started"
         assert updated["phases"]["storyline"].get("completed_at") is None
+        assert updated["current_phase"] == "storyline"
 
 
 class TestReport:
@@ -355,3 +481,198 @@ class TestDiff:
             or "Error" in result.output
             or "No diff" in result.output
         )
+
+
+class TestRelatedwork:
+    """Tests for the 'vibe relatedwork' command group."""
+
+    def test_relatedwork_import_updates_catalog_and_state(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+
+        input_path = tmp_path / "search_cache.json"
+        input_path.write_text(
+            json.dumps(
+                {
+                    "papers": [
+                        {
+                            "paper_id": "song2025ceed",
+                            "title": "CEED-VLA",
+                            "authors": ["Song, W", "Chen, J"],
+                            "year": 2025,
+                            "venue": "arXiv",
+                            "bibtex": "@article{song2025ceed, title={CEED-VLA}, author={Song, W and Chen, J}, year={2025}}",
+                            "pdf_url": "https://example.com/ceed.pdf",
+                        }
+                    ]
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "import",
+                "--input",
+                str(input_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Added 1 papers" in result.output
+
+        catalog = json.loads(
+            (tmp_path / "relatedwork" / "literature.json").read_text(encoding="utf-8")
+        )
+        assert "song2025ceed" in catalog["papers"]
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        assert state["phases"]["literature"]["papers_found"] == 1
+        assert (
+            state["phases"]["literature"]["catalog_path"]
+            == "relatedwork/literature.json"
+        )
+
+    def test_relatedwork_status_json(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "relatedwork", "status", "--json"],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["counts"]["papers_found"] == 0
+        assert data["catalog_path"] == "relatedwork/literature.json"
+
+    def test_relatedwork_sync_bib_writes_entries(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+
+        input_path = tmp_path / "search_cache.json"
+        input_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "paper_id": "song2025ceed",
+                        "title": "CEED-VLA",
+                        "authors": ["Song, W", "Chen, J"],
+                        "year": 2025,
+                        "venue": "arXiv",
+                    }
+                ],
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        _ = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "import",
+                "--input",
+                str(input_path),
+            ],
+        )
+
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "relatedwork", "sync-bib"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Synchronized" in result.output
+        assert "song2025ceed" in (
+            tmp_path / "relatedwork" / "paper_list.bib"
+        ).read_text(encoding="utf-8")
+
+    def test_relatedwork_register_summary_and_build_index(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "TestPaper", "--domain", "SE"],
+        )
+
+        input_path = tmp_path / "search_cache.json"
+        input_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "paper_id": "song2025ceed",
+                        "title": "CEED-VLA",
+                        "authors": ["Song, W", "Chen, J"],
+                        "year": 2025,
+                        "venue": "arXiv",
+                    }
+                ],
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        _ = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "import",
+                "--input",
+                str(input_path),
+            ],
+        )
+
+        summary_path = tmp_path / "relatedwork" / "papers" / "song2025ceed.md"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(
+            "# CEED-VLA\n\n## Early Exit\n\nThis paper studies **early_exit**.\n",
+            encoding="utf-8",
+        )
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "register-summary",
+                "--paper-id",
+                "song2025ceed",
+                "--summary-path",
+                str(summary_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        result = _invoke(
+            runner,
+            ["--root", str(tmp_path), "relatedwork", "build-index"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Built .agents/cross_index.json" in result.output
+        assert (tmp_path / ".agents" / "cross_index.json").exists()
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        assert state["phases"]["literature"]["summaries_done"] == 1
+        assert state["phases"]["literature"]["cross_index_built"] is True

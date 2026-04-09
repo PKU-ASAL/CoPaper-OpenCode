@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import git
@@ -24,6 +25,7 @@ class TestGenerateWeeklyReport:
         report = generate_weekly_report(str(tmp_path))
         assert "# Weekly Report" in report
         assert "TestPaper" in report
+        assert "Current Phase: storyline" in report
         assert "Phase Progress" in report
         assert "storyline" in report
 
@@ -56,6 +58,29 @@ class TestGenerateWeeklyReport:
         report = generate_weekly_report(str(tmp_path))
         assert "Event Log Statistics" in report
         assert "init_project" in report
+
+    def test_report_recomputes_current_phase_from_state(self, tmp_path: Path) -> None:
+        from vibepaper.state import StateManager
+
+        sm = StateManager(str(tmp_path))
+        sm.init_project("P", "D")
+
+        state_path = tmp_path / ".agents" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["phases"]["storyline"]["status"] = "complete"
+        state["phases"]["storyline"]["completed_at"] = "2026-04-09T00:00:00+00:00"
+        state["current_phase"] = "storyline"
+        state_path.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        from vibepaper.eventlog import EventLogger
+
+        EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
+
+        report = generate_weekly_report(str(tmp_path))
+        assert "Current Phase: literature" in report
 
 
 class TestGenerateDiffReport:

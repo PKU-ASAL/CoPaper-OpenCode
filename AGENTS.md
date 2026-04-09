@@ -14,7 +14,9 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - `vibepaper/scaffold/`: Bundled package data copied into new projects by `vibe init`.
 - `.agents/skills/`: Source skill library tracked in this repository.
 - `storyline.md`: Research storyline starter template copied into new projects.
+- `paper.md`: Paper framework starter template copied into new projects.
 - `writingrules.md`: Definitive guide for structural and content constraints.
+- `workflow-dataflow.md`: Maintainer-facing artifact and skill data-flow analysis.
 - `templates/`: Template guidance and LaTeX template drop-in directory.
 - `tests/`: Automated verification for CLI, scaffold, git, reports, and checker integration.
 
@@ -26,6 +28,7 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - `vibepaper/state.py`: Reads and writes `.agents/state.json`.
 - `vibepaper/eventlog.py`: Appends and queries `.agents/events.jsonl`.
 - `vibepaper/git_ops.py`: Phase-aware commit and rollback helpers.
+- `workflow-dataflow.md`: Current artifact flow, reverse workflows, and structural gaps.
 - `.agents/skills/vibepaper-manage/`: Guidance for automating project management through the `vibe` CLI.
 - `tests/test_cli.py` and `tests/test_scaffold.py`: Fastest way to verify workflow behavior.
 
@@ -56,11 +59,13 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 ## COMMANDS
 ###### Current CLI behaviors agents should rely on
 <!-- description: Essential commands for agent interaction -->
-- `vibe --root <project-dir> init --name "<project>" --domain "<domain>"`: Initializes a project in any directory and scaffolds `.agents/skills/`, `storyline.md`, `writingrules.md`, and `AGENTS.md`.
-- `vibe --root <project-dir> status [--json]`: Reads workflow status from `.agents/state.json`.
+- `vibe --root <project-dir> init --name "<project>" --domain "<domain>"`: Initializes a project in any directory and scaffolds `.agents/skills/`, `storyline.md`, `paper.md`, `writingrules.md`, and `AGENTS.md`.
+- `vibe --root <project-dir> status [--json]`: Reads workflow status from `.agents/state.json` and recomputes `current_phase` from actual phase statuses.
+- `vibe --root <project-dir> set-phase <phase> --status <status> [--reason <reason>]`: Explicitly sets a phase status and recomputes `current_phase`.
 - `vibe --root <project-dir> skip <phase> --reason "<reason>"`: Marks a phase as skipped.
 - `vibe --root <project-dir> log [--phase ...] [--operator ...] [--last N]`: Queries the event log.
 - `vibe --root <project-dir> report [--since YYYY-MM-DD] [--output file]`: Generates a progress report.
+- `vibe --root <project-dir> relatedwork status|import|sync-bib|download|register-summary|build-index ...`: Manages canonical literature metadata in `relatedwork/literature.json`, synchronizes `relatedwork/paper_list.bib`, downloads PDFs, registers summaries, and rebuilds `.agents/cross_index.json`.
 - `vibe --root <project-dir> commit -m "<message>" [--phase <phase>]`, `vibe --root <project-dir> rollback <phase>`, and `vibe --root <project-dir> diff <phase-a> <phase-b>`: Git-backed phase management commands.
 
 ## NOTES
@@ -69,5 +74,7 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - LaTeX support: Use `$...$` for inline and `$$...$$` for block formulas.
 - Node expansion: Nodes ending in numbers (e.g., "Challenge 1") can be duplicated.
 - Image handling: JPG/PNG/GIF supported, max 5MB, stored in `fig/`.
-- `vibe init` is intentionally non-destructive for existing `storyline.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories in the target project.
+- `vibe init` is intentionally non-destructive for existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories in the target project.
+- `current_phase` is derived from actual phase statuses during CLI status updates instead of staying fixed at the init-time default.
+- Canonical per-paper literature metadata now lives in `relatedwork/literature.json`; `.agents/state.json` keeps only aggregate literature progress counters.
 - The packaged scaffold lives in `vibepaper/scaffold/` and must stay synchronized with the source assets in this repository.

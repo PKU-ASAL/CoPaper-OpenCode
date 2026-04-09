@@ -13,6 +13,7 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - `vibepaper/`: Python package implementing CLI, state management, event logs, git integration, reports, and scaffold copy logic.
 - `.agents/skills/`: Skill library available inside the initialized project.
 - `storyline.md`: Research storyline starter template copied by `vibe init`.
+- `paper.md`: Paper framework starter template copied by `vibe init`.
 - `writingrules.md`: Definitive guide for structural and content constraints.
 - `templates/`: Template guidance and LaTeX template drop-in directory.
 - `.agents/state.json` and `.agents/events.jsonl`: Shared workflow state and append-only event log.
@@ -53,11 +54,13 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 ## COMMANDS
 ###### Current CLI behaviors agents should rely on
 <!-- description: Essential commands for agent interaction -->
-- `vibe --root <project-dir> init --name "<project>" --domain "<domain>"`: Initializes a project in any directory and scaffolds `.agents/skills/`, `storyline.md`, `writingrules.md`, and `AGENTS.md`.
-- `vibe --root <project-dir> status [--json]`: Reads workflow status from `.agents/state.json`.
+- `vibe --root <project-dir> init --name "<project>" --domain "<domain>"`: Initializes a project in any directory and scaffolds `.agents/skills/`, `storyline.md`, `paper.md`, `writingrules.md`, and `AGENTS.md`.
+- `vibe --root <project-dir> status [--json]`: Reads workflow status from `.agents/state.json` and recomputes `current_phase` from actual phase statuses.
+- `vibe --root <project-dir> set-phase <phase> --status <status> [--reason <reason>]`: Explicitly sets a phase status and recomputes `current_phase`.
 - `vibe --root <project-dir> skip <phase> --reason "<reason>"`: Marks a phase as skipped.
 - `vibe --root <project-dir> log [--phase ...] [--operator ...] [--last N]`: Queries the event log.
 - `vibe --root <project-dir> report [--since YYYY-MM-DD] [--output file]`: Generates a progress report.
+- `vibe --root <project-dir> relatedwork status|import|sync-bib|download|register-summary|build-index ...`: Manages canonical literature metadata in `relatedwork/literature.json`, synchronizes `relatedwork/paper_list.bib`, downloads PDFs, registers summaries, and rebuilds `.agents/cross_index.json`.
 - `vibe --root <project-dir> commit -m "<message>" [--phase <phase>]`, `vibe --root <project-dir> rollback <phase>`, and `vibe --root <project-dir> diff <phase-a> <phase-b>`: Git-backed phase management commands.
 
 ## NOTES
@@ -66,4 +69,6 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - LaTeX support: Use `$...$` for inline and `$$...$$` for block formulas.
 - Node expansion: Nodes ending in numbers (e.g., "Challenge 1") can be duplicated.
 - Image handling: JPG/PNG/GIF supported, max 5MB, stored in `fig/`.
-- `vibe init` is intentionally non-destructive for existing `storyline.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories.
+- `vibe init` is intentionally non-destructive for existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories.
+- `current_phase` is derived from actual phase statuses during CLI status updates instead of staying fixed at the init-time default.
+- Canonical per-paper literature metadata now lives in `relatedwork/literature.json`; `.agents/state.json` keeps only aggregate literature progress counters.

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from vibepaper.scaffold import (
     copy_agents_md,
+    copy_paper,
     copy_skills,
     copy_storyline,
     copy_writingrules,
@@ -77,6 +78,23 @@ class TestCopyStoryline:
         assert existing.read_text(encoding="utf-8") == "my storyline"
 
 
+class TestCopyPaper:
+    def test_copies_paper(self, tmp_path: Path) -> None:
+        dst = copy_paper(tmp_path)
+        assert dst == tmp_path / "paper.md"
+        assert dst.exists()
+        content = dst.read_text(encoding="utf-8")
+        assert "# 论文的题目" in content
+
+    def test_does_not_overwrite_existing(self, tmp_path: Path) -> None:
+        existing = tmp_path / "paper.md"
+        existing.write_text("my paper", encoding="utf-8")
+
+        _ = copy_paper(tmp_path)
+
+        assert existing.read_text(encoding="utf-8") == "my paper"
+
+
 class TestCopyWritingrules:
     def test_copies_writingrules(self, tmp_path: Path) -> None:
         dst = copy_writingrules(tmp_path)
@@ -117,6 +135,7 @@ class TestScaffoldProject:
 
         assert (tmp_path / ".agents" / "skills").is_dir()
         assert (tmp_path / "storyline.md").exists()
+        assert (tmp_path / "paper.md").exists()
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
 

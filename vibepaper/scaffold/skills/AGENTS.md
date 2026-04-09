@@ -18,14 +18,14 @@ These skills are bundled into initialized projects by `vibe init`.
 ## WHERE TO LOOK
 ###### Important skills in the current catalog
 <!-- description: Catalog of skills in this directory -->
-- `vibepaper-manage`: Teaches agents how to call the `vibe` CLI for init/status/skip/log/report/diff/commit/rollback workflows.
+- `vibepaper-manage`: Teaches agents how to call the `vibe` CLI for init/status/set-phase/skip/log/report/diff/commit/rollback workflows.
 - `human-comment-helper`: Adds structured reviewer feedback and synthetic examples.
 - `latex2markdown`: Imports content from LaTeX files into the VibePaper structure.
 - `markdown-helper`: Interactive assistance for writing and improving `paper.md`.
 - `markdown-review`: Quality assurance check for novelty, importance, and correctness.
 - `markdown2latex`: High-quality export from `paper.md` to conference-ready LaTeX.
 - `relatedwork-finder`: Automated literature search and BibTeX/summary generation.
-- `storyline-helper`: Interactive, section-by-section guidance for constructing and refining the research storyline in `storyline.md`.
+- `storyline-helper`: Interactive, section-by-section guidance for constructing and refining the research storyline in `storyline.md`, including reverse extraction from `paper.md`.
 - `writing-orchestrator`: Scans `paper.md`, recommends the next section, and routes work into drafting/review skills.
 - `submission-precheck`: Runs a final submission-oriented quality pass.
 

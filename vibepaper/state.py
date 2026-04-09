@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from vibepaper.constants import PHASE_DEPENDENCIES, Phase, PhaseStatus
+from vibepaper.constants import PHASE_DEPENDENCIES, PHASE_ORDER, Phase, PhaseStatus
 from vibepaper.schema import DEFAULT_STATE
 
 
@@ -118,7 +118,8 @@ class StateManager:
         Raises:
             KeyError: If the phase is not found in state.
         """
-        return self._state["phases"][phase]["status"]
+        phase_name = Phase(phase).value
+        return self._state["phases"][phase_name]["status"]
 
     def set_phase_status(self, phase: str, status: str, **metadata: Any) -> None:
         """Update a phase's status and optional metadata fields.
@@ -132,13 +133,18 @@ class StateManager:
             **metadata: Additional key-value pairs to merge into the
                 phase dict (e.g., papers_found=5, skip_reason="...").
         """
-        phase_data = self._state["phases"][phase]
-        phase_data["status"] = status
+        phase_name = Phase(phase).value
+        status_value = PhaseStatus(status).value
+        phase_data = self._state["phases"][phase_name]
+        phase_data["status"] = status_value
 
-        if status == PhaseStatus.COMPLETE:
+        if status_value == PhaseStatus.COMPLETE:
             phase_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            phase_data["completed_at"] = None
 
         phase_data.update(metadata)
+        self.recompute_current_phase()
 
         # TODO: EventLogger integration (Task 5)
         # self._log_event("phase_status_changed", phase=phase, status=status)
@@ -162,9 +168,38 @@ class StateManager:
         Args:
             phase: One of the Phase enum values.
         """
-        phase_data = self._state["phases"][phase]
+        phase_name = Phase(phase).value
+        phase_data = self._state["phases"][phase_name]
         phase_data["status"] = PhaseStatus.NOT_STARTED
-        phase_data.pop("completed_at", None)
+        phase_data["completed_at"] = None
+        self.recompute_current_phase()
+
+    def recompute_current_phase(self) -> str:
+        """Recompute ``current_phase`` from actual phase statuses.
+
+        Priority order:
+        1. first phase currently marked ``in_progress``
+        2. first phase that is neither ``complete`` nor ``skipped``
+        3. final phase when all phases are complete/skipped
+        """
+        for phase in PHASE_ORDER:
+            phase_name = phase.value
+            if self._state["phases"][phase_name]["status"] == PhaseStatus.IN_PROGRESS:
+                self._state["current_phase"] = phase_name
+                return phase_name
+
+        for phase in PHASE_ORDER:
+            phase_name = phase.value
+            if self._state["phases"][phase_name]["status"] not in (
+                PhaseStatus.COMPLETE,
+                PhaseStatus.SKIPPED,
+            ):
+                self._state["current_phase"] = phase_name
+                return phase_name
+
+        final_phase = PHASE_ORDER[-1].value
+        self._state["current_phase"] = final_phase
+        return final_phase
 
     def check_dependencies(self, phase: str) -> list[str]:
         """Return dependency phase names that are NOT complete or skipped.
