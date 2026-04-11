@@ -8,6 +8,7 @@ tests/test_dimensions.py
 tests/test_eventlog.py
 tests/test_git_ops.py
 tests/test_identity.py
+tests/test_literature.py
 tests/test_report.py
 tests/test_scaffold.py
 tests/test_state.py
@@ -21,6 +22,8 @@ vibepaper/dimensions.py
 vibepaper/eventlog.py
 vibepaper/git_ops.py
 vibepaper/identity.py
+vibepaper/literature.py
+vibepaper/relatedwork_download.py
 vibepaper/report.py
 vibepaper/scaffold.py
 vibepaper/schema.py

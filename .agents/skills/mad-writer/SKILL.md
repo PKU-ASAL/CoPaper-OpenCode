@@ -36,6 +36,27 @@ This skill operates in a continuous loop:
 5. **Fix** - Address issues found
 6. **Repeat** - Continue until done or stuck
 
+## Paper Structure Reference
+
+The paper follows VibePaper structure. Key rules for this skill:
+- **Level 1** (`#`): Paper title only.
+- **Level 2-5** (`##` to `#####`): Structural headings only — do NOT modify these.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (≤50 chars). Body = supporting text (≤500 chars).
+- **Metadata**: HTML comments `<!-- description: ... -->` guide what each section should contain.
+
+Do NOT read `writingrules.md` — the essential structure rules are inlined above.
+
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Phase 1 (initialization) and every rewrite iteration | Current paper content; scan for empty sections, assess state, write content |
+| `storyline.md` | Conditional | Phase 1 (if exists) | Research narrative for grounding content |
+| `relatedwork/summary.md` | Conditional | Phase 0-1 (if literature exists) | Context from related work for citations |
+| `.agents/state.json` | Read/write | Phase 3 (checker loop) and Phase 6 (progress tracking) | Checker results, experiment status, progress counters |
+
+When writing content, refer to the Paper Structure Reference above instead of reading `writingrules.md`.
+
 ## Work Loop
 
 ```
@@ -52,11 +73,11 @@ This skill operates in a continuous loop:
                            │
                            ▼
               ┌────────────────────────┐
-              │  Phase 1: INITIALIZATION│
-              │  - Read paper.md        │
-              │  - Read writingrules   │
-              │  - Read related work    │
-              │  - Assess current state│
+│  Phase 1: INITIALIZATION│
+               │  - Read paper.md        │
+               │  - Read storyline.md    │
+               │  - Read related work    │
+               │  - Assess current state│
               └────────────┬─────────────┘
                            │
                            ▼
@@ -159,7 +180,7 @@ After related work:
 
 **Step 1.1: Read Essential Files**
 1. Read `paper.md` - current paper content
-2. Read `writingrules.md` - structure and rules
+2. Read `storyline.md` (if exists) - research narrative for grounding
 3. Read `relatedwork/summary.md` (if exists) - context from related work
 
 **Step 1.2: Assess Current State**
@@ -182,7 +203,7 @@ Prioritize in this order:
 
 For each target:
 1. Read the section context (what comes before/after)
-2. Check `writingrules.md` for this section's requirements
+2. Check the `description` metadata for this section's requirements
 3. Write content following rules:
    - Topic sentence (Level 6 header): ≤ 50 characters
    - Supporting sentences: ≤ 500 characters total
@@ -423,8 +444,9 @@ For [section], assume [assumption]
 
 ### Rule 1: Follow Structure Strictly
 - Maintain all existing Level 2-5 headers (do not modify structure)
-- Write Level 6 headers as topic sentences
+- Write Level 6 headers as topic sentences (≤50 characters)
 - Keep paragraphs under 500 characters
+- Follow the `description` guidance from HTML comments
 
 ### Rule 2: Be Specific, Not Vague
 - ❌ "This is important"
@@ -520,7 +542,7 @@ User: write my paper
 Mad-Writer: I'll iteratively write and improve your paper using all checkers.
 
 [Iteration 1]
-- Reading paper.md and writingrules.md...
+- Reading paper.md...
 - Found 12 empty Level 6 headers
 - Writing content for empty sections...
 - Running checkers...

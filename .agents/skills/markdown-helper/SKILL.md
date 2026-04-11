@@ -5,7 +5,7 @@ description: Helps users write and improve markdown academic paper content follo
 
 # Markdown Helper Skill
 
-This skill helps users write markdown content for computer science research papers following the VibePaper GUI structure defined in `writingrules.md`. It uses a strictly controlled, subagent-based sequential writing workflow to maximize writing quality and user control.
+This skill helps users write markdown content for computer science research papers following the VibePaper GUI structure. It uses a strictly controlled, subagent-based sequential writing workflow to maximize writing quality and user control.
 
 ## When to Use This Skill
 
@@ -13,35 +13,31 @@ This skill helps users write markdown content for computer science research pape
 - User wants to systematically draft paragraph by paragraph.
 - User wants to improve the quality of markdown academic writing.
 
-## VibePaper Structure Rules
+## Paper Structure Reference
 
-Before writing, read `writingrules.md` to understand the full structure. Key rules:
+The paper follows VibePaper structure. Key rules for this skill:
+- **Level 1** (`#`): Paper title only.
+- **Level 2-5** (`##` to `#####`): Structural headings only — do NOT modify these.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (≤50 chars). Body = supporting text (≤500 chars).
+- **Metadata**: HTML comments `<!-- description: ... -->` guide what each section should contain.
 
-### Header Levels
-| Level | Purpose |
-|-------|---------|
-| Level 1 `#` | Paper title |
-| Level 2-5 `##`~`#####` | Structure framework (do not modify) |
-| Level 6 `######` | Content paragraph (topic sentence) |
+Do NOT read `writingrules.md` — the essential structure rules are inlined above.
 
-### Metadata Fields
-Each node may have HTML comment metadata:
-- `<!-- description: ... -->` - Writing guidance for the section
+## Input Files
 
-### Content Writing Rules
-- **Topic Sentence** (Level 6 header): <= 50 characters, summarizes paragraph core point
-- **Supporting Sentences** (paragraph body): <= 500 characters, with evidence, data, reasoning
-- Follow the `description` guidance for each node
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (scan) and Step 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
+| `storyline.md` | **Required** | Step 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
+| `.agents/cross_index.json` | Optional but preferred | Step 2 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
+| `relatedwork/papers/*.md` | Optional | Step 2 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
+| `.agents/state.json` | Conditional | Step 2 (when writing experiment sections) | Check `experiments` phase status and `data_files` list; read experiment data files only if experiments are `complete` |
+| `fig/` | Conditional | Step 2 (when writing sections that reference visuals) | Available figures; list paths so the subagent can reference them |
 
-## Context Sources for Writing
-
-Every writing task MUST be informed by these sources:
-1. **storyline.md**: The core research narrative, insights, and method.
-2. **paper.md**: The paper's current state and structural constraints.
-3. **relatedwork/papers/**: Individual markdown summaries of related literature. The agent can dynamically read these to cite properly.
-4. **Experiment Data** (conditional): Read `.agents/state.json` and check the `experiments` phase status. If experiments are `complete`, read the experiment data files listed in `state.json`'s `data_files` field. When writing experiment-related sections (e.g., Experimental Setup, Results, Analysis), pass the experiment data as context to the subagent.
-5. **Figures** (conditional): Check the `fig/` directory for available figures and charts. When writing sections that may reference visual data, pass the list of available figure paths to the subagent so it can reference them (e.g., `![caption](fig/result_comparison.png)`).
-6. **.agents/cross_index.json** (conditional): Query the cross-reference index for technical points related to the current section. Extract relevant paper references and pass them to the subagent as citation candidates.
+When the subagent needs literature context in Step 2, it MUST:
+1. Read `.agents/cross_index.json` first to find which papers cover the current section's technical points.
+2. Read ONLY the specific `relatedwork/papers/*.md` files identified by the cross-index lookup.
+3. Do NOT read all files under `relatedwork/papers/` indiscriminately.
 
 ## Strict Step-by-Step Writing Workflow
 
@@ -59,16 +55,15 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 2. **Prompt Requirements**: The prompt to the subagent MUST include:
    - "Please draft EXACTLY ONE Level 6 node for the section: [Level 5 Title]."
    - "Follow the description: [description metadata]."
-   - "Read `writingrules.md` and strictly follow the writing constraints and norms."
+   - "Follow the Paper Structure Reference: Level 6 title ≤50 chars, body ≤500 chars, do not modify Level 2-5 headers."
    - "Read `storyline.md` for core narrative."
    - "Read `paper.md` to understand context and what has been written so far."
-   - "Read relevant summaries in `relatedwork/papers/` to support your writing. Use the `Read` tool to fetch specific summaries if needed."
+   - "Read `.agents/cross_index.json` FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section's technical points. Then read ONLY those specific summaries — do NOT read all files under `relatedwork/papers/` indiscriminately."
    - "If `.agents/state.json` shows experiments phase is `complete`, read the experiment data files from `state.json`'s `data_files` field and use them as context for experiment-related sections."
    - "Check `fig/` directory with `Glob('fig/*')`. If relevant figures exist, reference them in your writing using markdown image syntax."
-   - "Read `.agents/cross_index.json` to find papers related to the current section's technical points. Use these as citation candidates."
    - "Output ONLY the drafted Level 6 node (###### Title + Content). DO NOT edit `paper.md` yourself."
    - "**Writing Style Instructions**: 
-     1. Strictly follow the writing guidelines in `writingrules.md`.
+     1. Strictly follow the Paper Structure Reference: Level 6 title ≤50 chars, body ≤500 chars, do not modify Level 2-5 headers.
      2. Use plain, academic language. Do not use meaningless buzzwords, but maintain persuasive arguments.
      3. Be concise: if it can be said simply, do not artificially expand the text. Do not stretch to hit word limits.
      4. Maintain persuasive power by properly citing literature or evidence where applicable.

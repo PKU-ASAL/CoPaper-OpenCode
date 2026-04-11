@@ -52,15 +52,18 @@ Do not reorder the sequence unless the user explicitly asks to jump.
 - Never fabricate evidence, references, experiments, or prior work.
 - Never claim a checker issue is resolved unless the discussion genuinely addressed it.
 
-## Context Sources
-Read these sources as needed before starting or continuing:
-1. `storyline.md` — narrative, insight, method outline
-2. `paper.md` — current paper state and claim wording
-3. `relatedwork/papers/*.md` — prior-work summaries
-4. `.agents/cross_index.json` — paper-technique mappings
-5. `.agents/state.json` — checker results and workflow state
-6. `.agents/discussion_log.json` — prior discussion history
-7. `vibepaper/dimensions.py` — 57 dimensions and question bank
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `storyline.md` | **Required** | Step 1 (start) | Research narrative, insight, method outline |
+| `paper.md` | **Required** | Step 1 (start) | Current paper state and claim wording |
+| `.agents/state.json` | Optional | Step 2 (if checker-driven discussion) | Checker results and workflow state; read `checkers` field for unresolved issues |
+| `relatedwork/papers/*.md` | Optional | Step 1 (as needed) | Prior-work summaries for contrast questions |
+| `.agents/cross_index.json` | Optional | Step 1 (as needed) | Paper-technique mappings for targeted questioning |
+| `.agents/discussion_log.json` | Optional | Step 3 (to find covered dimensions) | Prior discussion history |
+| `vibepaper/dimensions.py` | **Required** | Step 1 (start) | 57 dimensions and question bank |
+
 If some files do not exist yet, continue with the available context instead of blocking the workflow.
 
 ## Workflow

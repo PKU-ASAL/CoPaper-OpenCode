@@ -119,7 +119,10 @@ VibePaper-Skill/
 │   ├── state.json              # 项目状态文件（init 后生成）
 │   └── events.jsonl            # 事件日志（追加式 JSON Lines）
 ├── relatedwork/                # 文献存储目录
-│   └── papers/                 # 下载的论文 PDF 与摘要
+│   ├── literature.json         # 相关工作元数据总表（canonical catalog）
+│   ├── paper_list.bib          # BibTeX 引用列表
+│   ├── pdfs/                   # 下载的论文 PDF
+│   └── papers/                 # 每篇论文的 Markdown 摘要
 ├── fig/                        # 论文图片目录（JPG/PNG/GIF，≤5MB）
 ├── tests/                      # 测试目录
 │   ├── test_cli.py             # CLI 命令测试
@@ -302,6 +305,30 @@ vibe report --output report.md
 ```
 
 周报包含：阶段进度、Git 提交摘要（按作者分组）、事件日志统计。如果不在 Git 仓库中，Git 部分会显示 "Git repository not available"。
+
+#### `vibe relatedwork` — 管理论文元数据、BibTeX 与 PDF
+
+```bash
+# 查看元数据总表状态
+vibe relatedwork status
+vibe relatedwork status --json
+
+# 将 serper/arXiv 搜索结果导入 canonical catalog
+vibe relatedwork import --input relatedwork/search_cache.json
+
+# 同步 literature.json 与 paper_list.bib
+vibe relatedwork sync-bib
+
+# 下载全部待下载 PDF，或重试失败项
+vibe relatedwork download
+vibe relatedwork download --retry-failed
+
+# 注册单篇论文摘要并重建交叉索引
+vibe relatedwork register-summary --paper-id song2025ceed --summary-path relatedwork/papers/song2025ceed.md
+vibe relatedwork build-index
+```
+
+`relatedwork/literature.json` 是 canonical metadata catalog。它记录：论文题目、作者、发表 venue/journal、arXiv ID、BibTeX、PDF 下载链接、下载状态、PDF 路径、摘要路径等。`.agents/state.json` 只保留 literature phase 的聚合计数，如 `papers_found`、`papers_downloaded`、`download_failures`、`summaries_done`。
 
 #### `vibe diff` — 阶段间差异对比
 

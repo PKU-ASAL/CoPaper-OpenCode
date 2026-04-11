@@ -32,6 +32,18 @@ Typical triggers:
 - `generate a vibe report`
 - `manage this paper with vibe cli`
 
+## Input Files
+
+This skill primarily uses `vibe` CLI commands and does NOT directly read project files for content. The CLI handles file access internally.
+
+| File | Direct Read? | How Accessed | Purpose |
+|------|--------------|-------------|---------|
+| `.agents/state.json` | No | Via `vibe status`, `vibe set-phase`, `vibe skip` | Project state, phase statuses, progress counters |
+| `.agents/events.jsonl` | No | Via `vibe log` | Event log for history queries |
+| `relatedwork/` artifacts | No | Via `vibe relatedwork` subcommands | Literature metadata, BibTeX, PDFs, summaries, cross-index |
+
+This skill does NOT read `paper.md`, `storyline.md`, `writingrules.md`, or `relatedwork/papers/*.md` directly. It delegates content work to other skills.
+
 ## Core Principle
 
 Prefer the `vibe` CLI for workflow management.

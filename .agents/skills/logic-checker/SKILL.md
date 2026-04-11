@@ -14,6 +14,15 @@ This skill detects logical discrepancies, inconsistencies, and argumentation fla
 - User wants to find contradictions within the paper
 - User needs to validate argumentation quality
 
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Primary analysis target |
+| `.agents/state.json` | Write-only | Final step | Persist checker results |
+
+Do NOT read `writingrules.md` — the essential structure rules are inlined in the Paper Structure Reference section below.
+
 ## Role and Responsibilities
 
 You are an AI assistant performing logical analysis of academic papers. Your comments are AI-generated and must be clearly marked as such. Your analysis should be:
@@ -175,44 +184,20 @@ For each discrepancy found:
 - Position them right before or at the relevant paragraph/section
 - Ensure comments don't break document structure
 
-## VibePaper Structure Rules
+## Paper Structure Reference
 
-Before checking logic, read `writingrules.md` to understand the paper structure:
-
-| Level | Purpose | What to Check |
-|-------|---------|---------------|
-| Level 1 `#` | Paper title | Title accurately reflects content |
-| Level 2-5 `##`~`#####` | Structure framework | Section purposes are clear and consistent |
-| Level 6 `######` | Content paragraph | Topic sentence makes clear claim; supporting sentences provide evidence |
+The paper follows VibePaper structure. Key rules for this checker:
+- **Level 1-5** (`#` to `#####`): Structural headings only — no body text allowed under these.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (≤50 chars). Body = supporting text (≤500 chars).
+- **Metadata**: HTML comments `<!-- description: ... -->` guide what each section should contain.
 
 ### Key Sections to Check
 
-Based on the VibePaper template, pay special attention to:
-
-1. **Insight Section**
-   - Is the insight clearly stated?
-   - Is there evidence supporting why this insight is valid?
-   - Are conditions for insight validity stated?
-
-2. **Problem Section**
-   - Is the problem clearly defined?
-   - Is the importance justified with evidence?
-   - Do scenarios match the problem description?
-
-3. **Existing Methods Section**
-   - Are limitations accurately described?
-   - Is there evidence that these are real limitations?
-   - Are root causes correctly identified?
-
-4. **Method Section**
-   - Does method address stated challenges?
-   - Are design decisions justified?
-   - Is there logical connection to the insight?
-
-5. **Evaluation Section**
-   - Do experiments validate the claims?
-   - Are baselines appropriate?
-   - Do metrics match the problem?
+1. **Insight Section**: Is the insight clearly stated? Is there evidence supporting why this insight is valid? Are conditions for insight validity stated?
+2. **Problem Section**: Is the problem clearly defined? Is the importance justified with evidence? Do scenarios match the problem description?
+3. **Existing Methods Section**: Are limitations accurately described? Is there evidence that these are real limitations? Are root causes correctly identified?
+4. **Method Section**: Does method address stated challenges? Are design decisions justified? Is there logical connection to the insight?
+5. **Evaluation Section**: Do experiments validate the claims? Are baselines appropriate? Do metrics match the problem?
 
 ## Output Format
 
@@ -252,35 +237,9 @@ Insert detailed HTML comments at problematic locations following the comment str
 - Include the marker `**AI-GENERATED LOGIC ANALYSIS - FOR AUTHOR REVIEW**`
 - End with `**END AI-GENERATED LOGIC ANALYSIS**` before the closing `-->`
 
-## Example Output
+## Examples
 
-```
-<!-- AI Comments: 
-**AI-GENERATED LOGIC ANALYSIS - FOR AUTHOR REVIEW**
-
-[DISCREPANCY TYPE]
-Claim-Evidence Mismatch: Mismatched Scope
-
-[LOCATION]
-Section: 解决什么问题 > 问题为什么重要
-Claim: "该问题的重要性体现在：(1)安全价值：APT攻击造成的平均损失超过250万美元，早期检测可大幅降低损失"
-Supporting Evidence: None provided in paragraph
-
-[PROBLEM DESCRIPTION]
-The claim makes a specific quantitative assertion ("average loss over $2.5 million") without providing a citation or source for this statistic. This is a factual claim that requires evidence.
-
-[DETECTED ISSUE]
-Missing citation for quantitative claim. The claim states a specific dollar amount for APT attack losses but no source is provided to verify this figure.
-
-[SUGGESTED FIX]
-Add a citation to support the $2.5 million figure. For example: "According to [Citation], APT attacks cause an average loss of over $2.5 million." Consider using reports from Mandiant, Verizon DBIR, or similar authoritative sources.
-
-[SEVERITY]
-Major - Quantitative claims without citations undermine credibility
-
-**END AI-GENERATED LOGIC ANALYSIS**
--->
-```
+For detailed comment examples, see [`examples.md`](examples.md) in this skill directory.
 
 ## Common Patterns
 

@@ -13,21 +13,24 @@ This skill converts markdown academic paper content into high-quality LaTeX form
 - User wants to generate LaTeX for a full document or specific sections
 - User needs academic paper formatting with proper structure and style
 
-## VibePaper Structure Rules
+## Paper Structure Reference
 
-Before converting, read `writingrules.md` to understand the full structure. Key rules:
+The paper follows VibePaper structure. Key rules for this skill:
+- **Level 1** (`#`): Paper title → maps to `\title{}`.
+- **Level 2-5** (`##` to `#####`): Structural headings → map to `\section{}`, `\subsection{}`, etc.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (becomes opening sentence). Body = supporting text.
+- **Metadata**: `description` fields provide context but are not included in LaTeX output.
 
-### Header Levels
-| Level | Purpose | LaTeX Mapping |
-|-------|---------|---------------|
-| Level 1 `#` | Paper title | `\title{}` |
-| Level 2-5 `##`~`#####` | Structure framework | `\section{}`, `\subsection{}`, etc. |
-| Level 6 `######` | Content paragraph | Topic sentence → paragraph content |
+## Input Files
 
-### Content Structure
-- **Topic Sentence** (Level 6 header): Becomes the opening sentence of the paragraph
-- **Supporting Sentences** (paragraph body): Follows the topic sentence with evidence
-- **Metadata**: `description` fields provide context but are not included in LaTeX output
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Primary markdown source to convert into LaTeX |
+| `writingrules.md` | **Required** | Step 1 (start) | Full structural and formatting rules used to interpret the markdown document correctly |
+| `.agents/state.json` | Conditional | Conference Template Adaptation workflow | Check `latex_template` and `target_venue` configuration |
+| User-provided template files in `templates/` or custom path | Conditional | Conference Template Adaptation workflow | Venue-specific LaTeX template to adapt the output to |
+
+Unlike drafting skills, this conversion skill SHOULD read `writingrules.md` because it must validate and preserve the full paper structure during export.
 
 ## Instructions
 

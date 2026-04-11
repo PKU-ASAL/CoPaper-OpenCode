@@ -14,6 +14,16 @@ This skill guides users through constructing their research storyline in `storyl
 - User wants to refine or improve existing storyline content
 - User already has `paper.md` and wants to reverse-extract or backfill `storyline.md`
 
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `storyline.md` | **Required** | Step 1 (start) | Primary target file; scan for empty/filled sections, read for context |
+| `paper.md` | Conditional | Reverse-extraction mode only | Source for reverse-extracting storyline content when `storyline.md` is sparse |
+| `.agents/state.json` | Write-only | Step 5 (after applying edits) | Update `phases.storyline.status` to `in_progress` or `complete`; no read needed for content |
+
+Do NOT read `writingrules.md` — this skill works with the existing `storyline.md` structure directly.
+
 ## Storyline Structure Overview
 
 `storyline.md` contains approximately 19 sections organized under `#####` headers. Each section has instructional guidance (bold text) and TODO placeholders. The sections form a logical research narrative:

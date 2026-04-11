@@ -5,7 +5,7 @@ description: Extracts content from LaTeX files to fill in paper.md. Use this ski
 
 # LaTeX to Markdown Conversion Skill
 
-This skill extracts content from LaTeX academic papers and fills it into the VibePaper markdown structure defined in `writingrules.md`.
+This skill extracts content from LaTeX academic papers and fills it into the VibePaper markdown structure.
 
 ## When to Use This Skill
 
@@ -13,19 +13,23 @@ This skill extracts content from LaTeX academic papers and fills it into the Vib
 - User wants to extract content from existing LaTeX files to fill paper.md
 - User needs to migrate LaTeX content to the VibePaper structure
 
-## VibePaper Structure Rules
+## Paper Structure Reference
 
-Before converting, read `writingrules.md` to understand the full structure. Key rules:
+The paper follows VibePaper structure. Key rules for this skill:
+- **Level 1-5** (`#` to `#####`): Structural headings only — do NOT modify these in `paper.md`.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (≤50 chars). Body = supporting text (≤500 chars).
+- **Metadata**: HTML comments `<!-- description: ... -->` guide what each section should contain.
 
-### Header Levels
-| Level | Purpose |
-|-------|---------|
-| Level 1-5 `#`~`#####` | Structure framework (do not modify) |
-| Level 6 `######` | Content paragraph (topic sentence) |
+## Input Files
 
-### Content Writing Rules
-- **Topic Sentence** (Level 6 header): ≤ 50 characters, summarizes paragraph core point
-- **Supporting Sentences** (paragraph body): ≤ 500 characters, with evidence, data, reasoning
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Target framework file whose existing structure guides the conversion |
+| `writingrules.md` | **Required** | Step 1 (start) | Full structure and content constraints for mapping LaTeX content into VibePaper markdown |
+| User-provided LaTeX files | **Required** | Step 1 (start) | Source material to extract and map into `paper.md` |
+| `fig/` | Conditional | During special-element handling | Destination for user-provided figure assets referenced from the LaTeX source |
+
+Unlike drafting skills, this conversion skill SHOULD read `writingrules.md` because it must preserve the full markdown framework during import.
 
 ## Instructions
 

@@ -11,16 +11,18 @@ This skill automatically finds related work papers, records canonical metadata t
 
 - User requests to find related work (e.g., "find related work").
 
-## VibePaper Structure Rules
+## Input Files
 
-Before searching, read `writingrules.md` to understand the paper structure. The main paper file is `paper.md`.
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `storyline.md` | Required if present | Step 1 (start) | Primary source for keyword extraction, research questions, methods, and challenges |
+| `paper.md` | Fallback | Step 1 (if `storyline.md` missing) | Alternative source for keyword extraction when `storyline.md` is absent |
+| `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) |
+| `relatedwork/paper_list.bib` | Required | Step 3 | BibTeX entries for formalizing the reference list |
+| `relatedwork/literature.json` | Required | Steps 2-6 (after import) | Canonical metadata catalog; read after `vibe relatedwork import` to track download status and summary paths |
+| `.agents/skills/relatedwork-finder/template.md` | Required | Step 5 | Template for PDF summary generation; passed to subagent |
 
-## Input Sources
-
-This skill prioritizes input sources in the following order:
-
-1. **Primary Source**: `storyline.md` - If this file exists, parse it first to extract research keywords, core research questions, proposed methods, and key challenges.
-2. **Fallback Source**: `paper.md` - If `storyline.md` does not exist, fall back to reading `paper.md`.
+Do NOT read `writingrules.md` — this skill does not need paper structure rules.
 
 ## Search & Caching Strategy
 

@@ -5,13 +5,22 @@ description: Reviews and improves markdown academic paper content following Vibe
 
 # Markdown Review Skill
 
-This skill provides comprehensive review of markdown content for computer science research papers by running all available checkers sequentially. It follows the VibePaper GUI structure defined in `writingrules.md`.
+This skill provides comprehensive review of markdown content for computer science research papers by running all available checkers sequentially. It follows the VibePaper structure rules.
 
 ## When to Use This Skill
 
 - User requests to review paper.md (e.g., "review paper.md", "check my paper")
 - User wants comprehensive academic quality check
 - User wants to run all checkers at once
+
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand paper content for all 7 checkers |
+| `.agents/state.json` | Write target | After each checker completes | Persist checker results via CheckerTracker; this skill writes but does not read checker state for content |
+
+Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly and writes checker results to `.agents/state.json`.
 
 ## Review Workflow
 
@@ -45,8 +54,7 @@ This skill runs **seven specialized checkers** in sequence, each focusing on a d
 
 First, read the essential files:
 1. Read `paper.md` to understand the paper content
-2. Read `writingrules.md` to understand the expected structure
-3. Read `relatedwork/summary.md` (if exists) to understand related work context
+2. Do NOT read additional context files directly here. Related-work context, cross-index context, and structure rules are handled indirectly by the individual checker sub-skills.
 
 ### Step 2: Run Problem Checker
 
@@ -360,20 +368,14 @@ Each checker will insert its own formatted HTML comments at relevant locations i
 - Suggested fix
 - Severity level
 
-## VibePaper Structure Rules
+## Paper Structure Reference
 
-Before reviewing, read `writingrules.md` to understand the full structure. Key rules:
+The paper follows VibePaper structure. Key rules for this skill:
+- **Level 1** (`#`): Paper title only.
+- **Level 2-5** (`##` to `#####`): Structural headings only — do NOT modify these.
+- **Level 6** (`######`): Content paragraphs. Title = topic sentence (≤50 chars). Body = supporting text (≤500 chars).
 
-### Header Levels
-| Level | Purpose |
-|-------|---------|
-| Level 1 `#` | Paper title |
-| Level 2-5 `##`~`#####` | Structure framework (do not modify) |
-| Level 6 `######` | Content paragraph (topic sentence) |
-
-### Content Writing Rules
-- **Topic Sentence** (Level 6 header): ≤ 50 characters
-- **Supporting Sentences** (paragraph body): ≤ 500 characters
+Do NOT read `writingrules.md` — the essential structure rules are inlined above.
 
 ## Important Notes
 

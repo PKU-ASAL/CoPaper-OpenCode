@@ -28,18 +28,20 @@ Use it when the user wants to:
 
 This skill is an orchestrator, not a direct replacement for drafting or revision skills.
 
-## Context Sources
+## Input Files
 
-Read these sources as needed:
-1. `paper.md`
-2. `storyline.md`
-3. `writingrules.md`
-4. `.agents/state.json`
-5. `relatedwork/papers/*.md`
-6. `fig/`
-7. `.agents/cross_index.json`
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (scan completion status) | Primary target; scan Level 2-5 headings for empty/filled sections |
+| `storyline.md` | Conditional | When recommending writing order | Research narrative for dependency-aware section ordering |
+| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Current phase status, checker results, writing progress |
+| `.agents/cross_index.json` | Conditional | When routing to markdown-helper or mad-writer | Paper-technique mappings; pass to downstream skills for literature context |
+| `relatedwork/papers/*.md` | Conditional | When routing to markdown-helper or mad-writer | Individual literature summaries; pass to downstream skills, not read directly by orchestrator |
+| `fig/` | Conditional | When routing to markdown-helper or mad-writer | Available figures; pass to downstream skills for visual references |
 
-Use `paper.md` for structure, `storyline.md` for the research narrative, `writingrules.md` for constraints, `.agents/state.json` for progress, `relatedwork/papers/*.md` for support material, `fig/` for available visuals, and `.agents/cross_index.json` for paper-to-topic linkage. If some sources are missing, continue with available context and state what is missing.
+Do NOT read `writingrules.md` — this skill delegates writing to `markdown-helper` or `mad-writer`, which handle structure rules internally.
+
+If some sources are missing, continue with available context and state what is missing.
 
 ## Completion Scan Rules
 

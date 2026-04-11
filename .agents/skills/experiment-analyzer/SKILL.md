@@ -118,13 +118,17 @@ After completing any mode (except Skip, which updates state in Step 2d), update 
    - `"last_updated": "<current_date>"`
 3. Write the updated state back to `.agents/state.json`.
 
-## Context Sources
+## Input Files
 
-Every analysis task MUST be informed by these sources:
-1. **storyline.md**: The core research narrative, insights, and method — used to map code/results to RQs.
-2. **paper.md**: The paper's current state and structural constraints — used to understand what the evaluation section needs.
-3. **Experiment code directory**: User-provided path to their experiment code.
-4. **Experiment result files**: User-provided path to their result data (CSV, JSON, TXT, logs).
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `storyline.md` | **Required** | Step 2a/2b (mapping experiments to RQs) | Research narrative for mapping code/results to research questions |
+| `paper.md` | **Required** | Step 2a/2b (understanding evaluation needs) | Paper structure and evaluation section requirements |
+| `.agents/state.json` | Read/write | Step 3 (end) and Step 2d (skip mode) | Update experiment phase status; read `data_files` and `experiments` status |
+| User-provided experiment code path | Conditional | Step 2a (Code Understanding mode) | Directory of experiment code to analyze |
+| User-provided result file paths | Conditional | Step 2b (Result Analysis mode) | CSV/JSON/TXT/log files with experimental results |
+
+Do NOT read `writingrules.md` — this skill does not need paper structure rules for analysis tasks.
 
 ## Must NOT Do
 
@@ -133,7 +137,7 @@ Every analysis task MUST be informed by these sources:
 - **NEVER** modify user code. Analysis is read-only; suggest changes but do not apply them.
 - **NEVER** fabricate or invent experimental results. Only report what exists in the data files.
 - **NEVER** skip the mode selection step. Always ask the user which mode they need first.
-- **NEVER** bypass `writingrules.md` constraints when suggesting content for `paper.md`.
+- **NEVER** bypass VibePaper structure constraints when suggesting content for `paper.md` (Level 6 title ≤50 chars, body ≤500 chars, do not modify Level 2-5 headers).
 - **NEVER** insert content into `paper.md` without the user explicitly reviewing and accepting it.
 - **NEVER** modify Level 1-5 headers in `paper.md`. Only suggest Level 6 content additions.
 

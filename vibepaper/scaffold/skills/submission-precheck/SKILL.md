@@ -15,15 +15,18 @@ This skill performs a comprehensive pre-submission check on `paper.md` before su
 - User wants a final quality gate before sending to a venue
 - User asks "is my paper ready for submission?"
 
-## Context Sources
+## Input Files
 
-Read these files before starting the checks:
-1. `paper.md` — the primary paper content
-2. `writingrules.md` — format constraints and structural rules
-3. `paper_list.bib` — BibTeX references (if exists)
-4. `fig/` — figure assets directory
-5. `.agents/state.json` — project state including latex_template config
-6. `.agents/cross_index.json` — cross-reference index (if exists)
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Primary paper content; all 7 checks read this |
+| `writingrules.md` | **Required** | Step 1 (start) | Format constraints and structural rules; needed for Check 1 (Format) and Check 5 (Completeness) |
+| `relatedwork/paper_list.bib` | Conditional | Step 2 (Citation Check) | BibTeX references; needed for Check 2 (Citations) |
+| `fig/` | Conditional | Step 2 (Figure/Table Check) | Figure assets directory; needed for Check 3 (Figures/Tables) |
+| `.agents/state.json` | Conditional | Step 1 (start) | Project state including `latex_template` config; needed for Check 4 (Word Count) |
+| `.agents/cross_index.json` | Conditional | Step 1 (start) | Cross-reference index; used for completeness verification |
+
+If some files do not exist (e.g., `paper_list.bib`, `.agents/cross_index.json`), note their absence and continue with available context. Do not block the workflow for missing optional files.
 
 ## The 7 Pre-Submission Checks
 

@@ -35,13 +35,16 @@ All issues must be sorted and processed by severity in this exact order:
 If multiple issues share the same severity, keep unresolved ones first, then preserve checker order from `markdown-review`, then preserve original issue order inside each checker result.
 Never process Minor issues ahead of unresolved Critical or Major issues unless the user explicitly chooses to skip higher-severity items.
 
-## Context Sources
-Read these sources as needed before starting or continuing:
-1. `paper.md`
-2. `storyline.md`
-3. `.agents/state.json` (especially the `checkers` field)
-4. `.agents/cross_index.json`
-5. `relatedwork/papers/*.md`
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand current paper content |
+| `.agents/state.json` | **Required** | Step 1 (start) | Checker results and issue tracking; read `checkers` field for unresolved issues |
+| `storyline.md` | Optional | Step 5b (when revising narrative/claim alignment) | Research narrative for grounding revisions |
+| `.agents/cross_index.json` | Optional but preferred | Step 5b (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current issue |
+| `relatedwork/papers/*.md` | Optional | Step 5b (only the summaries identified through cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` or when the issue clearly depends on prior work |
+
 If some files do not exist yet, continue with the available context instead of blocking the workflow.
 
 ## Workflow
@@ -115,7 +118,7 @@ The subagent should:
 - read `paper.md`
 - read `storyline.md` when useful
 - read the issue details from `.agents/state.json`
-- read `.agents/cross_index.json` or `relatedwork/papers/*.md` if the issue depends on terminology, evidence, or prior work
+- read `.agents/cross_index.json` FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current issue, then read ONLY those specific summaries — do NOT read all files under `relatedwork/papers/` indiscriminately
 - focus on exactly one issue at a time
 - propose a concrete revision for the relevant paper section
 - explain why the revision addresses the checker finding

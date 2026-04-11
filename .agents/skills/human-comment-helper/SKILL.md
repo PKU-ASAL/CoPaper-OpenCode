@@ -22,6 +22,15 @@ You are a professor helping students improve their academic papers. Your comment
 - **Actionable**: Tell students what measurements/analysis they need to provide
 - **Honest**: Clearly mark AI-generated content so students know to replace it
 
+## Input Files
+
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `paper.md` | **Required** | Step 1 (understand request context) | Target paper content; identify sections, understand current text, locate insertion points |
+| User-provided reviewer feedback | **Required** | Step 1 (understand request) | The actual human comment/feedback to be structured and inserted |
+
+Do NOT read `writingrules.md` — this skill inserts HTML comments and does not need paper structure rules.
+
 ## Comment Structure
 
 All Human Comments must follow this standardized format:
