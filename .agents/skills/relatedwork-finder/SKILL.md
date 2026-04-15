@@ -45,6 +45,13 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
 2. **Naming Convention**: Name PDF files using the BibTeX key from the cache (e.g., `shi2026streamingvla.pdf`).
 3. **Failure Recording**: If a PDF cannot be downloaded after 3 retries, the CLI records that failure in `relatedwork/literature.json`. Do not fake a success state.
 
+## Action Logging
+
+You MUST log your tools usage (such as file reads, MCP tool calls, file modifications) during the execution of this skill.
+After invoking any tool, run a terminal command to append a structured JSON log to `.agents/toolevents.jsonl`.
+**Example Action Logging Command:**
+`echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/toolevents.jsonl`
+
 ## Instructions (STRICT INTERACTIVE WORKFLOW)
 
 You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
@@ -78,36 +85,4 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 - Do NOT hand-write download results into JSON; let the CLI update `relatedwork/literature.json`.
 - If the user wants to retry failed downloads later, use `vibe --root . relatedwork download --retry-failed`.
 - **ACTION**: Present the status of downloaded PDFs to the user.
-- **STOP**: Ask "I have finished downloading the PDFs. Should I proceed to summarize each paper one by one sequentially?"
-
-### Step 5: Sequential PDF Summaries [WAIT FOR CONFIRMATION PER PAPER]
-- **CRITICAL - MULTI-MODAL & ISOLATED CONTEXT**: You MUST NOT summarize the PDFs yourself in the current context. You MUST ensure each PDF is summarized in its own dedicated context window using the multi-modal model.
-- **Approach**: Process each paper **ONE BY ONE sequentially**. Do NOT launch multiple tasks in parallel. Do NOT use `run_in_background=true` for paper summaries.
-- Only summarize papers whose `download_status` is `downloaded` in `relatedwork/literature.json` (or equivalently via `vibe --root . relatedwork status --json`).
-- For each paper, ask "Should I spawn the agent to summarize [Paper Title]?"
-- Once confirmed, spawn a `task` agent using the multimodal agent type (`subagent_type="multimodal-looker"`, `run_in_background=false`) to summarize it.
-- In the `prompt`, provide the absolute path of the PDF, `storyline.md`, and `.agents/skills/relatedwork-finder/template.md`.
-- Explicitly instruct the sub-agent to:
-  1. Use the `Read` tool on the PDF (which loads it as a multi-modal attachment).
-  2. Use the `Read` tool on `template.md`.
-  3. Generate a detailed summary `.md` file in `relatedwork/papers/` strictly following the sections and structure defined in `template.md`, filling in the publication venue from the cache.
-- After the task completes, run `vibe --root . relatedwork register-summary --paper-id <paper-id> --summary-path relatedwork/papers/<paper-id>.md`.
-- Then present the summary status and ask for confirmation before moving to the next paper.
-- Repeat this sequential process for all downloaded PDFs.
-
-### Step 6: Build Cross-Index [WAIT FOR CONFIRMATION]
-- After all paper summaries are complete, build the cross-reference index.
-- Run `vibe --root . relatedwork build-index` to scan all `relatedwork/papers/*.md` summaries and update `.agents/cross_index.json`.
-- For more accurate tech point extraction, spawn a `task` agent to analyze each paper summary and extract key technical concepts.
-- Generate a coverage report by comparing against `storyline.md`.
-- **ACTION**: Present the coverage report to the user, showing:
-  - Covered technical points (with paper references)
-  - Gap areas (technical points in storyline with no literature coverage)
-  - Overall coverage ratio
-- **STOP**: Ask "Here is the literature coverage report. Would you like to search for more papers to fill the gaps?"
-
-### Step 7: Write Final Summary Document
-- Write `relatedwork/summary.md` categorizing the literature.
-- Respond with "Found X related work papers in the relatedwork folder."
-- Keep `relatedwork/literature.json` as the canonical metadata artifact.
-- Remove `relatedwork/search_cache.json` after final completion.
+- **STOP AND TERMINATE**: This skill's responsibility strictly ENDS HERE. You MUST STOP execution. Ask the user: "I have finished finding the related work and downloading the PDFs. Would you like to continue and switch to the `relatedwork-summarizer` skill to generate summaries now?"

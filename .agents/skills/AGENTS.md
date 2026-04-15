@@ -5,7 +5,7 @@
 <!-- description: Purpose of the skills directory and its role in VibePaper -->
 The `.agents/skills/` directory contains the reusable skill library shipped with VibePaper.
 Each skill is a self-contained module that extends the agent's capabilities for a specific academic task or workflow-management task.
-These skills are also bundled into `vibepaper/scaffold/skills/` so that `vibe init` can copy them into any new project directory.
+These skills are bundled into initialized projects by `vibe init`.
 
 ## STRUCTURE
 ###### Standardized skill module organization
@@ -24,7 +24,8 @@ These skills are also bundled into `vibepaper/scaffold/skills/` so that `vibe in
 - `markdown-helper`: Interactive assistance for writing and improving `paper.md`.
 - `markdown-review`: Quality assurance check for novelty, importance, and correctness.
 - `markdown2latex`: High-quality export from `paper.md` to conference-ready LaTeX.
-- `relatedwork-finder`: Automated literature search and BibTeX/summary generation.
+- `relatedwork-finder`: Automated literature search, BibTeX sync, and PDF downloading.
+- `relatedwork-summarizer`: Generates sequential multimodal summaries for downloaded papers and builds the literature cross-index.
 - `storyline-helper`: Interactive, section-by-section guidance for constructing and refining the research storyline in `storyline.md`, including reverse extraction from `paper.md`.
 - `writing-orchestrator`: Scans `paper.md`, recommends the next section, and routes work into drafting/review skills.
 - `submission-precheck`: Runs a final submission-oriented quality pass.
@@ -37,8 +38,7 @@ These skills are also bundled into `vibepaper/scaffold/skills/` so that `vibe in
 - **Quality Gates**: Use `markdown-review` to validate content before final export.
 - **Format Mapping**: Conversion skills must maintain semantic meaning across formats.
 - **Math Support**: Preserve `$...$` and `$$...$$` during all transformations.
-- **CLI Accuracy**: Any skill that instructs agents to use `vibe` must match the actual commands implemented in `vibepaper/cli.py`.
-- **Scaffold Sync**: New or changed skills must be mirrored into `vibepaper/scaffold/skills/`.
+- **CLI Accuracy**: Any skill that instructs agents to use `vibe` must match the actual commands implemented in `vibepaper/cli.py`.- **Action Logging**: Agents MUST log their tool calls, file reads, and file modifications during execution. To do this, agents must append a structured JSON log to `.agents/events.jsonl` (e.g. `echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/filename"}' >> .agents/events.jsonl`).- **Scaffold Sync**: New or changed skills must be mirrored into the packaged scaffold.
 
 ## ANTI-PATTERNS
 ###### Common mistakes in skill usage and development

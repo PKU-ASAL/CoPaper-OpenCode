@@ -9,3 +9,8 @@ fig/
 **/__pycache__
 .coverage
 AutoResearchClaw/
+/.venv/
+.agents/events.jsonl
+.agents/state.json
+target/
+./storyline_origin.md
