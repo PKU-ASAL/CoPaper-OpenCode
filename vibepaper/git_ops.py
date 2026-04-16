@@ -79,10 +79,11 @@ class GitManager:
         formatted_message = (
             f"[{phase}] {message}\n\nCo-authored-by: VibePaper AI <ai@vibepaper>"
         )
-        commit = self.repo.index.commit(formatted_message)
 
         if self.event_logger is not None:
             self.event_logger.log("commit_phase", "system", "success", phase=phase)
+
+        commit = self.repo.index.commit(formatted_message)
 
         return commit.hexsha
 
