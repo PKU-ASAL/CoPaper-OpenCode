@@ -27,14 +27,14 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | Step 1 (scan) and Step 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
-| `storyline.md` | **Required** | Step 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
-| `.agents/cross_index.json` | Optional but preferred | Step 2 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
-| `relatedwork/papers/*.md` | Optional | Step 2 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
-| `.agents/state.json` | Conditional | Step 2 (when writing experiment sections) | Check `experiments` phase status and `data_files` list; read experiment data files only if experiments are `complete` |
-| `fig/` | Conditional | Step 2 (when writing sections that reference visuals) | Available figures; list paths so the subagent can reference them |
+| `paper.md` | **Required** | State 0 (outline), State 1 (scan), State 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
+| `storyline.md` | **Required** | State 0 (outline) and State 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
+| `.agents/cross_index.json` | Optional but preferred | State 1 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
+| `relatedwork/papers/*.md` | Optional | State 1 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
+| `.agents/state.json` | Conditional | State 1 (when writing experiment sections) | Check `experiments` phase status and `data_files` list; read experiment data files only if experiments are `complete` |
+| `fig/` | Conditional | State 2 (when writing sections that reference visuals) | Available figures; list paths so the subagent can reference them |
 
-When the subagent needs literature context in Step 2, it MUST:
+When the orchestrator needs literature context in State 1, it MUST:
 1. Read `.agents/cross_index.json` first to find which papers cover the current section's technical points.
 2. Read ONLY the specific `relatedwork/papers/*.md` files identified by the cross-index lookup.
 3. Do NOT read all files under `relatedwork/papers/` indiscriminately.
@@ -43,18 +43,26 @@ When the subagent needs literature context in Step 2, it MUST:
 
 The Orchestrator MUST follow this interactive, sequential workflow strictly. **NEVER use multi-threading/parallel execution for writing tasks.** Write EXACTLY ONE paragraph (Level 6 node) at a time.
 
-### Step 1: Scan & Propose (WAIT FOR USER)
+### Step 1: Generate Overall Outline (WAIT FOR USER)
+1. When starting a writing session, before drafting individual paragraphs, generate a comprehensive outline of what will be written.
+2. Read `storyline.md` and the existing structure of `paper.md` (Level 1-5 headers and their descriptions).
+3. Launch a subagent to propose a high-level outline. This outline should consist of proposed Level 6 titles (Topic Sentences, ≤50 chars) for each empty Level 5 section.
+4. **Present the Outline**: Show the proposed list of Level 6 titles grouped under their respective Level 5 headers to the user.
+5. **Ask for Confirmation**: *"Here is the proposed overall paragraph outline (topic sentences) for the paper sections. Do you want to Accept, Modify, or Regenerate?"*
+6. **STOP AND WAIT** for user confirmation. Once the user approves the outline, proceed to draft paragraphs one by one.
+
+### Step 2: Scan & Propose Paragraph (WAIT FOR USER)
 1. Read `paper.md` from top to bottom.
 2. Locate the **FIRST Level 5 node (#####) or deeper that has NO Level 6 child nodes yet**.
-3. Extract its `description` metadata.
-4. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph?"*
+3. Extract its `description` metadata (and reference its approved Level 6 title from Step 1).
+4. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph based on our approved outline?"*
 5. **STOP AND WAIT** for user confirmation. Do not proceed.
 
-### Step 2: Delegate to Subagent (Task Tool)
-1. Once confirmed, use the `task` tool to launch an independent subagent (`category="writing"`, `run_in_background=false`).
+### Step 3: Delegate to Subagent
+1. Once confirmed, use the `task` or `runSubagent` tool to launch an independent subagent for writing (`category="writing"`, `run_in_background=false`).
 2. **Prompt Requirements**: The prompt to the subagent MUST include:
    - "Please draft EXACTLY ONE Level 6 node for the section: [Level 5 Title]."
-   - "Follow the description: [description metadata]."
+   - "Follow the description: [description metadata] and the approved outline topic: [Approved Level 6 Title]."
    - "Follow the Paper Structure Reference: Level 6 title ≤50 chars, body ≤500 chars, do not modify Level 2-5 headers."
    - "Read `storyline.md` for core narrative."
    - "Read `paper.md` to understand context and what has been written so far."
@@ -70,17 +78,32 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
      5. You do not need to force Chinese translations for technical terms; use English/Chinese mix according to standard academic habits (e.g., use 'Loss' instead of forcing '误差')."
 3. Wait for the subagent to return the drafted text.
 
-### Step 3: Post-Writing Review (WAIT FOR USER)
+### Step 4: Post-Writing Review (WAIT FOR USER)
 1. Display the subagent's drafted paragraph to the user.
 2. **Ask**: *"Here is the drafted paragraph. Do you want to Accept, Modify (please provide feedback), or Rewrite completely?"*
 3. **STOP AND WAIT** for user confirmation.
 
-### Step 4: Apply or Iterate
-- If **Accept**: The Orchestrator uses the `Edit` tool to safely insert the drafted Level 6 node under the target Level 5 node in `paper.md`. Then loop back to Step 1.
-- If **Modify/Rewrite**: Launch the subagent again (use `session_id` to continue its context), passing the user's feedback. Repeat Step 3.
+### Step 5: Apply or Iterate
+- If **Accept**: The Orchestrator uses the `Edit` tool to safely insert the drafted Level 6 node under the target Level 5 node in `paper.md`. Log the insertion action to `.agents/events.jsonl` (see Action Logging). Then loop back to Step 2.
+- If **Modify/Rewrite**: Launch the subagent again (passing the context and user's feedback). Repeat Step 4.
+
+## Action Logging (REQUIRED)
+
+Whenever you perform an action (generating an outline, reading reference files, or writing content into `paper.md`), you MUST log the activity to VibePaper's event system. Append a JSON object to `.agents/events.jsonl` using the `run_in_terminal` tool:
+
+```bash
+# Example for logging file reads / tool calls
+echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"read_context\",\"result\":\"success\",\"metadata\":{\"files\":[\".agents/cross_index.json\", \"storyline.md\"]}}" >> .agents/events.jsonl
+
+# Example for logging outline generation
+echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"generate_outline\",\"result\":\"success\"}" >> .agents/events.jsonl
+
+# Example for logging a paragraph insertion
+echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"insert_paragraph\",\"result\":\"success\",\"metadata\":{\"target_section\":\"<Level_5_Title>\"}}" >> .agents/events.jsonl
+```
 
 ## Crucial Anti-Patterns
-- **NEVER** write multiple paragraphs at once.
-- **NEVER** write directly without using the `task` subagent.
-- **NEVER** insert content into `paper.md` without the user explicitly reviewing and accepting the draft in Step 3.
+- **NEVER** write multiple paragraphs at once without user interactive review.
+- **NEVER** start paragraph writing without generating and validating the overall outline first (Step 1).
+- **NEVER** insert content into `paper.md` without the user explicitly reviewing and accepting the draft in Step 4.
 - **NEVER** modify Level 2-5 headers. Only append Level 6 nodes.

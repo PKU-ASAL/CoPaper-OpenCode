@@ -1,12 +1,12 @@
 ---
 name: writing-orchestrator
-description: Orchestrates structured paper framework writing by scanning paper.md completion status, recommending writing order, and offering fine mode (markdown-helper) or fast mode (mad-writer). Auto-triggers 7-checker review after each section. Use this skill when the user wants to write or start writing their paper systematically.
+description: Orchestrates structured paper framework writing by scanning paper.md completion status, recommending writing order, and offering fine mode (markdown-helper), strict mode (state-machine-markdown-helper), or fast mode (mad-writer). Auto-triggers 7-checker review after each section. Use this skill when the user wants to write or start writing their paper systematically.
 ---
 
 # Writing-Orchestrator Skill
 
 This skill is the human-led writing coordinator for VibePaper.
-It inspects `paper.md`, shows what is complete or still empty, recommends the next section based on logical dependency, and routes the user to either `markdown-helper` or `mad-writer` while treating `markdown-review` as the mandatory review gate.
+It inspects `paper.md`, shows what is complete or still empty, recommends the next section based on logical dependency, and routes the user to `markdown-helper`, `state-machine-markdown-helper`, or `mad-writer` while treating `markdown-review` as the mandatory review gate.
 
 ## When to Use This Skill
 
@@ -106,7 +106,7 @@ Recommendation rules:
 ### Step 4: User selects a section and chooses a mode
 
 After showing the overview and recommendation, ask the user which section they want to write.
-Then offer exactly two writing modes.
+Then offer exactly three writing modes.
 
 #### Fine Mode (精细模式)
 
@@ -121,6 +121,19 @@ Requirements:
 - keep the human in the loop for each paragraph
 - rely on `markdown-helper` instead of re-implementing its logic
 - preserve its review-before-insert workflow
+
+#### Strict Mode (严格模式/状态机模式)
+
+Invoke `state-machine-markdown-helper`.
+
+Use this mode when:
+- the user is writing a section heavily dependent on long literature constraints and RAG
+- maximum protection against LLM hallucination and context pollution is needed
+- strict phase isolation (Gather Facts -> Isolate Write -> Save -> Reset) is desired
+
+Requirements:
+- rely on `state-machine-markdown-helper` for the execution logic
+- alert the user that this mode requires starting a new chat context after every paragraph
 
 #### Fast Mode (快速模式)
 
@@ -207,21 +220,21 @@ Use this recommendation table when advising the user.
 
 Rationale summary: Insight anchors the story, problem definition turns it into a research need, prior work and limitations justify the new method, method design answers the validated problem, and experiments validate the claims. Discussion and conclusion usually come later because they synthesize earlier work. If the user chooses a later section first, allow it, but explain the dependency tradeoff.
 
-## Fine Mode vs Fast Mode
+## Writing Modes Comparison
 
 Use this comparison when the user is choosing a mode.
 
-| Dimension | Fine Mode (`markdown-helper`) | Fast Mode (`mad-writer`) |
-|---|---|---|
-| Chinese label | 精细模式 | 快速模式 |
-| Control level | Very high | Moderate |
-| Writing unit | One paragraph at a time | Section-oriented batch progress |
-| Human confirmation | Required for each paragraph | Review after batch output |
-| Best for | Introduction core, insight framing, method core | Related work details, experiment descriptions, bulk completion |
-| Strength | Precision and user control | Speed and throughput |
-| Risk | Slower progress | Less paragraph-level control |
+| Dimension | Fine Mode (`markdown-helper`) | Strict Mode (`state-machine-markdown-helper`) | Fast Mode (`mad-writer`) |
+|---|---|---|---|
+| Chinese label | 精细模式 | 严格模式 / 状态机模式 | 快速模式 |
+| Control level | Very high | Absolute | Moderate |
+| Writing unit | One paragraph at a time | One paragraph at a time (isolated) | Section-oriented batch output |
+| Human confirmation | Required for each paragraph | Required + must reset chat | Review after batch output |
+| Best for | Core arguments, fast iteration | Highly technical/RAG sections, long narratives | Backgrounds, bulk descriptions |
+| Strength | Fluid precision | Perfect grounding, zero memory leak | Speed and throughput |
+| Risk | LLM context might balloon over time | Slow, frequent interaction breaks | Less paragraph-level precision |
 
-Mode guidance: Fine Mode is better for critical sections where wording and argument precision matter; Fast Mode is better for less critical sections where structured bulk drafting is acceptable.
+Mode guidance: Fine Mode is best for fluid paragraph-by-paragraph arguments; Strict Mode is essential for rigorous, RAG-heavy writing where hallucination must be zero; Fast Mode is better for large baseline sections where structural bulk drafting is acceptable.
 
 The interaction loop must remain section-by-section: scan, summarize, recommend, let the user pick a section and mode, invoke the downstream skill, run `markdown-review`, report results, update `.agents/state.json`, and return to the overview. Do not silently expand into full-paper auto-writing.
 
