@@ -24,6 +24,8 @@ These skills are bundled into initialized projects by `vibe init`.
 - `markdown-helper`: Interactive assistance for writing and improving `paper.md`.
 - `markdown-review`: Quality assurance check for novelty, importance, and correctness.
 - `markdown2latex`: High-quality export from `paper.md` to conference-ready LaTeX.
+- `pdf2paper`: Converts an existing PDF draft into `paper.md` section by section with faithful mapping and light polishing.
+- `ppt2storyline`: Converts a research PPT/PPTX deck into `storyline.md` with faithful mapping and light polishing.
 - `relatedwork-finder`: Automated literature search, BibTeX sync, and PDF downloading.
 - `relatedwork-summarizer`: Generates sequential multimodal summaries for downloaded papers and builds the literature cross-index.
 - `storyline-helper`: Interactive, section-by-section guidance for constructing and refining the research storyline in `storyline.md`, including reverse extraction from `paper.md`.
