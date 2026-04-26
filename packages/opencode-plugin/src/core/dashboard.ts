@@ -1,4 +1,5 @@
 import { PHASES, type VibePaperState } from "./schema.js"
+import { type InitProjectResult } from "./scaffold.js"
 
 export function summarizeState(state: VibePaperState): string {
   const lines = [
@@ -20,5 +21,36 @@ export function renderContextSummary(state: VibePaperState): string {
     "Rules",
     "- Use VibePaper plugin tools for state changes.",
     "- Do not directly edit .vibepaper/state.json or .vibepaper/events.jsonl.",
+  ].join("\n")
+}
+
+function listOrNone(items: string[]): string[] {
+  return items.length > 0 ? items.map((item) => `- ${item}`) : ["- none"]
+}
+
+export function renderInitDashboard(result: InitProjectResult): string {
+  const state = result.state
+  const title = result.alreadyInitialized ? "VibePaper Already Initialized" : "VibePaper Initialized"
+  return [
+    title,
+    "",
+    "Project",
+    `- Name: ${state.project?.name || "Untitled Paper"}`,
+    `- Domain: ${state.project?.domain || "unspecified"}`,
+    `- Language: ${state.project?.language || "en"}`,
+    `- Current phase: ${state.workflow.current_phase}`,
+    "",
+    result.alreadyInitialized ? "Existing Runtime" : "Created",
+    ...listOrNone(result.alreadyInitialized ? result.skipped : result.created),
+    "",
+    "Skipped Existing Files",
+    ...listOrNone(result.alreadyInitialized ? [] : result.skipped),
+    "",
+    "Overwritten",
+    ...listOrNone(result.overwritten),
+    "",
+    "Next",
+    "- Run /vibestatus to inspect the project.",
+    "- Run /vibenext to start the storyline workflow.",
   ].join("\n")
 }

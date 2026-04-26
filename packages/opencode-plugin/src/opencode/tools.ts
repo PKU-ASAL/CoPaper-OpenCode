@@ -1,13 +1,30 @@
 import { tool } from "@opencode-ai/plugin"
 
-import { summarizeState } from "../core/dashboard.js"
+import { renderInitDashboard, summarizeState } from "../core/dashboard.js"
 import { appendEvent } from "../core/eventlog.js"
+import { initProject } from "../core/scaffold.js"
 import { PHASES, STATUSES } from "../core/schema.js"
 import { readState, setPhaseStatus, writeState } from "../core/state.js"
 import { type PluginContextLike, type PluginOptions, type ToolContextLike, resolveToolRoot, unwrap } from "./context.js"
 
 export function registerVibePaperTools(ctx: PluginContextLike, options?: PluginOptions) {
   return {
+    vibepaper_init: tool({
+      description: "Initialize the current folder as a minimal VibePaper project using the .vibepaper runtime.",
+      args: {
+        name: tool.schema.string().optional().describe("Project name. Defaults to Untitled Paper."),
+        domain: tool.schema.string().optional().describe("Research domain. Defaults to unspecified."),
+        language: tool.schema.enum(["en", "zh"]).optional().describe("Project language. Defaults to en."),
+        force: tool.schema.boolean().optional().describe("Overwrite VibePaper runtime and starter files if they already exist."),
+        root: tool.schema.string().optional().describe("Project root, relative to the OpenCode worktree."),
+      },
+      async execute(args, context: ToolContextLike) {
+        const root = resolveToolRoot(ctx, options, context, args.root)
+        const result = await initProject(root, args)
+        return renderInitDashboard(result)
+      },
+    }),
+
     vibepaper_status: tool({
       description: "Read the VibePaper project state and summarize the current progress.",
       args: {

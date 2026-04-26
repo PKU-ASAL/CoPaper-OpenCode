@@ -21,13 +21,17 @@ def test_plugin_exposes_mvp_tools_and_hooks() -> None:
         for path in sorted((PLUGIN_DIR / "src").rglob("*.ts"))
     )
     for expected in [
+        "vibepaper_init",
         "vibepaper_status",
         "vibepaper_set_phase",
         "vibepaper_spawn_agent",
+        "command.execute.before",
         "tool.execute.before",
         "experimental.chat.system.transform",
         "session.create",
         "promptAsync",
+        "VibePaper Initialized",
+        "MINIMAL_PAPER",
     ]:
         assert expected in source
 
@@ -49,6 +53,7 @@ def test_plugin_has_core_and_opencode_modules() -> None:
         "src/core/paths.ts",
         "src/core/state.ts",
         "src/core/eventlog.ts",
+        "src/core/scaffold.ts",
         "src/core/dashboard.ts",
         "src/core/policy.ts",
         "src/opencode/context.ts",

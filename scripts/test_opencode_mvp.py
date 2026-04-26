@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_DIR = REPO_ROOT / "packages" / "opencode-plugin"
-TMP_DIR = REPO_ROOT / ".tmp" / "vibepaper-opencode-m0"
+TMP_DIR = REPO_ROOT / ".tmp" / "vibepaper-opencode-m1"
 
 
 def run(cmd: list[str], cwd: Path = REPO_ROOT) -> None:
@@ -33,53 +33,6 @@ def executable(name: str) -> str:
 def require(path: Path) -> None:
     if not path.exists():
         raise AssertionError(f"Missing expected path: {path}")
-
-
-def write_vibepaper_fixture(project_root: Path) -> None:
-    runtime = project_root / ".vibepaper"
-    runtime.mkdir(parents=True, exist_ok=True)
-    now = "2026-04-26T00:00:00.000Z"
-    state = {
-        "schema_version": 1,
-        "project": {
-            "name": "MVP Test",
-            "domain": "SE",
-            "language": "en",
-            "created_at": now,
-        },
-        "workflow": {
-            "current_phase": "storyline",
-            "phases": {
-                "storyline": {"status": "in_progress", "started_at": now, "completed_at": None},
-                "literature": {"status": "not_started", "started_at": None, "completed_at": None},
-                "writing": {"status": "not_started", "started_at": None, "completed_at": None},
-                "review": {"status": "not_started", "started_at": None, "completed_at": None},
-                "submission": {"status": "not_started", "started_at": None, "completed_at": None},
-            },
-        },
-        "last_updated_at": now,
-    }
-    artifacts = {
-        "schema_version": 1,
-        "artifacts": {
-            "paper.md": {"type": "paper", "status": "template", "sections": {}},
-            "storyline.md": {"type": "storyline", "status": "template"},
-            "writingrules.md": {"type": "writing_rules", "status": "minimal"},
-        },
-    }
-    files = {
-        runtime / "state.json": state,
-        runtime / "config.json": {"schema_version": 1, "mode": "balanced"},
-        runtime / "memory.json": {"schema_version": 1, "project_summary": "", "latest_decisions": [], "open_questions": [], "context_notes": []},
-        runtime / "tasks.json": {"schema_version": 1, "tasks": {}},
-        runtime / "artifacts.json": artifacts,
-    }
-    for path, payload in files.items():
-        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    (runtime / "events.jsonl").write_text("", encoding="utf-8")
-    (project_root / "paper.md").write_text("# Untitled Paper\n\n## Abstract\n", encoding="utf-8")
-    (project_root / "storyline.md").write_text("# Research Storyline\n\n## Problem\n", encoding="utf-8")
-    (project_root / "writingrules.md").write_text("# Writing Rules\n", encoding="utf-8")
 
 
 def write_node_harness(project_root: Path) -> Path:
@@ -127,10 +80,12 @@ def write_node_harness(project_root: Path) -> Path:
             const hooks = await plugin(ctx, {{ root: projectRoot }})
             assert.ok(hooks.tool)
             const tools = hooks.tool
+            assert.ok(tools.vibepaper_init)
             assert.ok(tools.vibepaper_status)
             assert.ok(tools.vibepaper_set_phase)
             assert.ok(tools.vibepaper_spawn_agent)
             assert.equal(typeof hooks["tool.execute.before"], "function")
+            assert.equal(typeof hooks["command.execute.before"], "function")
             assert.equal(typeof hooks["experimental.chat.system.transform"], "function")
 
             const toolContext = {{
@@ -153,6 +108,47 @@ def write_node_harness(project_root: Path) -> Path:
               }}
               throw new Error(`${{label}} did not reject`)
             }}
+
+            const initDashboard = await tools.vibepaper_init.execute(
+              {{ name: "MVP Test", domain: "SE", language: "en" }},
+              toolContext,
+            )
+            assert.match(initDashboard, /VibePaper Initialized/)
+            assert.match(initDashboard, /\\.vibepaper\\/state\\.json/)
+            assert.match(initDashboard, /paper\\.md/)
+
+            for (const relative of [
+              [".vibepaper", "state.json"],
+              [".vibepaper", "config.json"],
+              [".vibepaper", "events.jsonl"],
+              [".vibepaper", "memory.json"],
+              [".vibepaper", "tasks.json"],
+              [".vibepaper", "artifacts.json"],
+              ["paper.md"],
+              ["storyline.md"],
+              ["writingrules.md"],
+            ]) await fs.access(path.join(projectRoot, ...relative))
+
+            const minimalPaper = await fs.readFile(path.join(projectRoot, "paper.md"), "utf-8")
+            assert.match(minimalPaper, /## Design/)
+            assert.match(minimalPaper, /## Conclusion/)
+            const minimalStoryline = await fs.readFile(path.join(projectRoot, "storyline.md"), "utf-8")
+            assert.match(minimalStoryline, /## Key Insight/)
+            const minimalRules = await fs.readFile(path.join(projectRoot, "writingrules.md"), "utf-8")
+            assert.match(minimalRules, /Keep placeholders visible/)
+
+            await fs.writeFile(path.join(projectRoot, "paper.md"), "# Custom Paper\\n", "utf-8")
+            const secondInit = await tools.vibepaper_init.execute({{ name: "Other" }}, toolContext)
+            assert.match(secondInit, /VibePaper Already Initialized/)
+            assert.equal(await fs.readFile(path.join(projectRoot, "paper.md"), "utf-8"), "# Custom Paper\\n")
+
+            const commandOutput = {{ parts: [] }}
+            await hooks["command.execute.before"](
+              {{ command: "vibeinit", sessionID: "parent-1", arguments: "--name Command Init" }},
+              commandOutput,
+            )
+            assert.equal(commandOutput.parts.length, 1)
+            assert.match(commandOutput.parts[0].text, /VibePaper Already Initialized/)
 
             const statusBefore = await tools.vibepaper_status.execute({{}}, toolContext)
             assert.match(statusBefore, /Project: MVP Test \\(SE\\)/)
@@ -225,29 +221,15 @@ def write_node_harness(project_root: Path) -> Path:
 
             const events = await fs.readFile(path.join(projectRoot, ".vibepaper", "events.jsonl"), "utf-8")
             assert.match(events, /"operator":"opencode-plugin"/)
+            assert.match(events, /"action":"init_project"/)
             assert.match(events, /"action":"set_phase_status"/)
             assert.match(events, /"action":"spawn_agent"/)
-            console.log("OpenCode plugin MVP harness checks passed.")
+            console.log("OpenCode plugin M1 harness checks passed.")
             """
         ),
         encoding="utf-8",
     )
     return harness
-
-
-def verify_vibepaper_fixture(project_root: Path) -> None:
-    for relative in [
-        ".vibepaper/state.json",
-        ".vibepaper/config.json",
-        ".vibepaper/events.jsonl",
-        ".vibepaper/memory.json",
-        ".vibepaper/tasks.json",
-        ".vibepaper/artifacts.json",
-        "storyline.md",
-        "paper.md",
-        "writingrules.md",
-    ]:
-        require(project_root / relative)
 
 
 def main() -> None:
@@ -269,8 +251,6 @@ def main() -> None:
         shutil.rmtree(TMP_DIR)
     TMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    write_vibepaper_fixture(TMP_DIR)
-    verify_vibepaper_fixture(TMP_DIR)
     harness = write_node_harness(TMP_DIR)
     run([executable("node"), str(harness)])
     print(f"\nMVP smoke test completed: {TMP_DIR}")

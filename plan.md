@@ -272,6 +272,20 @@ Acceptance criteria:
 
 ### M1: `/vibeinit` MVP
 
+Status: completed.
+
+Completed in this milestone:
+
+- Implemented plugin-native `initProject()` for the `.vibepaper` runtime.
+- Added initial creation of `.vibepaper/state.json`, `config.json`, `events.jsonl`, `memory.json`, `tasks.json`, and `artifacts.json`.
+- Added minimal default `paper.md`, `storyline.md`, and `writingrules.md` content.
+- Registered `vibepaper_init` as an OpenCode plugin tool.
+- Added a best-effort `/vibeinit` path through `command.execute.before`; OpenCode command registration support still needs real runtime validation.
+- Made init non-destructive by default: an existing `.vibepaper/state.json` returns an already-initialized dashboard and does not overwrite user files.
+- Added Markdown init dashboard output for created, skipped, and overwritten files.
+- Updated smoke coverage to initialize an empty directory through the plugin, verify starter files, verify non-overwrite behavior, and check the `init_project` event.
+- Verified with TypeScript typecheck, M1 smoke script, plugin tests, and the full Python regression suite.
+
 Goal: initialize a minimal VibePaper project from a global OpenCode plugin.
 
 Tools and commands:
