@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    [
+      "@vibepaper/opencode",
+      {
+        "mode": "strict"
+      }
+    ]
+  ],
+  "instructions": [
+    "AGENTS.md"
+  ],
+  "permission": {
+    "skill": {
+      "*": "allow"
+    },
+    "vibepaper_status": "allow",
+    "vibepaper_set_phase": "ask",
+    "vibepaper_spawn_agent": "ask",
+    "edit": "ask",
+    "write": "ask",
+    "apply_patch": "ask",
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "python -m pytest*": "allow"
+    }
+  }
+}

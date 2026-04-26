@@ -48,9 +48,9 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
 ## Action Logging
 
 You MUST log your tools usage (such as file reads, MCP tool calls, file modifications) during the execution of this skill.
-After invoking any tool, run a terminal command to append a structured JSON log to `.agents/toolevents.jsonl`.
+After invoking any tool, run a terminal command to append a structured JSON log to `.agents/events.jsonl`.
 **Example Action Logging Command:**
-`echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/toolevents.jsonl`
+`echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/events.jsonl`
 
 ## Instructions (STRICT INTERACTIVE WORKFLOW)
 

@@ -31,7 +31,7 @@ vibe = "vibepaper.cli:main"
 include = ["vibepaper*"]
 
 [tool.setuptools.package-data]
-vibepaper = ["scaffold/**/*", "scaffold/*"]
+vibepaper = ["scaffold/**/*", "scaffold/*", "scaffold/.opencode/**/*", "scaffold/.opencode/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

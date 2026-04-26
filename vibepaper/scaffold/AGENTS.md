@@ -4,7 +4,7 @@
 ###### VibePaper: structured academic paper writing
 <!-- description: What this project is and how it works -->
 This is a VibePaper paper-writing project.
-VibePaper uses a six-phase workflow, 22 agent skills, and a CLI (`vibe`) to guide you from research storyline to submission-ready LaTeX.
+VibePaper uses a six-phase workflow, 23 agent skills, an OpenCode plugin harness, and a CLI (`vibe`) to guide you from research storyline to submission-ready LaTeX.
 The core philosophy is structure-first, human-led, AI-assisted: AI polishes your expression and checks your logic, but never invents research content.
 Your insight is the soul of the paper; the system helps you express it clearly and defend it rigorously.
 
@@ -25,7 +25,9 @@ Your insight is the soul of the paper; the system helps you express it clearly a
 - `.agents/state.json`: Workflow state — phase statuses, checker results, literature counters, writing progress.
 - `.agents/events.jsonl`: Append-only operation log for all CLI and skill actions.
 - `.agents/cross_index.json`: Cross-reference index mapping technical concepts to literature summaries.
-- `.agents/skills/`: The 22 agent skills that power each workflow phase.
+- `.agents/skills/`: The 23 agent skills that power each workflow phase.
+- `opencode.json`: Project-level OpenCode config that loads the VibePaper plugin.
+- `.opencode/`: OpenCode commands and VibePaper-specific subagent definitions.
 - `AGENTS.md`: This file — the project-level guide for agents.
 
 ## SIX-PHASE WORKFLOW
@@ -73,7 +75,7 @@ The system revolves around a few key artifacts rather than the phases themselves
 5. Loop: `paper.md` → 7 checkers → `review-revise` → `paper.md` (iterative improvement)
 
 ## SKILL CATALOG
-###### 22 skills organized by workflow purpose
+###### 23 skills organized by workflow purpose
 <!-- description: What each skill does and when to use it -->
 
 ### Phase 1 — Storyline
@@ -85,6 +87,7 @@ The system revolves around a few key artifacts rather than the phases themselves
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | `relatedwork-finder` | "find related work" | Searches Google Scholar (via `serper_google_search_scholar`) and arXiv, caches metadata, manages BibTeX, downloads PDFs, and generates per-paper summaries using multimodal subagents (strictly sequential, one paper at a time). |
+| `relatedwork-summarizer` | (invoked after PDFs are ready) | Generates sequential multimodal summaries for downloaded papers and builds the literature cross-index. |
 
 ### Phase 3 — Discussion
 | Skill | Trigger | Purpose |
@@ -133,6 +136,15 @@ The system revolves around a few key artifacts rather than the phases themselves
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
 | `vibepaper-manage` | "manage this paper with vibe cli" | Teaches agents how to use the `vibe` CLI for project lifecycle management. |
+
+## OPENCODE PLUGIN HARNESS
+###### Code-level workflow controls
+<!-- description: How OpenCode should interact with VibePaper state -->
+- Prefer `vibepaper_status` over manually reading `.agents/state.json` when checking workflow state.
+- Prefer `vibepaper_set_phase` over direct edits to `.agents/state.json`; direct state edits are blocked by the plugin policy.
+- Use `vibepaper_spawn_agent` when a task should run in a child OpenCode session.
+- During the `literature` phase, do not edit `paper.md`; finish related-work search, summaries, and cross-index first.
+- The plugin injects current-phase context into OpenCode sessions, but skills remain available through `.agents/skills/`.
 
 ## RECOMMENDED WORKFLOW
 ###### Step-by-step guide for writing a paper

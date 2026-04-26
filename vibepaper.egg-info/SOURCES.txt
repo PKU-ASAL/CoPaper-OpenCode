@@ -62,6 +62,7 @@ vibepaper/scaffold/skills/problem-checker/SKILL.md
 vibepaper/scaffold/skills/problem-checker/examples.md
 vibepaper/scaffold/skills/relatedwork-finder/SKILL.md
 vibepaper/scaffold/skills/relatedwork-finder/template.md
+vibepaper/scaffold/skills/relatedwork-summarizer/SKILL.md
 vibepaper/scaffold/skills/review-revise/SKILL.md
 vibepaper/scaffold/skills/socratic-discussion/SKILL.md
 vibepaper/scaffold/skills/storyline-helper/SKILL.md

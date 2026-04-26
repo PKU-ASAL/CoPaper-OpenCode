@@ -6,6 +6,8 @@ from pathlib import Path
 
 from vibepaper.scaffold import (
     copy_agents_md,
+    copy_opencode_assets,
+    copy_opencode_config,
     copy_paper,
     copy_skills,
     copy_storyline,
@@ -129,6 +131,42 @@ class TestCopyAgentsMd:
         assert existing.read_text(encoding="utf-8") == "custom agents"
 
 
+class TestCopyOpenCodeConfig:
+    def test_copies_opencode_json(self, tmp_path: Path) -> None:
+        dst = copy_opencode_config(tmp_path)
+        assert dst == tmp_path / "opencode.json"
+        assert dst.exists()
+        content = dst.read_text(encoding="utf-8")
+        assert "@vibepaper/opencode" in content
+
+    def test_does_not_overwrite_existing(self, tmp_path: Path) -> None:
+        existing = tmp_path / "opencode.json"
+        existing.write_text("{}", encoding="utf-8")
+
+        _ = copy_opencode_config(tmp_path)
+
+        assert existing.read_text(encoding="utf-8") == "{}"
+
+
+class TestCopyOpenCodeAssets:
+    def test_copies_opencode_assets(self, tmp_path: Path) -> None:
+        dst = copy_opencode_assets(tmp_path)
+        assert dst == tmp_path / ".opencode"
+        assert (dst / "commands" / "vibe-status.md").exists()
+        assert (dst / "commands" / "vibe-spawn-agent.md").exists()
+        assert (dst / "agents" / "vibepaper-reviewer.md").exists()
+        assert (dst / "agents" / "vibepaper-writer.md").exists()
+
+    def test_does_not_overwrite_existing_asset(self, tmp_path: Path) -> None:
+        existing = tmp_path / ".opencode" / "commands" / "vibe-status.md"
+        existing.parent.mkdir(parents=True)
+        existing.write_text("custom", encoding="utf-8")
+
+        _ = copy_opencode_assets(tmp_path)
+
+        assert existing.read_text(encoding="utf-8") == "custom"
+
+
 class TestScaffoldProject:
     def test_creates_all_scaffold_files(self, tmp_path: Path) -> None:
         scaffold_project(tmp_path)
@@ -138,8 +176,11 @@ class TestScaffoldProject:
         assert (tmp_path / "paper.md").exists()
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
+        assert (tmp_path / "opencode.json").exists()
+        assert (tmp_path / ".opencode" / "commands" / "vibe-status.md").exists()
+        assert (tmp_path / ".opencode" / "agents" / "vibepaper-reviewer.md").exists()
 
         skill_dirs = [
             d.name for d in (tmp_path / ".agents" / "skills").iterdir() if d.is_dir()
         ]
-        assert len(skill_dirs) == 22
+        assert len(skill_dirs) == 23

@@ -112,7 +112,7 @@ def init(ctx: click.Context, name: str, domain: str) -> None:
 
     click.echo(f"Project '{name}' ({domain}) initialised at {sm._state_file}")
     click.echo(
-        "Scaffolded: .agents/skills/, storyline.md, paper.md, writingrules.md, AGENTS.md"
+        "Scaffolded: .agents/skills/, storyline.md, paper.md, writingrules.md, AGENTS.md, opencode.json, .opencode/"
     )
 
 

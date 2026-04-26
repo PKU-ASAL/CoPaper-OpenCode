@@ -54,6 +54,8 @@ class TestInit:
         assert (tmp_path / "paper.md").exists()
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
+        assert (tmp_path / "opencode.json").exists()
+        assert (tmp_path / ".opencode" / "commands" / "vibe-status.md").exists()
 
     def test_init_existing_project_warns(self, tmp_path: Path) -> None:
         runner = CliRunner()

@@ -1,80 +1,50 @@
 # AGENTS.md
 
-## OVERVIEW
-###### VibePaper: CLI + skills for structured paper workflows
-<!-- description: Project purpose and core value proposition -->
-VibePaper combines a Python CLI with specialized agent skills for structured academic paper writing.
-It manages a six-phase workflow, persists shared project state in `.agents/state.json`, and scaffolds reusable writing assets into any target project directory.
-The system prioritizes structural integrity, reproducible workflow state, and skill-guided execution over raw AI generation.
+## Purpose
+- This is the development repo for VibePaper: a Python CLI plus OpenCode skills for structured academic paper workflows.
+- `vibe` and `python -m vibepaper` both enter `vibepaper.cli:main`; `vibepaper/` is the runtime package.
+- `vibepaper/scaffold/` is bundled package data copied into new projects by `vibe init`.
+- `.agents/skills/` is the source skill library; each skill is discovered through `SKILL.md` YAML frontmatter.
 
-## STRUCTURE
-###### Runtime package, scaffold bundle, and skill assets
-<!-- description: File organization and structural rules -->
-- `vibepaper/`: Python package implementing CLI, state management, event logs, git integration, reports, and scaffold copy logic.
-- `vibepaper/scaffold/`: Bundled package data copied into new projects by `vibe init`.
-- `.agents/skills/`: Source skill library tracked in this repository.
-- `storyline.md`: Research storyline starter template copied into new projects.
-- `paper.md`: Paper framework starter template copied into new projects.
-- `writingrules.md`: Definitive guide for structural and content constraints.
-- `workflow-dataflow.md`: Maintainer-facing artifact and skill data-flow analysis.
-- `templates/`: Template guidance and LaTeX template drop-in directory.
-- `tests/`: Automated verification for CLI, scaffold, git, reports, and checker integration.
+## Setup And Checks
+- Install for development from the repo root with `pip install -e .[dev]` on Python `>=3.10`.
+- Run all tests with `python -m pytest tests/ -v`; coverage uses `python -m pytest tests/ --cov=vibepaper --cov-report=term`.
+- Focused checks: `python -m pytest tests/test_cli.py -v`, `python -m pytest tests/test_scaffold.py -v`, `python -m pytest tests/test_skill_conventions.py -v`.
+- There is no Makefile, task runner, CI workflow, pre-commit config, ruff config, mypy config, or formatter config; `pyproject.toml` and pytest are the executable sources of truth.
 
-## WHERE TO LOOK
-###### Key implementation entry points
-<!-- description: Critical paths for development and usage -->
-- `vibepaper/cli.py`: Click entry point for `vibe` and `python -m vibepaper`.
-- `vibepaper/scaffold.py`: Copies bundled skills and starter files into new project roots.
-- `vibepaper/state.py`: Reads and writes `.agents/state.json`.
-- `vibepaper/eventlog.py`: Appends and queries `.agents/events.jsonl`.
-- `vibepaper/git_ops.py`: Phase-aware commit and rollback helpers.
-- `workflow-dataflow.md`: Current artifact flow, reverse workflows, and structural gaps.
-- `.agents/skills/vibepaper-manage/`: Guidance for automating project management through the `vibe` CLI.
-- `tests/test_cli.py` and `tests/test_scaffold.py`: Fastest way to verify workflow behavior.
+## Where To Look
+- `vibepaper/cli.py`: Click command surface, including global `--root`, related-work commands, and Git-backed commands.
+- `vibepaper/state.py`, `vibepaper/schema.py`, `vibepaper/constants.py`: workflow state shape, phase names, statuses, order, and dependencies.
+- `vibepaper/scaffold.py`: non-destructive scaffold copying used by `vibe init`.
+- `vibepaper/literature.py`, `vibepaper/crossindex.py`, `vibepaper/relatedwork_download.py`: related-work catalog, cross-index, and PDF download behavior.
+- `vibepaper/eventlog.py`, `vibepaper/git_ops.py`, `vibepaper/report.py`: event logging, phase commits/rollback/diff, and reports.
+- `tests/acceptance_checklist.md`: manual end-to-end workflow checks when CLI behavior changes.
 
-## CONVENTIONS
-###### CLI and document handling rules
-<!-- description: Coding and writing standards -->
-- Levels 1-5 (`#` to `#####`) are for structural organization only.
-- Level 6 (`######`) is the only level permitted for paragraph content.
-- Topic sentences (Level 6 titles) must be ≤ 50 characters.
-- Supporting content (paragraph body) must be ≤ 500 characters.
-- Metadata must use HTML comments: `<!-- description: ... -->`.
-- `--root` is a global CLI option and must appear before the subcommand.
-- Use full phase names (`storyline`, `literature`, `discussion`, `experiments`, `writing`, `latex_review`) rather than stage letters.
-- Prefer the CLI to update workflow state instead of manually editing `.agents/state.json` or `.agents/events.jsonl`.
+## CLI Gotchas
+- `--root` is a global Click option and must appear before the subcommand: `vibe --root <dir> status`, not `vibe status --root <dir>`.
+- Use full phase names only: `storyline`, `literature`, `discussion`, `experiments`, `writing`, `latex_review`.
+- Prefer CLI commands over hand-editing `.agents/state.json` or `.agents/events.jsonl`; `status`, `set-phase`, `skip`, and related-work commands recompute derived state.
+- `vibe skip <phase> --reason "..."` should include a reason, though the CLI allows omitting it.
+- `vibe commit`, `vibe rollback`, and `vibe diff` require a Git repo; `vibe report` still runs without Git and reports the missing Git summary.
+- `vibe commit -m "..." --force` creates an empty phase commit; `vibe rollback <phase> -y` skips confirmation and uses a soft reset.
+- `vibe init` is intentionally non-destructive for existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, and existing skill directories.
 
-## ANTI-PATTERNS
-###### Common mistakes in the current implementation
-<!-- description: What to avoid during development and writing -->
-- Do not modify 2-5 level headings in `paper.md`.
-- Do not write body text directly under levels 1-5.
-- Do not use `.github/skills/` (incorrect path in some docs); use `.agents/skills/`.
-- Do not rely on AI for meaningful content generation; use it for optimization and checking.
-- Do not place `--root` after subcommands such as `init` or `status`.
-- Do not assume `commit`, `rollback`, or `diff` work outside a Git repository.
-- Do not assume `report` requires Git; it runs without Git and reports the missing repository in the output.
-- Do not hand-edit scaffolded skills when the same change must also exist in `vibepaper/scaffold/`.
+## Related Work And Runtime State
+- `relatedwork/literature.json` is the canonical per-paper catalog; `.agents/state.json` stores only aggregate literature counters.
+- `vibe relatedwork import --input <json>` expects a JSON array of paper records or an object with a `papers` array, such as serper/arXiv cache output.
+- `vibe relatedwork sync-bib` synchronizes `relatedwork/paper_list.bib`; `vibe relatedwork build-index` writes `.agents/cross_index.json` from `relatedwork/papers/*.md`.
+- `.agents/events.jsonl` is append-only JSONL and rotates at 10 MB to `.agents/events.jsonl.1`.
+- `.gitignore` hides important runtime artifacts: `relatedwork/`, `fig/`, `.agents/state.json`, `.agents/events.jsonl`, `.sisyphus`, local `opencode*` files, and root-level draft paper files; do not rely on `git status` to find them.
 
-## COMMANDS
-###### Current CLI behaviors agents should rely on
-<!-- description: Essential commands for agent interaction -->
-- `vibe --root <project-dir> init --name "<project>" --domain "<domain>"`: Initializes a project in any directory and scaffolds `.agents/skills/`, `storyline.md`, `paper.md`, `writingrules.md`, and `AGENTS.md`.
-- `vibe --root <project-dir> status [--json]`: Reads workflow status from `.agents/state.json` and recomputes `current_phase` from actual phase statuses.
-- `vibe --root <project-dir> set-phase <phase> --status <status> [--reason <reason>]`: Explicitly sets a phase status and recomputes `current_phase`.
-- `vibe --root <project-dir> skip <phase> --reason "<reason>"`: Marks a phase as skipped.
-- `vibe --root <project-dir> log [--phase ...] [--operator ...] [--last N]`: Queries the event log.
-- `vibe --root <project-dir> report [--since YYYY-MM-DD] [--output file]`: Generates a progress report.
-- `vibe --root <project-dir> relatedwork status|import|sync-bib|download|register-summary|build-index ...`: Manages canonical literature metadata in `relatedwork/literature.json`, synchronizes `relatedwork/paper_list.bib`, downloads PDFs, registers summaries, and rebuilds `.agents/cross_index.json`.
-- `vibe --root <project-dir> commit -m "<message>" [--phase <phase>]`, `vibe --root <project-dir> rollback <phase>`, and `vibe --root <project-dir> diff <phase-a> <phase-b>`: Git-backed phase management commands.
+## Skill And Scaffold Rules
+- There are 23 source skills, including `relatedwork-summarizer`; the older "22 skills" wording in docs is stale.
+- When changing `.agents/skills/<skill>/SKILL.md` or checker `examples.md`, mirror the same change under `vibepaper/scaffold/skills/<skill>/`.
+- Run `python -m pytest tests/test_skill_conventions.py -v` after skill edits; it catches missing `## Input Files`, bad `writingrules.md` read policies, checker example drift, and source/scaffold mismatches.
+- Run `python -m pytest tests/test_scaffold.py -v` after changes to `vibepaper/scaffold/`, scaffold starters, or `vibe init` behavior.
+- Do not use `.github/skills/`; this repo uses `.agents/skills/`.
+- Keep root `AGENTS.md` development-focused. `vibepaper/scaffold/AGENTS.md` is intentionally different because it is copied into new paper-writing projects.
+- Paper structure rules belong in `writingrules.md`; do not duplicate long writing-format tutorials here.
 
-## NOTES
-###### Current version notes
-<!-- description: Miscellaneous critical information -->
-- LaTeX support: Use `$...$` for inline and `$$...$$` for block formulas.
-- Node expansion: Nodes ending in numbers (e.g., "Challenge 1") can be duplicated.
-- Image handling: JPG/PNG/GIF supported, max 5MB, stored in `fig/`.
-- `vibe init` is intentionally non-destructive for existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, and already-present skill directories in the target project.
-- `current_phase` is derived from actual phase statuses during CLI status updates instead of staying fixed at the init-time default.
-- Canonical per-paper literature metadata now lives in `relatedwork/literature.json`; `.agents/state.json` keeps only aggregate literature progress counters.
-- The packaged scaffold lives in `vibepaper/scaffold/` and must stay synchronized with the source assets in this repository.
+## Branch Boundary
+- `main` is the full development branch with Python code, tests, scaffold assets, and all skills.
+- `vibepaper-opencode` is a stripped consumer-facing branch with only docs, templates, and a small skill subset; edits on `main` do not automatically update that branch.

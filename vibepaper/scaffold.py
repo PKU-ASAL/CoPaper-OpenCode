@@ -15,6 +15,18 @@ def _scaffold_dir() -> Path:
     return Path(__file__).resolve().parent / "scaffold"
 
 
+def _copy_missing_tree(src: Path, dst: Path) -> None:
+    if not src.exists():
+        return
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in sorted(src.iterdir()):
+        target = dst / item.name
+        if item.is_dir():
+            _copy_missing_tree(item, target)
+        elif not target.exists():
+            shutil.copy2(str(item), str(target))
+
+
 def copy_skills(project_root: str | Path) -> Path:
     """Copy bundled skills into ``<project_root>/.agents/skills/``.
 
@@ -117,6 +129,23 @@ def copy_agents_md(project_root: str | Path) -> Path:
     return dst
 
 
+def copy_opencode_config(project_root: str | Path) -> Path:
+    src = _scaffold_dir() / "opencode.json"
+    dst = Path(project_root) / "opencode.json"
+
+    if not dst.exists() and src.exists():
+        shutil.copy2(str(src), str(dst))
+
+    return dst
+
+
+def copy_opencode_assets(project_root: str | Path) -> Path:
+    src = _scaffold_dir() / ".opencode"
+    dst = Path(project_root) / ".opencode"
+    _copy_missing_tree(src, dst)
+    return dst
+
+
 def scaffold_project(project_root: str | Path) -> None:
     """Run the full scaffold: skills and starter markdown files."""
     copy_skills(project_root)
@@ -124,3 +153,5 @@ def scaffold_project(project_root: str | Path) -> None:
     copy_paper(project_root)
     copy_writingrules(project_root)
     copy_agents_md(project_root)
+    copy_opencode_config(project_root)
+    copy_opencode_assets(project_root)
