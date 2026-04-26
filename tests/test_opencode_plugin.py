@@ -16,7 +16,10 @@ def test_plugin_package_manifest() -> None:
 
 
 def test_plugin_exposes_mvp_tools_and_hooks() -> None:
-    source = (PLUGIN_DIR / "src" / "index.ts").read_text(encoding="utf-8")
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((PLUGIN_DIR / "src").rglob("*.ts"))
+    )
     for expected in [
         "vibepaper_status",
         "vibepaper_set_phase",
@@ -27,3 +30,29 @@ def test_plugin_exposes_mvp_tools_and_hooks() -> None:
         "promptAsync",
     ]:
         assert expected in source
+
+
+def test_plugin_uses_vibepaper_runtime_paths() -> None:
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((PLUGIN_DIR / "src").rglob("*.ts"))
+    )
+    assert ".vibepaper" in source
+    assert ".vibepaper/state.json" in source
+    assert ".vibepaper/events.jsonl" in source
+    assert "literature phase" not in source
+
+
+def test_plugin_has_core_and_opencode_modules() -> None:
+    for relative in [
+        "src/core/schema.ts",
+        "src/core/paths.ts",
+        "src/core/state.ts",
+        "src/core/eventlog.ts",
+        "src/core/dashboard.ts",
+        "src/core/policy.ts",
+        "src/opencode/context.ts",
+        "src/opencode/tools.ts",
+        "src/opencode/hooks.ts",
+    ]:
+        assert (PLUGIN_DIR / relative).exists()
