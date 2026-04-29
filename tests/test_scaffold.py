@@ -139,7 +139,13 @@ class TestScaffoldProject:
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
 
-        skill_dirs = [
+        scaffold_skills_dir = (
+            Path(__file__).resolve().parent.parent / "vibepaper" / "scaffold" / "skills"
+        )
+        expected_skill_dirs = {
+            d.name for d in scaffold_skills_dir.iterdir() if d.is_dir()
+        }
+        skill_dirs = {
             d.name for d in (tmp_path / ".agents" / "skills").iterdir() if d.is_dir()
-        ]
-        assert len(skill_dirs) == 22
+        }
+        assert skill_dirs == expected_skill_dirs

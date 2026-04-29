@@ -35,7 +35,6 @@ The paper follows VibePaper structure. Key rules for this skill:
 |------|----------|-------------|---------|
 | `paper.md` | Conditional | Step 1 and Step 8 | Target framework; if missing, initialize project first |
 | `*.pdf` | **Required** | Step 2 | Source draft content |
-| `writingrules.md` | Conditional | Step 3 | Optional structure validation if available |
 | `.agents/state.json` | Optional | Step 9 | Update writing phase status |
 | `fig/` | Optional | Step 5 | Keep references to figure files mentioned in PDF |
 
@@ -119,7 +118,7 @@ If one PDF paragraph supports multiple destinations, split conservatively and ke
 ### Step 3: Scan target framework
 
 1. Read `paper.md` structure (`#` to `#####`) and descriptions.
-2. If available, read `writingrules.md` for additional constraints.
+2. Use the embedded Paper Structure Reference above for structure constraints.
 3. Build a target section map for insertion planning.
 
 ### Step 4: Build section evidence map
