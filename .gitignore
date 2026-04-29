@@ -1,6 +1,6 @@
 .sisyphus
 .ruff_cache
-opencode*
+/opencode*
 oh-my-opencode.json
 relatedwork/
 fig/
@@ -15,3 +15,6 @@ AutoResearchClaw/
 target/
 ./storyline_origin.md
 .codex
+.worktrees/
+/packages/opencode-plugin/node_modules/
+/packages/opencode-plugin/dist/
