@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const packageRoot = join(import.meta.dir, "..")
@@ -18,5 +18,19 @@ describe("package metadata", () => {
 
   test("does not define postinstall scripts", () => {
     expect(pkg.scripts?.postinstall).toBeUndefined()
+  })
+})
+
+describe("built package smoke", () => {
+  test("built CLI has a Bun shebang after build", () => {
+    const cliPath = join(packageRoot, "dist", "cli.js")
+    expect(existsSync(cliPath)).toBe(true)
+    expect(readFileSync(cliPath, "utf8").startsWith("#!/usr/bin/env bun")).toBe(true)
+  })
+
+  test("built plugin entry exists after build", () => {
+    const entryPath = join(packageRoot, "dist", "index.js")
+    expect(existsSync(entryPath)).toBe(true)
+    expect(readFileSync(entryPath, "utf8")).toContain("VibePaperPlugin")
   })
 })
