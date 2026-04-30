@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join, sep } from "node:path"
 import { assertInsideRoot, backupPathFor, writeFileAtomic } from "../src/fs-utils"
-import { applyInitPlan, planInit, type InitPlan } from "../src/installer"
+import { applyInitPlan, planInit, resolvePluginSpecifier, type InitPlan } from "../src/installer"
 import { renderCommandTemplate } from "../src/templates"
 import { hashTree, makeTempProject } from "./fixtures"
 
@@ -73,6 +73,26 @@ describe("installer", () => {
     expect(JSON.parse(project.read("opencode.json")).plugin).toEqual(["@vibepaper/opencode"])
     expect(project.read(".opencode/commands/vibe.md")).toContain("command=vibe")
     expect(project.read(".opencode/commands/vibe-doctor.md")).toContain("command=vibe-doctor")
+  })
+
+  test("uses a file URL plugin specifier when the CLI runs from project node_modules", () => {
+    const project = temp()
+    const cliPath = project.path("node_modules", "@vibepaper", "opencode", "dist", "cli.js")
+    const indexPath = project.path("node_modules", "@vibepaper", "opencode", "dist", "index.js")
+    project.write("node_modules/@vibepaper/opencode/dist/cli.js", "")
+    project.write("node_modules/@vibepaper/opencode/dist/index.js", "")
+
+    expect(resolvePluginSpecifier(project.root, cliPath)).toBe(`file://${indexPath}`)
+  })
+
+  test("keeps the npm package specifier when the CLI is outside the target project", () => {
+    const project = temp()
+    const outside = temp()
+    const cliPath = outside.path("node_modules", "@vibepaper", "opencode", "dist", "cli.js")
+    outside.write("node_modules/@vibepaper/opencode/dist/cli.js", "")
+    outside.write("node_modules/@vibepaper/opencode/dist/index.js", "")
+
+    expect(resolvePluginSpecifier(project.root, cliPath)).toBe("@vibepaper/opencode")
   })
 
   test("merges existing JSON config and backs it up", async () => {

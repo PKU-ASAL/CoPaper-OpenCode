@@ -18,6 +18,20 @@ describe("mergePluginConfig", () => {
     expect(parse(result.output!).plugin).toEqual(["other", "@vibepaper/opencode"])
   })
 
+  test("uses an explicit plugin specifier for local package installs", () => {
+    const localSpecifier = "file:///tmp/project/node_modules/@vibepaper/opencode/dist/index.js"
+    const result = mergePluginConfig('{"model":"x"}', localSpecifier)
+    expect(result.ok).toBe(true)
+    expect(parse(result.output!).plugin).toEqual([localSpecifier])
+  })
+
+  test("replaces package specifier with explicit local plugin specifier", () => {
+    const localSpecifier = "file:///tmp/project/node_modules/@vibepaper/opencode/dist/index.js"
+    const result = mergePluginConfig('{"plugin":["@vibepaper/opencode"]}', localSpecifier)
+    expect(result.ok).toBe(true)
+    expect(parse(result.output!).plugin).toEqual([localSpecifier])
+  })
+
   test("does not rewrite when plugin already exists", () => {
     const input = '{"plugin":["@vibepaper/opencode"]}'
     const result = mergePluginConfig(input)

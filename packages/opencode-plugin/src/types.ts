@@ -1,8 +1,13 @@
 export const PACKAGE_NAME = "@vibepaper/opencode" as const
 export const CLI_NAME = "vibepaper-opencode" as const
+export const BUNX_CLI_COMMAND = `bunx -p ${PACKAGE_NAME} ${CLI_NAME}` as const
 export const SCHEMA_VERSION = 1 as const
 export const VIBE_COMMAND = "vibe" as const
 export const VIBE_DOCTOR_COMMAND = "vibe-doctor" as const
+
+export function isVibePaperPluginSpecifier(value: unknown): value is string {
+  return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@vibepaper/opencode/dist/index.js")))
+}
 
 export type CheckStatus = "pass" | "warn" | "fail" | "info"
 export type CheckSeverity = "error" | "warning" | "info"

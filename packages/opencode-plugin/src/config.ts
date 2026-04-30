@@ -1,11 +1,11 @@
 import { applyEdits, findNodeAtLocation, getNodeValue, modify, parse, parseTree, type ParseError } from "jsonc-parser"
-import { PACKAGE_NAME } from "./types"
+import { isVibePaperPluginSpecifier, PACKAGE_NAME } from "./types"
 
 export type MergeResult =
   | { ok: true; changed: boolean; output: string }
   | { ok: false; changed: false; error: string }
 
-export function mergePluginConfig(input: string): MergeResult {
+export function mergePluginConfig(input: string, pluginSpecifier: string = PACKAGE_NAME): MergeResult {
   const errors: ParseError[] = []
   const root = parseTree(input, errors, { allowTrailingComma: true, disallowComments: false })
   if (!root || errors.length > 0) {
@@ -19,7 +19,7 @@ export function mergePluginConfig(input: string): MergeResult {
 
   const pluginNode = findNodeAtLocation(root, ["plugin"])
   if (!pluginNode) {
-    const edits = modify(input, ["plugin"], [PACKAGE_NAME], { formattingOptions: { insertSpaces: true, tabSize: 2 } })
+    const edits = modify(input, ["plugin"], [pluginSpecifier], { formattingOptions: { insertSpaces: true, tabSize: 2 } })
     return { ok: true, changed: true, output: applyEdits(input, edits) }
   }
 
@@ -28,10 +28,17 @@ export function mergePluginConfig(input: string): MergeResult {
     return { ok: false, changed: false, error: "OpenCode config field plugin must be an array" }
   }
 
-  if (current.includes(PACKAGE_NAME)) {
+  const currentPluginIndex = current.findIndex(isVibePaperPluginSpecifier)
+  if (currentPluginIndex >= 0) {
+    if (current[currentPluginIndex] === pluginSpecifier) return { ok: true, changed: false, output: input }
+    const edits = modify(input, ["plugin", currentPluginIndex], pluginSpecifier, { formattingOptions: { insertSpaces: true, tabSize: 2 } })
+    return { ok: true, changed: true, output: applyEdits(input, edits) }
+  }
+
+  if (current.includes(pluginSpecifier)) {
     return { ok: true, changed: false, output: input }
   }
 
-  const edits = modify(input, ["plugin", -1], PACKAGE_NAME, { formattingOptions: { insertSpaces: true, tabSize: 2 } })
+  const edits = modify(input, ["plugin", -1], pluginSpecifier, { formattingOptions: { insertSpaces: true, tabSize: 2 } })
   return { ok: true, changed: true, output: applyEdits(input, edits) }
 }

@@ -4,7 +4,9 @@ import { parse, type ParseError } from "jsonc-parser"
 import { assertInsideRoot } from "./fs-utils"
 import { detectRoot } from "./root"
 import { hasManagedMarker } from "./templates"
-import { PACKAGE_NAME, SCHEMA_VERSION, type DoctorCheck, type DoctorResult } from "./types"
+import { BUNX_CLI_COMMAND, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, type DoctorCheck, type DoctorResult } from "./types"
+
+const INIT_REMEDIATION = `Run: ${BUNX_CLI_COMMAND} init`
 
 export interface DoctorOptions {
   root?: string
@@ -42,8 +44,8 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       } else {
         checks.push({ id: "config.parse", status: "pass", severity: "error", message: "OpenCode config parsed successfully", remediation: null })
         const plugins = parsedConfig.plugin
-        const configured = Array.isArray(plugins) && plugins.includes(PACKAGE_NAME)
-        checks.push({ id: "plugin.configured", status: configured ? "pass" : "fail", severity: "error", message: configured ? `${PACKAGE_NAME} is listed in plugin config` : `${PACKAGE_NAME} not found in plugin config`, remediation: configured ? null : "Run: bunx @vibepaper/opencode init" })
+        const configured = Array.isArray(plugins) && plugins.some(isVibePaperPluginSpecifier)
+        checks.push({ id: "plugin.configured", status: configured ? "pass" : "fail", severity: "error", message: configured ? `${PACKAGE_NAME} is listed in plugin config` : `${PACKAGE_NAME} not found in plugin config`, remediation: configured ? null : INIT_REMEDIATION })
       }
     }
   }
@@ -51,7 +53,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   addCommandChecks(root, checks, "vibe")
   addCommandChecks(root, checks, "vibe-doctor")
   const ok = checks.every((check) => !(check.severity === "error" && check.status === "fail"))
-  return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /vibe"] : ["Run: bunx @vibepaper/opencode init", "Restart OpenCode, then run /vibe-doctor"] }
+  return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /vibe"] : [INIT_REMEDIATION, "Restart OpenCode, then run /vibe-doctor"] }
 }
 
 export function renderDoctorJson(result: DoctorResult): string {
@@ -115,7 +117,7 @@ function selectConfigPath(root: string, explicitConfig?: string): { ok: true; pa
   }
 }
 
-function addUnavailableConfigChecks(checks: DoctorCheck[], message: string, remediation = "Run: bunx @vibepaper/opencode init") {
+function addUnavailableConfigChecks(checks: DoctorCheck[], message: string, remediation = INIT_REMEDIATION) {
   checks.push({ id: "config.present", status: "fail", severity: "error", message, remediation })
   checks.push({ id: "config.parse", status: "fail", severity: "error", message: `OpenCode config cannot be parsed: ${message}`, remediation })
   checks.push({ id: "plugin.configured", status: "fail", severity: "error", message: `${PACKAGE_NAME} is not configured`, remediation })
@@ -127,14 +129,14 @@ function addCommandChecks(root: string, checks: DoctorCheck[], command: "vibe" |
   const managedId = command === "vibe" ? "commands.vibe.managed" : "commands.vibe-doctor.managed"
   const severity = command === "vibe" ? "error" : "warning"
   if (!existsSync(path)) {
-    checks.push({ id: presentId, status: "fail", severity, message: `${path} not found`, remediation: "Run: bunx @vibepaper/opencode init" })
-    checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker missing because command file is missing`, remediation: "Run: bunx @vibepaper/opencode init" })
+    checks.push({ id: presentId, status: "fail", severity, message: `${path} not found`, remediation: INIT_REMEDIATION })
+    checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker missing because command file is missing`, remediation: INIT_REMEDIATION })
     return
   }
   const commandRead = readTextFile(path)
   if (!commandRead.ok) {
-    checks.push({ id: presentId, status: "fail", severity, message: `${path} is not a readable file: ${commandRead.error}`, remediation: "Run: bunx @vibepaper/opencode init" })
-    checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker cannot be verified`, remediation: "Run: bunx @vibepaper/opencode init" })
+    checks.push({ id: presentId, status: "fail", severity, message: `${path} is not a readable file: ${commandRead.error}`, remediation: INIT_REMEDIATION })
+    checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker cannot be verified`, remediation: INIT_REMEDIATION })
     return
   }
   const content = commandRead.content

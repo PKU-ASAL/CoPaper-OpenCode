@@ -1,9 +1,11 @@
 import { existsSync, readFileSync, copyFileSync, mkdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
+import { pathToFileURL } from "node:url"
 import { mergePluginConfig } from "./config"
 import { assertInsideRoot, backupPathFor, writeFileAtomic } from "./fs-utils"
 import { detectRoot } from "./root"
 import { hasManagedMarker, renderCommandTemplate, type CommandName } from "./templates"
+import { PACKAGE_NAME } from "./types"
 
 export interface InitOptions {
   root?: string
@@ -12,6 +14,8 @@ export interface InitOptions {
   dryRun?: boolean
   force?: boolean
   now?: Date
+  cliEntryPath?: string
+  pluginSpecifier?: string
 }
 
 export type FileAction =
@@ -28,11 +32,12 @@ export async function planInit(options: InitOptions): Promise<InitPlan> {
   const detection = await detectRoot({ cwd: options.cwd ?? process.cwd(), explicitRoot: options.root })
   const root = detection.root
   const now = options.now ?? new Date()
+  const pluginSpecifier = options.pluginSpecifier ?? resolvePluginSpecifier(root, options.cliEntryPath)
   const configPath = selectConfigPath(root, options.config)
   if (!configPath.ok) return { ok: false, error: configPath.error }
 
   const actions: FileAction[] = []
-  const configAction = planConfigAction(root, configPath.path, now)
+  const configAction = planConfigAction(root, configPath.path, pluginSpecifier, now)
   if (!configAction.ok) return { ok: false, error: configAction.error }
   actions.push(configAction.action)
 
@@ -87,10 +92,23 @@ function validateConfigPath(root: string, path: string): { ok: true; path: strin
   }
 }
 
-function planConfigAction(root: string, path: string, now: Date): { ok: true; action: FileAction } | { ok: false; error: string } {
-  if (!existsSync(path)) return { ok: true, action: { kind: "write", path, content: `{"plugin":["@vibepaper/opencode"]}\n` } }
+export function resolvePluginSpecifier(root: string, cliEntryPath?: string): string {
+  if (!cliEntryPath) return PACKAGE_NAME
+  const indexPath = join(dirname(cliEntryPath), "index.js")
+  if (!existsSync(indexPath)) return PACKAGE_NAME
+  if (!indexPath.endsWith(join("node_modules", "@vibepaper", "opencode", "dist", "index.js"))) return PACKAGE_NAME
+  try {
+    assertInsideRoot(root, indexPath)
+    return pathToFileURL(indexPath).href
+  } catch {
+    return PACKAGE_NAME
+  }
+}
+
+function planConfigAction(root: string, path: string, pluginSpecifier: string, now: Date): { ok: true; action: FileAction } | { ok: false; error: string } {
+  if (!existsSync(path)) return { ok: true, action: { kind: "write", path, content: `${JSON.stringify({ plugin: [pluginSpecifier] })}\n` } }
   const input = readFileSync(path, "utf8")
-  const merge = mergePluginConfig(input)
+  const merge = mergePluginConfig(input, pluginSpecifier)
   if (!merge.ok) return { ok: false, error: merge.error }
   if (!merge.changed) return { ok: true, action: { kind: "skip", path, reason: "plugin already configured" } }
   const rel = relative(root, path)

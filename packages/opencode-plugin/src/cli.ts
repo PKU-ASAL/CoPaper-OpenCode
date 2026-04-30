@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { fileURLToPath } from "node:url"
 import { applyInitPlan, planInit, type FileAction } from "./installer"
 import { renderDoctorJson, renderDoctorMarkdown, renderDoctorText, runDoctor } from "./doctor"
 import type { OutputFormat } from "./types"
@@ -23,7 +24,7 @@ async function runInit(args: string[]) {
     return 2
   }
   const options = parsed.options
-  const plan = await planInit(options)
+  const plan = await planInit({ ...options, cliEntryPath: fileURLToPath(import.meta.url) })
   if (!plan.ok) {
     console.error(plan.error)
     return 1

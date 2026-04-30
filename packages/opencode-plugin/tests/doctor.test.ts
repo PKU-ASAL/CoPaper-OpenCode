@@ -69,6 +69,16 @@ describe("doctor", () => {
     expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
   })
 
+  test("accepts a local file URL plugin specifier", async () => {
+    const project = temp()
+    project.write("opencode.json", JSON.stringify({ plugin: [`file://${project.path("node_modules", "@vibepaper", "opencode", "dist", "index.js")}`] }))
+    project.write(".opencode/commands/vibe.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->\n")
+    project.write(".opencode/commands/vibe-doctor.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe-doctor; schemaVersion=1 -->\n")
+
+    const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
+    expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
+  })
+
   test("rejects explicit config paths outside root without throwing", async () => {
     const project = temp()
     const outside = temp()
@@ -80,7 +90,7 @@ describe("doctor", () => {
     const parse = result.checks.find((check) => check.id === "config.parse")
     expect(present?.status).toBe("fail")
     expect(parse?.status).toBe("fail")
-    expect(present?.remediation ?? parse?.remediation).toBe("Run: bunx @vibepaper/opencode init")
+    expect(present?.remediation ?? parse?.remediation).toBe("Run: bunx -p @vibepaper/opencode vibepaper-opencode init")
   })
 
   test("reports directory config as parse failure without throwing", async () => {
@@ -130,6 +140,6 @@ describe("doctor", () => {
     const text = renderDoctorText(result)
     expect(text).toContain("VibePaper OpenCode Doctor v0.1.0")
     expect(text).toContain("config.present")
-    expect(text).toContain("bunx @vibepaper/opencode init")
+    expect(text).toContain("bunx -p @vibepaper/opencode vibepaper-opencode init")
   })
 })

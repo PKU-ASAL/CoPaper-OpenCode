@@ -1,4 +1,4 @@
-import { PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, VIBE_DOCTOR_COMMAND } from "./types"
+import { BUNX_CLI_COMMAND, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, VIBE_DOCTOR_COMMAND } from "./types"
 
 export type CommandName = typeof VIBE_COMMAND | typeof VIBE_DOCTOR_COMMAND
 
@@ -25,7 +25,7 @@ Call the \`vibepaper_dashboard\` tool and display the returned content to the us
 
 If the tool is unavailable, tell the user:
 - Run \`/vibe-doctor\` to diagnose
-- Or run in terminal: \`bunx @vibepaper/opencode doctor\`
+- Or run in terminal: \`${BUNX_CLI_COMMAND} doctor\`
 
 Do not invent VibePaper status. Only display what the tool returns.
 `
@@ -39,10 +39,10 @@ description: Diagnose VibePaper OpenCode plugin installation
 
 Run this diagnostic and display the output verbatim:
 
-!\`bunx @vibepaper/opencode doctor --format markdown 2>&1 || true\`
+!\`${BUNX_CLI_COMMAND} doctor --format markdown 2>&1 || true\`
 
 This is a convenience wrapper. For authoritative diagnostics, run in terminal:
-\`bunx @vibepaper/opencode doctor\`
+\`${BUNX_CLI_COMMAND} doctor\`
 
 Do not interpret or modify the diagnostic output.
 `
