@@ -41,23 +41,43 @@ describe("detectRoot", () => {
     expect(result.reason).toBe("found opencode.jsonc")
   })
 
-  test("ancestor opencode json beats nearer opencode jsonc", async () => {
+  test("nearer opencode jsonc beats ancestor opencode json", async () => {
     const project = temp()
     mkdirSync(project.path("repo", "sub", "deep"), { recursive: true })
     writeFileSync(project.path("repo", "opencode.json"), "{}")
     writeFileSync(project.path("repo", "sub", "opencode.jsonc"), "{}")
     const result = await detectRoot({ cwd: project.path("repo", "sub", "deep") })
-    expect(result.root).toBe(project.path("repo"))
-    expect(result.reason).toBe("found opencode.json")
+    expect(result.root).toBe(project.path("repo", "sub"))
+    expect(result.reason).toBe("found opencode.jsonc")
   })
 
-  test("ancestor opencode json beats nearer marker", async () => {
+  test("nearer marker beats ancestor opencode json", async () => {
     const project = temp()
     mkdirSync(project.path("repo", "sub", "deep"), { recursive: true })
     mkdirSync(project.path("repo", "sub", ".opencode", "commands"), { recursive: true })
     writeFileSync(project.path("repo", "opencode.json"), "{}")
     writeFileSync(project.path("repo", "sub", ".opencode", "commands", "vibe.md"), `${commandMarker("vibe")}\n`)
     const result = await detectRoot({ cwd: project.path("repo", "sub", "deep") })
+    expect(result.root).toBe(project.path("repo", "sub"))
+    expect(result.reason).toBe("found VibePaper command marker")
+  })
+
+  test("malformed marker does not block ancestor opencode json", async () => {
+    const project = temp()
+    mkdirSync(project.path("repo", "sub", "deep"), { recursive: true })
+    mkdirSync(project.path("repo", "sub", ".opencode", "commands", "vibe.md"), { recursive: true })
+    writeFileSync(project.path("repo", "opencode.json"), "{}")
+    const result = await detectRoot({ cwd: project.path("repo", "sub", "deep") })
+    expect(result.root).toBe(project.path("repo"))
+    expect(result.reason).toBe("found opencode.json")
+  })
+
+  test("same-directory opencode json beats opencode jsonc", async () => {
+    const project = temp()
+    mkdirSync(project.path("repo", "src"), { recursive: true })
+    writeFileSync(project.path("repo", "opencode.json"), "{}")
+    writeFileSync(project.path("repo", "opencode.jsonc"), "{}")
+    const result = await detectRoot({ cwd: project.path("repo", "src") })
     expect(result.root).toBe(project.path("repo"))
     expect(result.reason).toBe("found opencode.json")
   })

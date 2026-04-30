@@ -42,6 +42,33 @@ describe("doctor", () => {
     expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("fail")
   })
 
+  test("reports ambiguous config files without throwing", async () => {
+    const project = temp()
+    mkdirSync(project.path("opencode.json"))
+    project.write("opencode.jsonc", `{"plugin":["@vibepaper/opencode"]}\n`)
+
+    const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
+    expect(result.ok).toBe(false)
+    const configChecks = result.checks.filter((check) => check.id === "config.present" || check.id === "config.parse")
+    expect(configChecks.some((check) => check.status === "fail" && check.message.includes("ambiguous"))).toBe(true)
+    expect(configChecks.some((check) => check.remediation?.includes("--config") || check.remediation?.includes("remove one"))).toBe(true)
+    expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("fail")
+  })
+
+  test("explicit config resolves ambiguous config files", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    project.write("opencode.jsonc", `{"plugin":["@vibepaper/opencode"]}\n`)
+
+    const result = await runDoctor({ root: project.root, config: "opencode.jsonc", packageVersion: "0.1.0" })
+    expect(result.ok).toBe(true)
+    expect(result.checks.find((check) => check.id === "config.present")?.message).toContain("opencode.jsonc")
+    expect(result.checks.find((check) => check.id === "config.parse")?.status).toBe("pass")
+    expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
+  })
+
   test("rejects explicit config paths outside root without throwing", async () => {
     const project = temp()
     const outside = temp()

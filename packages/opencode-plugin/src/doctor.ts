@@ -22,7 +22,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
 
   const configSelection = selectConfigPath(root, options.config)
   if (!configSelection.ok) {
-    addUnavailableConfigChecks(checks, configSelection.message)
+    addUnavailableConfigChecks(checks, configSelection.message, configSelection.remediation)
   } else {
     const configPath = configSelection.path
     checks.push({ id: "config.present", status: "pass", severity: "error", message: `${configPath} found`, remediation: null })
@@ -84,18 +84,26 @@ export function renderDoctorText(result: DoctorResult): string {
   return `${lines.join("\n")}\n`
 }
 
-function selectExistingConfig(root: string): string | null {
+function selectExistingConfig(root: string): { ok: true; path: string } | { ok: false; message: string; remediation?: string } {
   const json = join(root, "opencode.json")
   const jsonc = join(root, "opencode.jsonc")
-  if (existsSync(json)) return json
-  if (existsSync(jsonc)) return jsonc
-  return null
+  const hasJson = existsSync(json)
+  const hasJsonc = existsSync(jsonc)
+  if (hasJson && hasJsonc) {
+    return {
+      ok: false,
+      message: "OpenCode config is ambiguous: both opencode.json and opencode.jsonc exist",
+      remediation: "Pass --config opencode.json or --config opencode.jsonc, or remove one file",
+    }
+  }
+  if (hasJson) return { ok: true, path: json }
+  if (hasJsonc) return { ok: true, path: jsonc }
+  return { ok: false, message: "OpenCode config not found" }
 }
 
-function selectConfigPath(root: string, explicitConfig?: string): { ok: true; path: string } | { ok: false; message: string } {
+function selectConfigPath(root: string, explicitConfig?: string): { ok: true; path: string } | { ok: false; message: string; remediation?: string } {
   if (!explicitConfig) {
-    const path = selectExistingConfig(root)
-    return path ? { ok: true, path } : { ok: false, message: "OpenCode config not found" }
+    return selectExistingConfig(root)
   }
   const path = resolve(root, explicitConfig)
   try {
@@ -107,10 +115,10 @@ function selectConfigPath(root: string, explicitConfig?: string): { ok: true; pa
   }
 }
 
-function addUnavailableConfigChecks(checks: DoctorCheck[], message: string) {
-  checks.push({ id: "config.present", status: "fail", severity: "error", message, remediation: "Run: bunx @vibepaper/opencode init" })
-  checks.push({ id: "config.parse", status: "fail", severity: "error", message: "OpenCode config cannot be parsed because it is unavailable", remediation: "Run: bunx @vibepaper/opencode init" })
-  checks.push({ id: "plugin.configured", status: "fail", severity: "error", message: `${PACKAGE_NAME} is not configured`, remediation: "Run: bunx @vibepaper/opencode init" })
+function addUnavailableConfigChecks(checks: DoctorCheck[], message: string, remediation = "Run: bunx @vibepaper/opencode init") {
+  checks.push({ id: "config.present", status: "fail", severity: "error", message, remediation })
+  checks.push({ id: "config.parse", status: "fail", severity: "error", message: `OpenCode config cannot be parsed: ${message}`, remediation })
+  checks.push({ id: "plugin.configured", status: "fail", severity: "error", message: `${PACKAGE_NAME} is not configured`, remediation })
 }
 
 function addCommandChecks(root: string, checks: DoctorCheck[], command: "vibe" | "vibe-doctor") {
