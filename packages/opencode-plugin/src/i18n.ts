@@ -1,0 +1,138 @@
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "./types"
+
+export interface ResolvedLocale {
+  locale: Locale
+  requested: string | null
+  fallback: boolean
+}
+
+const zhCN = {
+  "cli.dryRun": "演练模式",
+  "cli.installed": "已安装 VibePaper OpenCode 集成。",
+  "cli.noFilesChanged": "没有修改任何文件。",
+  "cli.restart": "重启 OpenCode，然后运行 /vibe-doctor。",
+  "doctor.title": "VibePaper OpenCode 诊断 v{version}",
+  "doctor.root": "根目录：{root}（{reason}）",
+  "doctor.allPassed": "所有必需检查均已通过。",
+  "doctor.failed": "一个或多个必需检查失败。",
+  "doctor.next": "下一步：{step}",
+  "dashboard.title": "VibePaper 项目仪表盘",
+  "dashboard.statusReady": "ready",
+  "dashboard.statusNeedsInit": "needs-init",
+  "dashboard.statusBlocked": "blocked",
+  "dashboard.version": "版本：{version}",
+  "dashboard.root": "根目录：{root}",
+  "dashboard.readiness": "项目就绪度",
+  "dashboard.checklist": "检查清单",
+  "dashboard.nextStep": "推荐下一步",
+  "dashboard.initPreview": "初始化预览",
+  "dashboard.noPreview": "OpenCode 集成未通过，暂不展示项目初始化预览。",
+  "recommendation.repairInstallation": "先修复 OpenCode 插件安装，再运行 /vibe。",
+  "recommendation.previewInit": "检查初始化预览；本阶段不会写入文件。",
+  "recommendation.ready": "项目已具备核心 VibePaper 文件，可以进入后续写作流程。",
+  "table.check": "检查项",
+  "table.status": "状态",
+  "table.message": "说明",
+  "table.path": "路径",
+  "table.action": "动作",
+  "table.reason": "原因",
+  "status.pass": "通过",
+  "status.fail": "失败",
+  "status.warn": "警告",
+  "status.info": "信息",
+  "status.ready": "就绪",
+  "status.missing": "缺失",
+  "status.conflict": "冲突",
+  "status.invalid": "无效",
+  "status.exists-user": "用户文件",
+  "status.exists-managed": "已存在",
+  "status.optional": "可选",
+  "action.create": "将创建",
+  "action.exists-managed": "已存在",
+  "action.exists-user": "保留用户文件",
+  "action.conflict": "需要人工处理",
+  "action.optional": "可选",
+  "reason.missing-required": "必需文件缺失",
+  "reason.missing-guidance": "缺少项目指引文件",
+  "reason.already-managed": "目标已存在且可安全保留",
+  "reason.user-owned": "检测到用户已有内容，本阶段不会覆盖",
+  "reason.unsafe-target": "目标不是安全的普通文件或内容无效",
+  "reason.future-optional": "可在后续文献工作流中创建",
+} as const
+
+const enUS: Record<keyof typeof zhCN, string> = {
+  "cli.dryRun": "DRY RUN",
+  "cli.installed": "Installed VibePaper OpenCode integration.",
+  "cli.noFilesChanged": "No files were changed.",
+  "cli.restart": "Restart OpenCode, then run /vibe-doctor.",
+  "doctor.title": "VibePaper OpenCode Doctor v{version}",
+  "doctor.root": "Root: {root} ({reason})",
+  "doctor.allPassed": "All required checks passed.",
+  "doctor.failed": "One or more required checks failed.",
+  "doctor.next": "Next: {step}",
+  "dashboard.title": "VibePaper Project Dashboard",
+  "dashboard.statusReady": "ready",
+  "dashboard.statusNeedsInit": "needs-init",
+  "dashboard.statusBlocked": "blocked",
+  "dashboard.version": "Version: {version}",
+  "dashboard.root": "Root: {root}",
+  "dashboard.readiness": "Readiness Summary",
+  "dashboard.checklist": "Checklist",
+  "dashboard.nextStep": "Recommended Next Step",
+  "dashboard.initPreview": "Init Preview",
+  "dashboard.noPreview": "OpenCode integration is not healthy, so project init preview is hidden.",
+  "recommendation.repairInstallation": "Repair the OpenCode plugin installation, then run /vibe again.",
+  "recommendation.previewInit": "Review the init preview; this phase does not write files.",
+  "recommendation.ready": "Core VibePaper files are ready, so you can continue with the writing workflow.",
+  "table.check": "Check",
+  "table.status": "Status",
+  "table.message": "Message",
+  "table.path": "Path",
+  "table.action": "Action",
+  "table.reason": "Reason",
+  "status.pass": "pass",
+  "status.fail": "fail",
+  "status.warn": "warn",
+  "status.info": "info",
+  "status.ready": "ready",
+  "status.missing": "missing",
+  "status.conflict": "conflict",
+  "status.invalid": "invalid",
+  "status.exists-user": "user file",
+  "status.exists-managed": "exists",
+  "status.optional": "optional",
+  "action.create": "create",
+  "action.exists-managed": "exists",
+  "action.exists-user": "keep user file",
+  "action.conflict": "manual review",
+  "action.optional": "optional",
+  "reason.missing-required": "required file is missing",
+  "reason.missing-guidance": "project guidance file is missing",
+  "reason.already-managed": "target already exists and can be kept",
+  "reason.user-owned": "user content exists and will not be overwritten",
+  "reason.unsafe-target": "target is not a safe regular file or contains invalid content",
+  "reason.future-optional": "can be created by a later literature workflow",
+}
+
+const messages: Record<Locale, Record<keyof typeof zhCN, string>> = {
+  "zh-CN": zhCN,
+  "en-US": enUS,
+}
+
+export type MessageKey = keyof typeof zhCN
+
+export function resolveLocale(input?: string | null, env: Record<string, string | undefined> = process.env): ResolvedLocale {
+  const requested = input ?? env.VIBEPAPER_LANG ?? null
+  if (isSupportedLocale(requested)) return { locale: requested, requested, fallback: false }
+  if (requested === null || requested === "") return { locale: DEFAULT_LOCALE, requested, fallback: false }
+  return { locale: DEFAULT_LOCALE, requested, fallback: true }
+}
+
+export function isSupportedLocale(value: unknown): value is Locale {
+  return typeof value === "string" && (SUPPORTED_LOCALES as readonly string[]).includes(value)
+}
+
+export function t(locale: Locale, key: MessageKey | string, params: Record<string, string | number> = {}): string {
+  const template = messages[locale][key as MessageKey] ?? key
+  return template.replace(/\{([^}]+)\}/g, (_, name: string) => String(params[name] ?? `{${name}}`))
+}

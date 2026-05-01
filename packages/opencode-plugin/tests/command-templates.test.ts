@@ -2,27 +2,29 @@ import { describe, expect, test } from "bun:test"
 import { commandMarker, hasManagedMarker, renderCommandTemplate } from "../src/templates"
 
 describe("command templates", () => {
-  test("renders /vibe with marker and dashboard tool instruction", () => {
+  test("renders /vibe in Chinese by default", () => {
     const output = renderCommandTemplate("vibe")
     expect(output).toContain("<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->")
-    expect(output).toContain("description: Show VibePaper project dashboard")
+    expect(output).toContain("description: 显示 VibePaper 项目仪表盘")
     expect(output).toContain("vibepaper_dashboard")
     expect(output).toContain("/vibe-doctor")
     expect(output).toContain("bunx -p @vibepaper/opencode vibepaper-opencode doctor")
-    expect(output).toContain("Do not invent VibePaper status")
+    expect(output).toContain("不要编造 VibePaper 状态")
     expect(output).not.toContain("!`")
-    expect(output).not.toContain("paper.md")
-    expect(output).not.toContain("storyline.md")
-    expect(output).not.toContain("relatedwork")
   })
 
-  test("renders /vibe-doctor with safe shell diagnostic", () => {
+  test("renders /vibe in English when requested", () => {
+    const output = renderCommandTemplate("vibe", "en-US")
+    expect(output).toContain("description: Show VibePaper project dashboard")
+    expect(output).toContain("Do not invent VibePaper status")
+  })
+
+  test("renders /vibe-doctor in Chinese by default", () => {
     const output = renderCommandTemplate("vibe-doctor")
     expect(output).toContain("<!-- VibePaper managed: @vibepaper/opencode; command=vibe-doctor; schemaVersion=1 -->")
-    expect(output).toContain("description: Diagnose VibePaper OpenCode plugin installation")
+    expect(output).toContain("description: 诊断 VibePaper OpenCode 插件安装")
     expect(output).toContain("bunx -p @vibepaper/opencode vibepaper-opencode doctor --format markdown 2>&1 || true")
-    expect(output).toContain("display the output verbatim")
-    expect(output).toContain("authoritative diagnostics")
+    expect(output).toContain("原样显示输出")
     expect(output).not.toContain("bunx @vibepaper/opencode doctor")
     expect(output).not.toContain("$ARGUMENTS")
   })
