@@ -33,9 +33,9 @@ Bun 需要 `-p`，因为包名 `@vibepaper/opencode` 和二进制名 `vibepaper-
 <!-- description: Read-only Dashboard behavior -->
 `/vibe` 会打开只读 Dashboard，检查 OpenCode 集成、VibePaper 核心文件、状态文件、项目指导文件、可选 `relatedwork/`，并显示初始化预览。
 
-###### 不写入项目文件
-<!-- description: Files not modified in this phase -->
-当前阶段不会创建、修改或删除 `paper.md`、`storyline.md`、`writingrules.md`、`.agents/state.json`、`.agents/events.jsonl`、`AGENTS.md` 或 `relatedwork/`。
+###### Dashboard 只读边界
+<!-- description: Read-only Dashboard boundary -->
+Dashboard 工具本身只读取项目并展示初始化预览，不写入项目文件。确认初始化后的实际写入由下一节的 `vibepaper_init_apply` 流程完成。
 
 ## 初始化项目
 
