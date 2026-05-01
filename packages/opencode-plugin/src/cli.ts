@@ -2,6 +2,7 @@
 import { fileURLToPath } from "node:url"
 import { applyInitPlan, planInit, type FileAction } from "./installer"
 import { renderDoctorJson, renderDoctorMarkdown, renderDoctorText, runDoctor } from "./doctor"
+import { resolveLocale, t } from "./i18n"
 import type { OutputFormat } from "./types"
 
 const packageVersion = "0.1.0"
@@ -24,15 +25,16 @@ async function runInit(args: string[]) {
     return 2
   }
   const options = parsed.options
-  const plan = await planInit({ ...options, cliEntryPath: fileURLToPath(import.meta.url) })
+  const locale = resolveLocale().locale
+  const plan = await planInit({ ...options, cliEntryPath: fileURLToPath(import.meta.url), locale })
   if (!plan.ok) {
     console.error(plan.error)
     return 1
   }
   if (options.dryRun) {
-    console.log("DRY RUN")
+    console.log(t(locale, "cli.dryRun"))
     for (const action of plan.actions) console.log(actionSummary(action))
-    console.log("No files were changed.")
+    console.log(t(locale, "cli.noFilesChanged"))
     return 0
   }
   const result = await applyInitPlan(plan)
@@ -41,7 +43,7 @@ async function runInit(args: string[]) {
     return 1
   }
   for (const message of result.messages) console.log(message)
-  console.log("Installed VibePaper OpenCode integration.")
+  console.log(t(locale, "cli.installed"))
   return 0
 }
 
