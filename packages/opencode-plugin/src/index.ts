@@ -25,8 +25,8 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           name: tool.schema.string().describe("Project name"),
           domain: tool.schema.string().describe("Research domain"),
         },
-        async execute(args) {
-          const result = await applyProjectInit({ cwd: directory, worktree, name: args.name, domain: args.domain })
+        async execute(args, context) {
+          const result = await applyProjectInit({ cwd: context.directory, worktree: context.worktree, name: args.name, domain: args.domain })
           return renderProjectInitApplyOutput(result)
         },
       }),
