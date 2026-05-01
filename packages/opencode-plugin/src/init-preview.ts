@@ -1,6 +1,6 @@
 import type { InitPreviewAction, InitPreviewItem, InitPreviewReason, InitPreviewResult, ReadinessItem, ReadinessResult } from "./types"
 
-export const INIT_APPLY_PATHS = ["paper.md", "storyline.md", "writingrules.md", ".agents/state.json", ".agents/events.jsonl", "AGENTS.md"] as const
+export const INIT_APPLY_PATHS = ["paper.md", "storyline.md", "writingrules.md", "AGENTS.md", ".agents/state.json", ".agents/events.jsonl"] as const
 export const INIT_PREVIEW_PATHS = [...INIT_APPLY_PATHS, "relatedwork/"] as const
 
 export function buildInitPreview(readiness: ReadinessResult): InitPreviewResult {

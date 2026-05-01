@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { INIT_APPLY_PATHS } from "../src/init-preview"
 import { buildProjectFiles, buildProjectState } from "../src/project-templates"
 
 describe("project templates", () => {
@@ -16,6 +17,11 @@ describe("project templates", () => {
     expect(files.find((file) => file.path === ".agents/events.jsonl")?.content).toBe("")
     expect(files.some((file) => file.path.startsWith(".agents/skills/"))).toBe(false)
     expect(files.some((file) => file.path.startsWith("relatedwork/"))).toBe(false)
+  })
+
+  test("matches shared init apply target order", () => {
+    const files = buildProjectFiles({ name: "Demo Paper", domain: "software engineering", createdAt: "2026-05-01T10:00:00.000Z" })
+    expect(files.map((file) => file.path)).toEqual([...INIT_APPLY_PATHS])
   })
 
   test("builds Python-compatible initial state", () => {

@@ -11,7 +11,7 @@ function temp() { const project = makeTempProject(); projects.push(project); ret
 
 describe("init preview", () => {
   test("keeps preview targets as apply targets plus relatedwork optional", () => {
-    expect(INIT_APPLY_PATHS).toEqual(["paper.md", "storyline.md", "writingrules.md", ".agents/state.json", ".agents/events.jsonl", "AGENTS.md"])
+    expect(INIT_APPLY_PATHS).toEqual(["paper.md", "storyline.md", "writingrules.md", "AGENTS.md", ".agents/state.json", ".agents/events.jsonl"])
     expect(INIT_PREVIEW_PATHS).toEqual([...INIT_APPLY_PATHS, "relatedwork/"])
   })
 
