@@ -7,6 +7,10 @@ export const VIBE_DOCTOR_COMMAND = "vibe-doctor" as const
 export const DEFAULT_LOCALE = "zh-CN" as const
 export const SUPPORTED_LOCALES = ["zh-CN", "en-US"] as const
 export type Locale = typeof SUPPORTED_LOCALES[number]
+export const WORKFLOW_PHASE_STATUSES = ["not_started", "in_progress", "complete", "skipped"] as const
+export const WORKFLOW_OPERATORS = ["user", "ai", "system"] as const
+export type WorkflowPhaseStatus = typeof WORKFLOW_PHASE_STATUSES[number]
+export type WorkflowOperator = typeof WORKFLOW_OPERATORS[number]
 
 export function isVibePaperPluginSpecifier(value: unknown): value is string {
   return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@vibepaper/opencode/dist/index.js")))
@@ -193,4 +197,106 @@ export interface ProjectState {
     }
   }
   checkers: Record<string, never>
+}
+
+export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"
+
+export interface WorkflowError {
+  code: WorkflowErrorCode
+  message: string
+  path?: string
+}
+
+export interface WorkflowStateDocument {
+  project?: Record<string, unknown>
+  phases: Record<string, Record<string, unknown>>
+  current_phase?: string
+  event_log_path?: string
+  workflow?: {
+    phase_order?: string[]
+    dependencies?: Record<string, string[]>
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface WorkflowPhaseRow {
+  id: string
+  status: string
+  knownStatus: boolean
+  completedAt: string | null
+  fields: Record<string, unknown>
+}
+
+export interface WorkflowSummary {
+  total: number
+  byStatus: Record<WorkflowPhaseStatus, number> & { unknown: number }
+}
+
+export interface WorkflowMetadataSummary {
+  available: boolean
+  phaseOrder: string[]
+  dependencies: Record<string, string[]>
+}
+
+export interface WorkflowRecommendation {
+  id: "continue-current-phase" | "unavailable"
+  messageKey: "workflow.recommendationContinue" | "workflow.recommendationUnavailable"
+  phase: string | null
+}
+
+export interface WorkflowStatusResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  project: Record<string, unknown> | null
+  currentPhase: string | null
+  phases: WorkflowPhaseRow[]
+  summary: WorkflowSummary
+  metadata: WorkflowMetadataSummary
+  recommendation: WorkflowRecommendation
+  warnings: string[]
+  errors: WorkflowError[]
+}
+
+export interface WorkflowEvent {
+  timestamp: string | null
+  phase: string | null
+  operator: string | null
+  action: string | null
+  result: unknown
+  fields: Record<string, unknown>
+}
+
+export interface WorkflowLogQueryOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  phase?: string
+  operator?: WorkflowOperator | string
+  lastN?: number
+}
+
+export interface WorkflowLogResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  logPath: string | null
+  filters: {
+    phase: string | null
+    operator: string | null
+    lastN: number
+  }
+  events: WorkflowEvent[]
+  skippedMalformed: number
+  warnings: string[]
+  errors: WorkflowError[]
 }
