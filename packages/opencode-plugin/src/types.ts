@@ -57,3 +57,30 @@ export interface DashboardResult {
   installation: DashboardInstallation
   recommendations: string[]
 }
+
+export type ReadinessProjectStatus = "ready" | "needs-init" | "blocked"
+export type ReadinessItemStatus = "ready" | "missing" | "conflict" | "invalid" | "exists-user" | "exists-managed" | "optional"
+
+export interface ReadinessItem {
+  id: string
+  path: string
+  status: ReadinessItemStatus
+  required: boolean
+  message: string
+}
+
+export interface ReadinessSummary {
+  ready: number
+  missing: number
+  conflict: number
+  invalid: number
+  optional: number
+}
+
+export interface ReadinessResult {
+  ok: boolean
+  status: ReadinessProjectStatus
+  root: string
+  items: ReadinessItem[]
+  summary: ReadinessSummary
+}
