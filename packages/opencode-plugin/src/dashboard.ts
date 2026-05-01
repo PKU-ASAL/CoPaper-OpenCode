@@ -2,7 +2,7 @@ import { runDoctor } from "./doctor"
 import { buildInitPreview } from "./init-preview"
 import { resolveLocale, t } from "./i18n"
 import { inspectReadiness } from "./readiness"
-import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem } from "./types"
+import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem, type ReadinessSummary } from "./types"
 
 export interface DashboardOptions {
   root?: string
@@ -44,13 +44,13 @@ export function renderDashboardOutput(result: DashboardResult): string {
 
   return `## ${t(locale, "dashboard.title")}
 
-**Status:** ${dashboardStatus}
+**${t(locale, "dashboard.statusLabel")}** ${dashboardStatus}
 **${t(locale, "dashboard.version", { version: result.packageVersion })}**
 **${t(locale, "dashboard.root", { root: result.root ?? "unknown" })}**
 
 ### ${t(locale, "dashboard.readiness")}
 
-${result.readiness ? `ready=${result.readiness.summary.ready}; missing=${result.readiness.summary.missing}; conflict=${result.readiness.summary.conflict}; invalid=${result.readiness.summary.invalid}; optional=${result.readiness.summary.optional}` : t(locale, "dashboard.noPreview")}
+${result.readiness ? renderReadinessSummary(locale, result.readiness.summary) : t(locale, "dashboard.noPreview")}
 
 ### ${t(locale, "dashboard.checklist")}
 
@@ -95,6 +95,16 @@ function chooseRecommendation(locale: Locale, healthyIntegration: boolean, ready
 
 function renderReadinessRow(locale: Locale, item: ReadinessItem): string {
   return `| ${item.path} | ${t(locale, `status.${item.status}`)} | ${escapePipes(item.message)} |`
+}
+
+function renderReadinessSummary(locale: Locale, summary: ReadinessSummary): string {
+  return [
+    `${t(locale, "summary.ready")}=${summary.ready}`,
+    `${t(locale, "summary.missing")}=${summary.missing}`,
+    `${t(locale, "summary.conflict")}=${summary.conflict}`,
+    `${t(locale, "summary.invalid")}=${summary.invalid}`,
+    `${t(locale, "summary.optional")}=${summary.optional}`,
+  ].join("; ")
 }
 
 function renderPreviewRow(locale: Locale, item: InitPreviewItem): string {
