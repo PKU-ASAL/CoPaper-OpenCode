@@ -1,9 +1,10 @@
 import type { InitPreviewAction, InitPreviewItem, InitPreviewReason, InitPreviewResult, ReadinessItem, ReadinessResult } from "./types"
 
-const PREVIEW_PATHS = ["paper.md", "storyline.md", "writingrules.md", ".agents/state.json", ".agents/events.jsonl", "AGENTS.md", "relatedwork/"] as const
+export const INIT_APPLY_PATHS = ["paper.md", "storyline.md", "writingrules.md", ".agents/state.json", ".agents/events.jsonl", "AGENTS.md"] as const
+export const INIT_PREVIEW_PATHS = [...INIT_APPLY_PATHS, "relatedwork/"] as const
 
 export function buildInitPreview(readiness: ReadinessResult): InitPreviewResult {
-  const items = PREVIEW_PATHS.map((path) => itemFromReadiness(path, readiness.items.find((item) => item.path === path)))
+  const items = INIT_PREVIEW_PATHS.map((path) => itemFromReadiness(path, readiness.items.find((item) => item.path === path)))
   return { readonly: true, blocked: items.some((item) => !item.safe), items }
 }
 

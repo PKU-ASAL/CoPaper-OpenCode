@@ -112,3 +112,46 @@ export interface InitPreviewResult {
   blocked: boolean
   items: InitPreviewItem[]
 }
+
+export interface ProjectTemplateInput {
+  name: string
+  domain: string
+  createdAt: string
+}
+
+export interface ProjectFileTemplate {
+  path: string
+  content: string
+}
+
+export interface ProjectStatePhaseBase {
+  status: "not_started"
+  completed_at: null
+}
+
+export interface ProjectState {
+  project: {
+    name: string
+    created_at: string
+    domain: string
+  }
+  phases: {
+    storyline: ProjectStatePhaseBase & { metadata: Record<string, never> }
+    literature: ProjectStatePhaseBase & { catalog_path: string; papers_found: number; papers_downloaded: number; download_failures: number; summaries_done: number; cross_index_built: boolean }
+    discussion: ProjectStatePhaseBase & { rounds: number; dimensions_covered: string[] }
+    experiments: ProjectStatePhaseBase & { skip_reason: null; data_files: string[] }
+    writing: ProjectStatePhaseBase & { sections_complete: number; sections_total: number }
+    latex_review: ProjectStatePhaseBase & { review_rounds: number; comments_addressed: number; comments_total: number }
+  }
+  current_phase: "storyline"
+  event_log_path: ".agents/events.jsonl"
+  git: {
+    auto_commit: false
+    identity: {
+      role: "assistant"
+      git_name: "VibePaper Bot"
+      git_email: "bot@vibepaper.dev"
+    }
+  }
+  checkers: Record<string, never>
+}

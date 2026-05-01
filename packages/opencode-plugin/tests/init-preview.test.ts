@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdirSync } from "node:fs"
-import { buildInitPreview } from "../src/init-preview"
+import { buildInitPreview, INIT_APPLY_PATHS, INIT_PREVIEW_PATHS } from "../src/init-preview"
 import { inspectReadiness } from "../src/readiness"
 import type { ReadinessResult } from "../src/types"
 import { hashTree, makeTempProject } from "./fixtures"
@@ -10,6 +10,11 @@ afterEach(() => { while (projects.length) projects.pop()!.cleanup() })
 function temp() { const project = makeTempProject(); projects.push(project); return project }
 
 describe("init preview", () => {
+  test("keeps preview targets as apply targets plus relatedwork optional", () => {
+    expect(INIT_APPLY_PATHS).toEqual(["paper.md", "storyline.md", "writingrules.md", ".agents/state.json", ".agents/events.jsonl", "AGENTS.md"])
+    expect(INIT_PREVIEW_PATHS).toEqual([...INIT_APPLY_PATHS, "relatedwork/"])
+  })
+
   test("plans create actions for missing required project files without writing", () => {
     const project = temp()
     const before = hashTree(project.root)
