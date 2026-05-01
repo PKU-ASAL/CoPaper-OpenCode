@@ -5,10 +5,10 @@
 <!-- description: 本文档适用范围和阶段 -->
 
 ###### 当前适用范围
-本文档记录截至 `feature/opencode-plugin-mvp` 分支当前 Dashboard 阶段的使用测试流程，覆盖 `@vibepaper/opencode` 的安装、诊断、中文 Dashboard、只读 readiness、初始化预览、OpenCode slash commands、locale、打包和回归验证。
+本文档记录截至 `feature/opencode-plugin-mvp` 分支当前 Dashboard 阶段的使用测试流程，覆盖 `@vibepaper/opencode` 的安装、诊断、中文 Dashboard、只读 readiness、初始化预览、确认初始化写入、OpenCode slash commands、locale、打包和回归验证。
 
 ###### 当前不覆盖内容
-插件当前只展示初始化预览，不实际创建、修改或删除 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json`、`.agents/events.jsonl` 或 `AGENTS.md`；也不推进阶段、记忆或子代理编排。
+插件当前只在用户确认初始化并提供参数后写入第一版初始化文件；不创建 `.agents/skills/` 或 `relatedwork/`，也不推进阶段、记忆或子代理编排。
 
 ## 环境要求
 <!-- description: 执行测试前需要准备的工具 -->
@@ -148,6 +148,15 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ###### Dashboard 状态检查
 未初始化但 OpenCode 集成健康的项目应显示 `needs-init` 语义、缺失文件和 `create` 预览动作；已具备核心文件和 `.agents/state.json` 的项目应显示 `ready` 语义。若 OpenCode 集成损坏，Dashboard 应优先推荐修复安装，并隐藏项目初始化预览。
 
+###### 确认初始化写入
+在 `/vibe` 显示 `needs-init` 后，输入“确认初始化”。如果缺少项目名称或研究领域，期望 agent 先追问。提供 `name` 和 `domain` 后，期望 agent 调用 `vibepaper_init_apply`，并返回写入摘要。
+
+###### 初始化写入结果
+成功写入后应出现 `paper.md`、`storyline.md`、`writingrules.md`、`AGENTS.md`、`.agents/state.json` 和 `.agents/events.jsonl`。不应出现 `.agents/skills/` 或 `relatedwork/`。再次运行 `/vibe` 应显示 ready 语义。
+
+###### 初始化冲突测试
+如果预先创建 `paper.md` 等任一目标文件，再确认初始化，期望 apply 整体中止，`changedFiles` 为空，其他缺失目标仍不存在。
+
 ###### JSON block 检查
 Dashboard 末尾的 JSON block 应保留稳定英文模型字段，例如 `schemaVersion`、`integration`、`readiness`、`initPreview`、`recommendation`。状态、动作和原因枚举应保持英文，例如 `ready`、`missing`、`conflict`、`create`、`exists-user`、`future-optional`。
 
@@ -177,7 +186,7 @@ Dashboard 末尾的 JSON block 应保留稳定英文模型字段，例如 `schem
 ###### 手动验收
 - `init` 能写入 OpenCode 插件配置和两个 slash command
 - `/vibe-doctor` 能默认展示中文诊断信息，并可通过 `--locale en-US` 或 `VIBEPAPER_LANG=en-US` 获得英文输出
-- `/vibe` 能展示 readiness、检查清单、推荐下一步、初始化预览和稳定 JSON block，并保持只读
+- `/vibe` 能展示 readiness、检查清单、推荐下一步、初始化预览和稳定 JSON block，并在收集参数后确认执行初始化写入
 - 失败时有明确 doctor 输出或错误信息可记录
 
 ## 故障记录模板

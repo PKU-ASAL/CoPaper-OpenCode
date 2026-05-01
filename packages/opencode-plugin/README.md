@@ -37,6 +37,20 @@ Bun 需要 `-p`，因为包名 `@vibepaper/opencode` 和二进制名 `vibepaper-
 <!-- description: Files not modified in this phase -->
 当前阶段不会创建、修改或删除 `paper.md`、`storyline.md`、`writingrules.md`、`.agents/state.json`、`.agents/events.jsonl`、`AGENTS.md` 或 `relatedwork/`。
 
+## 初始化项目
+
+###### 显式确认写入
+<!-- description: Init apply confirmation flow -->
+`/vibe` 会先显示初始化预览。只有当用户明确说“确认初始化”，并提供项目名称与研究领域后，agent 才会调用 `vibepaper_init_apply` 工具。
+
+###### 第一版写入范围
+<!-- description: Files written by init apply -->
+初始化写入只创建 `paper.md`、`storyline.md`、`writingrules.md`、`AGENTS.md`、`.agents/state.json` 和 `.agents/events.jsonl`。它不会创建 `.agents/skills/` 或 `relatedwork/`。
+
+###### 冲突处理
+<!-- description: Non-destructive conflict behavior -->
+如果任一目标文件已经存在或不是安全的普通文件，初始化会整体中止，不覆盖用户内容，也不继续写入其他文件。
+
 ## 诊断
 
 ###### 默认中文输出
