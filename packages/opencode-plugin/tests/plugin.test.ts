@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { ToolContext } from "@opencode-ai/plugin"
 import { existsSync } from "node:fs"
 import { applyInitPlan, planInit } from "../src/installer"
 import { VibePaperPlugin } from "../src/index"
@@ -14,7 +15,7 @@ async function buildHooks(root: string) {
   } as never)
 }
 
-function buildToolContext(root: string) {
+function toolContext(root: string): ToolContext {
   return {
     sessionID: "session-id",
     messageID: "message-id",
@@ -23,8 +24,8 @@ function buildToolContext(root: string) {
     worktree: root,
     abort: new AbortController().signal,
     metadata: {},
-    ask: async () => undefined,
-  } as never
+    ask: (async () => undefined) as ToolContext["ask"],
+  }
 }
 
 describe("OpenCode plugin", () => {
@@ -41,7 +42,7 @@ describe("OpenCode plugin", () => {
       if (!plan.ok) throw new Error(plan.error)
       await applyInitPlan(plan)
       const hooks = await buildHooks(project.root)
-      const output = await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: unknown): Promise<string> }).execute({ name: "Demo Paper", domain: "software engineering" }, buildToolContext(project.root))
+      const output = await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute({ name: "Demo Paper", domain: "software engineering" }, toolContext(project.root))
 
       expect(output).toContain("## VibePaper 初始化写入")
       expect(output).toContain("paper.md")
@@ -59,13 +60,28 @@ describe("OpenCode plugin", () => {
       const hooks = await buildHooks(capturedProject.root)
       await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: unknown): Promise<string> }).execute(
         { name: "Demo Paper", domain: "software engineering" },
-        buildToolContext(runtimeProject.root),
+        toolContext(runtimeProject.root),
       )
 
       const runtimeState = JSON.parse(runtimeProject.read(".agents/state.json"))
       expect(runtimeState.project.name).toBe("Demo Paper")
       expect(runtimeState.project.domain).toBe("software engineering")
       expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("dashboard tool reads from runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_dashboard as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).not.toContain(capturedProject.root)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()
