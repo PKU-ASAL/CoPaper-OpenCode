@@ -20,6 +20,15 @@ describe("init preview", () => {
     expect(hashTree(project.root)).toBe(before)
   })
 
+  test("plans create action for missing guidance without writing", () => {
+    const project = temp()
+    const preview = buildInitPreview(inspectReadiness(project.root))
+    const guide = preview.items.find((item) => item.path === "AGENTS.md")
+    expect(guide?.action).toBe("create")
+    expect(guide?.reason).toBe("missing-guidance")
+    expect(guide?.safe).toBe(true)
+  })
+
   test("keeps user-owned AGENTS.md instead of planning overwrite", () => {
     const project = temp()
     project.write("AGENTS.md", "# Existing local guide\n")
