@@ -5,10 +5,10 @@
 <!-- description: 本文档适用范围和阶段 -->
 
 ###### 当前适用范围
-本文档记录截至 `feature/opencode-plugin-mvp` 分支的使用测试流程，覆盖 `@vibepaper/opencode` MVP 的安装、诊断、仪表盘、OpenCode slash command、打包和回归验证。
+本文档记录截至 `feature/opencode-plugin-mvp` 分支的使用测试流程，覆盖 `@vibepaper/opencode` 的安装、诊断、中文 Dashboard、只读就绪检查、初始化预览、OpenCode slash commands、打包和回归验证。
 
 ###### 当前不覆盖内容
-MVP 只验证 OpenCode 集成可行性，不初始化 `paper.md`、`storyline.md`、`relatedwork/`、`.agents/state.json`，也不验证 VibePaper 工作流状态、记忆或子代理编排。
+插件当前只展示初始化预览，不实际创建 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json` 或 `.agents/events.jsonl`；也不推进阶段、记忆或子代理编排。
 
 ## 环境要求
 <!-- description: 执行测试前需要准备的工具 -->
@@ -43,7 +43,7 @@ npm pack --dry-run
 期望结果是 TypeScript 检查和构建通过，Bun 测试全部通过，dry-run tarball 只包含 `dist/`、`README.md` 和 `package.json`。
 
 ###### 最近插件验证
-最近一次完整验证结果为：`bun test` 通过 `66` 项，`test:cli` 通过 `9` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 生成 `vibepaper-opencode-0.1.0.tgz`。
+最近一次完整验证结果为：`bun test` 通过 `97` 项，`test:cli` 通过 `9` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 生成 `vibepaper-opencode-0.1.0.tgz`。
 
 ## 本地包测试
 <!-- description: 不依赖 npm 发布的本地验证流程 -->
@@ -96,7 +96,7 @@ bun dist/cli.js init --root "$tmp_project"
 如果项目已有 OpenCode 配置，安装器应合并插件项，而不是覆盖无关配置。
 
 ###### 期望不生成内容
-初始化插件集成时不应生成 `paper.md`、`storyline.md`、`relatedwork/` 或 `.agents/state.json`。这些属于后续 VibePaper 工作流范围，不在当前 MVP 内。
+初始化插件集成时不应生成 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json` 或 `.agents/events.jsonl`。这些属于后续 VibePaper 工作流范围，不在当前 MVP 内。
 
 ## Doctor 测试
 <!-- description: 诊断命令的手动验证流程 -->
@@ -134,7 +134,7 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ```text
 /vibe
 ```
-期望 agent 调用或尝试调用 `vibepaper_dashboard` 工具，并返回 VibePaper dashboard markdown。若工具调用失败，应记录 OpenCode 报错并用终端 doctor 复核。
+期望 agent 调用或尝试调用 `vibepaper_dashboard` 工具，并返回中文 Dashboard，包含 readiness、检查清单、推荐下一步和初始化预览。预览可列出 `paper.md`、`storyline.md`、`writingrules.md`、`.agents/state.json`、`.agents/events.jsonl` 和 `AGENTS.md`，但 `/vibe` 前后的目录 hash 应保持一致。若工具调用失败，应记录 OpenCode 报错并用终端 doctor 复核。
 
 ## 根目录识别测试
 <!-- description: 多层目录和配置冲突的关键场景 -->
@@ -162,7 +162,7 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ###### 手动验收
 - `init` 能写入 OpenCode 插件配置和两个 slash command
 - `/vibe-doctor` 能展示诊断信息
-- `/vibe` 能触发或尝试触发 `vibepaper_dashboard`
+- `/vibe` 能展示 readiness 和初始化预览，并保持只读
 - 失败时有明确 doctor 输出或错误信息可记录
 
 ## 故障记录模板
