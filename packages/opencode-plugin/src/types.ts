@@ -49,9 +49,11 @@ export interface DashboardInstallation {
   vibeDoctorCommandManaged: boolean
 }
 
+export type DashboardRecommendationMessageKey = "recommendation.repairInstallation" | "recommendation.previewInit" | "recommendation.ready"
+
 export interface DashboardRecommendation {
   id: "repair-installation" | "preview-init" | "continue-workflow"
-  message: string
+  messageKey: DashboardRecommendationMessageKey
   command: string | null
 }
 

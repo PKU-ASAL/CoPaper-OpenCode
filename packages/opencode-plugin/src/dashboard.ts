@@ -20,7 +20,7 @@ export async function buildDashboardResult(options: DashboardOptions): Promise<D
   const healthyIntegration = doctor.ok
   const readiness = healthyIntegration && doctor.root ? inspectReadiness(doctor.root) : null
   const initPreview = readiness ? buildInitPreview(readiness) : { readonly: true as const, blocked: true, items: [] }
-  const recommendation = chooseRecommendation(resolved.locale, healthyIntegration, readiness?.ok ?? false)
+  const recommendation = chooseRecommendation(healthyIntegration, readiness?.ok ?? false)
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -60,7 +60,7 @@ ${readinessRows}
 
 ### ${t(locale, "dashboard.nextStep")}
 
-${result.recommendation.message}${result.recommendation.command ? `\n\n\`${result.recommendation.command}\`` : ""}
+${t(locale, result.recommendation.messageKey)}${result.recommendation.command ? `\n\n\`${result.recommendation.command}\`` : ""}
 
 ### ${t(locale, "dashboard.initPreview")}
 
@@ -87,10 +87,10 @@ function integrationFromDoctor(checks: { id: string; status: string }[]): Dashbo
   }
 }
 
-function chooseRecommendation(locale: Locale, healthyIntegration: boolean, ready: boolean): DashboardRecommendation {
-  if (!healthyIntegration) return { id: "repair-installation", message: t(locale, "recommendation.repairInstallation"), command: `${BUNX_CLI_COMMAND} init` }
-  if (ready) return { id: "continue-workflow", message: t(locale, "recommendation.ready"), command: null }
-  return { id: "preview-init", message: t(locale, "recommendation.previewInit"), command: null }
+function chooseRecommendation(healthyIntegration: boolean, ready: boolean): DashboardRecommendation {
+  if (!healthyIntegration) return { id: "repair-installation", messageKey: "recommendation.repairInstallation", command: `${BUNX_CLI_COMMAND} init` }
+  if (ready) return { id: "continue-workflow", messageKey: "recommendation.ready", command: null }
+  return { id: "preview-init", messageKey: "recommendation.previewInit", command: null }
 }
 
 function renderReadinessRow(locale: Locale, item: ReadinessItem): string {

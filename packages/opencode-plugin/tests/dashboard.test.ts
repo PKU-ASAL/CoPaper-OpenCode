@@ -49,6 +49,31 @@ describe("dashboard", () => {
     expect(markdown).toContain("Init Preview")
   })
 
+  test("keeps recommendation model stable across locales", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+
+    const zhResult = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const enResult = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "en-US" })
+    const zhRecommendation = zhResult.recommendation as unknown as Record<string, unknown>
+    const enRecommendation = enResult.recommendation as unknown as Record<string, unknown>
+    const zhMarkdown = renderDashboardOutput(zhResult)
+    const enMarkdown = renderDashboardOutput(enResult)
+
+    expect(zhResult.recommendation.id).toBe(enResult.recommendation.id)
+    expect(zhResult.recommendation.command).toBe(enResult.recommendation.command)
+    expect(zhRecommendation.messageKey).toBe("recommendation.previewInit")
+    expect(enRecommendation.messageKey).toBe("recommendation.previewInit")
+    expect("message" in zhRecommendation).toBe(false)
+    expect("message" in enRecommendation).toBe(false)
+    expect(zhMarkdown).toContain("检查初始化预览；本阶段不会写入文件。")
+    expect(enMarkdown).toContain("Review the init preview; this phase does not write files.")
+    expect(zhMarkdown).toContain("\"messageKey\": \"recommendation.previewInit\"")
+    expect(zhMarkdown).not.toContain("\"message\": \"检查初始化预览")
+  })
+
   test("prioritizes broken OpenCode integration over init preview", async () => {
     const project = temp()
     const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
