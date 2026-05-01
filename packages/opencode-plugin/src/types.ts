@@ -113,6 +113,45 @@ export interface InitPreviewResult {
   items: InitPreviewItem[]
 }
 
+export type ProjectInitMode = "apply"
+export type ProjectInitErrorCode = "missing-name" | "missing-domain" | "conflict" | "write-failed" | "root-detection-failed"
+
+export interface ProjectInitError {
+  code: ProjectInitErrorCode
+  message: string
+  path?: string
+}
+
+export interface ProjectInitConflict {
+  path: string
+  status: ReadinessItemStatus
+  reason: string
+}
+
+export interface ProjectInitApplyOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  name: string
+  domain: string
+  locale?: Locale
+  now?: Date
+}
+
+export interface ProjectInitApplyResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  ok: boolean
+  root: string | null
+  mode: ProjectInitMode
+  locale: Locale
+  changedFiles: string[]
+  skippedFiles: string[]
+  conflicts: ProjectInitConflict[]
+  errors: ProjectInitError[]
+  readinessBefore: ReadinessResult | null
+  readinessAfter: ReadinessResult | null
+}
+
 export interface ProjectTemplateInput {
   name: string
   domain: string
