@@ -126,4 +126,17 @@ describe("project init apply", () => {
     expect(markdown).toContain("- 无")
     expect(markdown).not.toContain("- none")
   })
+
+  test("renders conflict output with no changed files", async () => {
+    const project = temp()
+    project.write("paper.md", "# User paper\n")
+    const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z") })
+    const markdown = renderProjectInitApplyOutput(result)
+
+    expect(result.ok).toBe(false)
+    expect(result.changedFiles).toEqual([])
+    expect(markdown).toContain("初始化写入未完成")
+    expect(markdown).toContain("paper.md")
+    expect(markdown).toContain('"conflicts"')
+  })
 })

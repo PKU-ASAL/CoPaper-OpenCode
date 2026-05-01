@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { applyInitPlan, planInit } from "../src/installer"
+import { applyProjectInit } from "../src/project-init"
 import { buildDashboardResult, renderDashboardOutput } from "../src/dashboard"
 import { hashTree, makeTempProject } from "./fixtures"
 
@@ -102,5 +103,22 @@ describe("dashboard", () => {
     expect(result.readiness?.status).toBe("ready")
     expect(result.recommendation.id).toBe("continue-workflow")
     expect(renderDashboardOutput(result)).toContain("项目已具备核心 VibePaper 文件")
+  })
+
+  test("dashboard becomes ready after init apply", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z") })
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+
+    expect(result.ok).toBe(true)
+    expect(result.readiness?.status).toBe("ready")
+    expect(markdown).toContain("项目已具备核心 VibePaper 文件")
+    expect(markdown).toContain("relatedwork/")
+    expect(markdown).not.toContain(".agents/skills")
   })
 })
