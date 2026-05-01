@@ -9,7 +9,7 @@ export function buildInitPreview(readiness: ReadinessResult): InitPreviewResult 
 
 function itemFromReadiness(path: string, item: ReadinessItem | undefined): InitPreviewItem {
   if (!item) return previewItem(path, "conflict", "unsafe-target", false)
-  if (item.path === "relatedwork/" && item.status === "optional") return previewItem(path, "optional", "future-optional", true)
+  if (item.path === "relatedwork/" && (item.status === "missing" || item.status === "optional")) return previewItem(path, "optional", "future-optional", true)
   if (item.path === "AGENTS.md" && item.status === "optional") return previewItem(path, "create", "missing-guidance", true)
   if (item.status === "missing") return previewItem(path, "create", item.required ? "missing-required" : "missing-guidance", true)
   if (item.status === "ready" || item.status === "exists-managed") return previewItem(path, "exists-managed", "already-managed", true)

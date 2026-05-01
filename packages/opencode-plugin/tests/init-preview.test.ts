@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdirSync } from "node:fs"
 import { buildInitPreview } from "../src/init-preview"
 import { inspectReadiness } from "../src/readiness"
+import type { ReadinessResult } from "../src/types"
 import { hashTree, makeTempProject } from "./fixtures"
 
 const projects: ReturnType<typeof makeTempProject>[] = []
@@ -27,6 +28,20 @@ describe("init preview", () => {
     expect(guide?.action).toBe("create")
     expect(guide?.reason).toBe("missing-guidance")
     expect(guide?.safe).toBe(true)
+  })
+
+  test("keeps missing related work optional in direct readiness models", () => {
+    const readiness: ReadinessResult = {
+      ok: false,
+      status: "needs-init",
+      root: "/synthetic-project",
+      items: [{ id: "relatedwork", path: "relatedwork/", status: "missing", required: false, message: "relatedwork/ is missing." }],
+      summary: { ready: 0, missing: 1, conflict: 0, invalid: 0, optional: 0 },
+    }
+    const relatedWork = buildInitPreview(readiness).items.find((item) => item.path === "relatedwork/")
+    expect(relatedWork?.action).toBe("optional")
+    expect(relatedWork?.reason).toBe("future-optional")
+    expect(relatedWork?.safe).toBe(true)
   })
 
   test("keeps user-owned AGENTS.md instead of planning overwrite", () => {
