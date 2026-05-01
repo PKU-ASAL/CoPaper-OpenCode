@@ -16,5 +16,7 @@ target/
 ./storyline_origin.md
 .codex
 .worktrees/
+/docs/superpowers/plans/
 /packages/opencode-plugin/node_modules/
 /packages/opencode-plugin/dist/
+/packages/opencode-plugin/*.tgz
