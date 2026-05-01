@@ -1,14 +1,14 @@
 # @vibepaper/opencode 使用测试文档
-<!-- description: OpenCode 插件 MVP 的中文使用测试流程 -->
+<!-- description: OpenCode 插件 Dashboard 阶段的中文使用测试流程 -->
 
 ## 文档状态
 <!-- description: 本文档适用范围和阶段 -->
 
 ###### 当前适用范围
-本文档记录截至 `feature/opencode-plugin-mvp` 分支的使用测试流程，覆盖 `@vibepaper/opencode` 的安装、诊断、中文 Dashboard、只读就绪检查、初始化预览、OpenCode slash commands、打包和回归验证。
+本文档记录截至 `feature/opencode-plugin-mvp` 分支当前 Dashboard 阶段的使用测试流程，覆盖 `@vibepaper/opencode` 的安装、诊断、中文 Dashboard、只读 readiness、初始化预览、OpenCode slash commands、locale、打包和回归验证。
 
 ###### 当前不覆盖内容
-插件当前只展示初始化预览，不实际创建 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json` 或 `.agents/events.jsonl`；也不推进阶段、记忆或子代理编排。
+插件当前只展示初始化预览，不实际创建、修改或删除 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json`、`.agents/events.jsonl` 或 `AGENTS.md`；也不推进阶段、记忆或子代理编排。
 
 ## 环境要求
 <!-- description: 执行测试前需要准备的工具 -->
@@ -29,7 +29,7 @@
 ```bash
 python -m pytest tests/ -q
 ```
-期望结果是全部 Python 测试通过。最近一次完整验证结果为 `305 passed in 38.91s`。
+期望结果是全部 Python 测试通过。最近一次完整验证结果为 `305 passed in 42.11s`。
 
 ###### 插件级回归
 ```bash
@@ -43,7 +43,14 @@ npm pack --dry-run
 期望结果是 TypeScript 检查和构建通过，Bun 测试全部通过，dry-run tarball 只包含 `dist/`、`README.md` 和 `package.json`。
 
 ###### 最近插件验证
-最近一次完整验证结果为：`bun test` 通过 `97` 项，`test:cli` 通过 `9` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 生成 `vibepaper-opencode-0.1.0.tgz`。
+最近一次完整验证结果为：`bun test` 通过 `97` 项，`test:cli` 通过 `16` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 报告 `28` 个打包文件和 `vibepaper-opencode-0.1.0.tgz` 文件名。
+
+###### 本阶段新增覆盖
+- `i18n.test.ts`：验证 `zh-CN` 默认语言、`en-US`、环境变量和 fallback
+- `readiness.test.ts`：验证缺失、ready、冲突、无效 JSON、用户 `AGENTS.md` 和只读 hash
+- `init-preview.test.ts`：验证 `create`、`exists-user`、`conflict`、`optional` 和稳定英文枚举
+- `dashboard.test.ts`：验证中文/英文 Dashboard、坏集成优先修复、ready 项目和 JSON block
+- `cli.test.ts` 与 `doctor.test.ts`：验证 `--locale`、`VIBEPAPER_LANG`、doctor 文本/Markdown 和 JSON 稳定性
 
 ## 本地包测试
 <!-- description: 不依赖 npm 发布的本地验证流程 -->
@@ -96,7 +103,7 @@ bun dist/cli.js init --root "$tmp_project"
 如果项目已有 OpenCode 配置，安装器应合并插件项，而不是覆盖无关配置。
 
 ###### 期望不生成内容
-初始化插件集成时不应生成 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json` 或 `.agents/events.jsonl`。这些属于后续 VibePaper 工作流范围，不在当前 MVP 内。
+初始化 OpenCode 插件集成时只应生成 OpenCode 配置和 slash commands，不应生成 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json`、`.agents/events.jsonl` 或 `AGENTS.md`。这些属于后续 VibePaper 工作流写入流程，不在当前阶段内。
 
 ## Doctor 测试
 <!-- description: 诊断命令的手动验证流程 -->
@@ -106,12 +113,14 @@ bun dist/cli.js init --root "$tmp_project"
 bun dist/cli.js doctor --root "$tmp_project"
 bun dist/cli.js doctor --root "$tmp_project" --format markdown
 bun dist/cli.js doctor --root "$tmp_project" --format json
+VIBEPAPER_LANG=en-US bun dist/cli.js doctor --root "$tmp_project"
+bun dist/cli.js doctor --root "$tmp_project" --locale en-US
 ```
 如果测试已发布 npm 包，使用下面的 Bun 语法；不要写成 `bunx @vibepaper/opencode doctor`：
 ```bash
 bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ```
-期望诊断能够识别 OpenCode 配置、插件注册、`/vibe` 命令和 `/vibe-doctor` 命令。JSON 输出应便于自动化检查。
+期望诊断能够识别 OpenCode 配置、插件注册、`/vibe` 命令和 `/vibe-doctor` 命令。默认文本和 Markdown 输出为中文，`--locale en-US` 或 `VIBEPAPER_LANG=en-US` 输出英文。JSON 输出应保持字段名和状态枚举为英文，便于自动化检查。
 
 ###### 歧义配置诊断
 如果同一项目同时存在 `opencode.json` 和 `opencode.jsonc`，且未显式传入 `--config`，doctor 应失败关闭并提示选择配置文件。传入 `--config opencode.jsonc` 后应读取指定配置。
@@ -134,7 +143,13 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ```text
 /vibe
 ```
-期望 agent 调用或尝试调用 `vibepaper_dashboard` 工具，并返回中文 Dashboard，包含 readiness、检查清单、推荐下一步和初始化预览。预览可列出 `paper.md`、`storyline.md`、`writingrules.md`、`.agents/state.json`、`.agents/events.jsonl` 和 `AGENTS.md`，但 `/vibe` 前后的目录 hash 应保持一致。若工具调用失败，应记录 OpenCode 报错并用终端 doctor 复核。
+期望 agent 调用或尝试调用 `vibepaper_dashboard` 工具，并返回中文 Dashboard，固定包含 Header、项目就绪度、检查清单、推荐下一步、初始化预览和 JSON block。预览可列出 `paper.md`、`storyline.md`、`writingrules.md`、`.agents/state.json`、`.agents/events.jsonl` 和 `AGENTS.md`，但 `/vibe` 前后的目录 hash 应保持一致。若工具调用失败，应记录 OpenCode 报错并用终端 doctor 复核。
+
+###### Dashboard 状态检查
+未初始化但 OpenCode 集成健康的项目应显示 `needs-init` 语义、缺失文件和 `create` 预览动作；已具备核心文件和 `.agents/state.json` 的项目应显示 `ready` 语义。若 OpenCode 集成损坏，Dashboard 应优先推荐修复安装，并隐藏项目初始化预览。
+
+###### JSON block 检查
+Dashboard 末尾的 JSON block 应保留稳定英文模型字段，例如 `schemaVersion`、`integration`、`readiness`、`initPreview`、`recommendation`。状态、动作和原因枚举应保持英文，例如 `ready`、`missing`、`conflict`、`create`、`exists-user`、`future-optional`。
 
 ## 根目录识别测试
 <!-- description: 多层目录和配置冲突的关键场景 -->
@@ -149,7 +164,7 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 如果较近的 `.opencode/commands/vibe.md` 是目录或不可读文件，root 检测不应崩溃，应忽略该 marker 并继续向父目录查找有效配置。
 
 ## 验收标准
-<!-- description: 当前 MVP 判定通过的条件 -->
+<!-- description: 当前 Dashboard 阶段判定通过的条件 -->
 
 ###### 自动化验收
 - 仓库级 Python 测试通过
@@ -161,8 +176,8 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 
 ###### 手动验收
 - `init` 能写入 OpenCode 插件配置和两个 slash command
-- `/vibe-doctor` 能展示诊断信息
-- `/vibe` 能展示 readiness 和初始化预览，并保持只读
+- `/vibe-doctor` 能默认展示中文诊断信息，并可通过 `--locale en-US` 或 `VIBEPAPER_LANG=en-US` 获得英文输出
+- `/vibe` 能展示 readiness、检查清单、推荐下一步、初始化预览和稳定 JSON block，并保持只读
 - 失败时有明确 doctor 输出或错误信息可记录
 
 ## 故障记录模板
@@ -178,10 +193,10 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 - 是否能通过终端 `doctor --format json` 复现
 
 ## 后续扩展
-<!-- description: MVP 之后可补充的测试方向 -->
+<!-- description: Dashboard 阶段之后可补充的测试方向 -->
 
 ###### 发布后测试
 包发布到 npm 后，应补充真实 `bunx -p @vibepaper/opencode vibepaper-opencode init` 安装测试，并确认 OpenCode 能从已发布包加载插件。由于包名和 bin 名不同，Bun 需要通过 `-p` 指定包名，再运行 `vibepaper-opencode`。
 
 ###### 工作流集成测试
-后续如果插件开始初始化 VibePaper 工作流文件，再新增 `paper.md`、`storyline.md`、`relatedwork/`、`.agents/state.json` 和阶段状态相关测试。
+后续如果插件开始实际初始化 VibePaper 工作流文件，再新增 `paper.md`、`storyline.md`、`writingrules.md`、`relatedwork/`、`.agents/state.json`、`.agents/events.jsonl` 和阶段状态相关测试。
