@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdirSync } from "node:fs"
+import { chmodSync, mkdirSync } from "node:fs"
 import { inspectReadiness } from "../src/readiness"
 import { hashTree, makeTempProject } from "./fixtures"
 
@@ -48,6 +48,25 @@ describe("readiness", () => {
     expect(result.ok).toBe(false)
     expect(result.items.find((item) => item.path === "paper.md")?.status).toBe("conflict")
     expect(result.items.find((item) => item.path === ".agents/state.json")?.status).toBe("invalid")
+  })
+
+  test("reports unreadable required regular files as conflicts", () => {
+    const project = temp()
+    project.write("paper.md", "# Paper\n")
+    project.write("storyline.md", "# Storyline\n")
+    project.write("writingrules.md", "# Rules\n")
+    project.write(".agents/state.json", "{}\n")
+    project.write(".agents/events.jsonl", "")
+
+    chmodSync(project.path("paper.md"), 0o000)
+    try {
+      const result = inspectReadiness(project.root)
+      expect(result.status).toBe("blocked")
+      expect(result.ok).toBe(false)
+      expect(result.items.find((item) => item.path === "paper.md")?.status).toBe("conflict")
+    } finally {
+      chmodSync(project.path("paper.md"), 0o600)
+    }
   })
 
   test("marks user-owned AGENTS.md as non-blocking review item", () => {

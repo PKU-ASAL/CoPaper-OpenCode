@@ -25,6 +25,7 @@ function inspectRequiredFile(root: string, spec: RequiredFileSpec): ReadinessIte
 
   try {
     if (!statSync(fullPath).isFile()) return makeItem(spec.id, spec.path, "conflict", true, `${spec.path} must be a file.`)
+    readFileSync(fullPath)
   } catch {
     return makeItem(spec.id, spec.path, "conflict", true, `${spec.path} cannot be inspected.`)
   }
