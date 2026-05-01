@@ -74,8 +74,14 @@ VIBEPAPER_LANG=en-US bunx -p @vibepaper/opencode vibepaper-opencode doctor
 
 未知 locale 会回退到 `zh-CN`。JSON 字段名、状态值和 action 枚举保持 English，例如 `ok`、`checks`、`status`、`pass`、`fail`、`create`。
 
+## 测试手册
+
+###### 完整验证流程
+<!-- description: Link to usage test manual -->
+完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、初始化写入和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 初始化写入阶段的测试手册。
+
 ## 本地 Tarball
 
 ###### 发布前本地测试
 <!-- description: Local tarball install note -->
-测试本地 tarball 时，先把 tarball 安装到目标项目，再运行 `node_modules/.bin/vibepaper-opencode init`；这会在发布前写入稳定的项目内 `file://` 插件入口。
+测试本地 tarball 时，先把 tarball 安装到目标项目，再运行 `node_modules/.bin/vibepaper-opencode init`；这会在发布前写入稳定的项目内 `file://` 插件入口。具体命令和验收点见 `USAGE_TEST.zh-CN.md`。
