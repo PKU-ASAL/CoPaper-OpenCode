@@ -84,3 +84,19 @@ export interface ReadinessResult {
   items: ReadinessItem[]
   summary: ReadinessSummary
 }
+
+export type InitPreviewAction = "create" | "exists-managed" | "exists-user" | "conflict" | "optional"
+export type InitPreviewReason = "missing-required" | "missing-guidance" | "already-managed" | "user-owned" | "unsafe-target" | "future-optional"
+
+export interface InitPreviewItem {
+  path: string
+  action: InitPreviewAction
+  reason: InitPreviewReason
+  safe: boolean
+}
+
+export interface InitPreviewResult {
+  readonly: true
+  blocked: boolean
+  items: InitPreviewItem[]
+}
