@@ -9,6 +9,10 @@ describe("command templates", () => {
     expect(output).toContain("vibepaper_dashboard")
     expect(output).toContain("/vibe-doctor")
     expect(output).toContain("bunx -p @vibepaper/opencode vibepaper-opencode doctor")
+    expect(output).toContain("确认初始化")
+    expect(output).toContain("项目名称")
+    expect(output).toContain("研究领域")
+    expect(output).toContain("vibepaper_init_apply")
     expect(output).toContain("不要编造 VibePaper 状态")
     expect(output).not.toContain("!`")
   })
@@ -16,6 +20,10 @@ describe("command templates", () => {
   test("renders /vibe in English when requested", () => {
     const output = renderCommandTemplate("vibe", "en-US")
     expect(output).toContain("description: Show VibePaper project dashboard")
+    expect(output).toContain("confirm initialization")
+    expect(output).toContain("project name")
+    expect(output).toContain("research domain")
+    expect(output).toContain("vibepaper_init_apply")
     expect(output).toContain("Do not invent VibePaper status")
   })
 

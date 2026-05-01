@@ -24,6 +24,14 @@ description: Show VibePaper project dashboard
 
 Call the \`vibepaper_dashboard\` tool and display the returned content to the user.
 
+If the Dashboard says the project needs initialization, show the preview and wait for the user to explicitly say they confirm initialization.
+
+Before applying initialization, collect:
+- project name
+- research domain
+
+If either value is missing, ask for it first. Once both values are present and the user explicitly confirms, call the \`vibepaper_init_apply\` tool. Do not call the init tool without confirmation.
+
 If the tool is unavailable, tell the user:
 - Run \`/vibe-doctor\` to diagnose
 - Or run in terminal: \`${BUNX_CLI_COMMAND} doctor\`
@@ -38,6 +46,14 @@ description: 显示 VibePaper 项目仪表盘
 ---
 
 调用 \`vibepaper_dashboard\` 工具，并将返回内容展示给用户。
+
+如果 Dashboard 显示项目需要初始化，先展示预览并等待用户明确说“确认初始化”。
+
+确认初始化前必须获得：
+- 项目名称
+- 研究领域
+
+如果缺少项目名称或研究领域，先用中文追问。参数齐全且用户明确确认后，调用 \`vibepaper_init_apply\` 工具。不要在用户未确认时调用初始化工具。
 
 如果工具不可用，请告诉用户：
 - 运行 \`/vibe-doctor\` 进行诊断

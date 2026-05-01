@@ -1,5 +1,6 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
+import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 
 const packageVersion = "0.1.0"
 
@@ -16,6 +17,17 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute() {
           const result = await buildDashboardResult({ cwd: directory, worktree, packageVersion })
           return renderDashboardOutput(result)
+        },
+      }),
+      vibepaper_init_apply: tool({
+        description: "Apply VibePaper project initialization after explicit user confirmation. Writes core files only and refuses conflicts.",
+        args: {
+          name: tool.schema.string().describe("Project name"),
+          domain: tool.schema.string().describe("Research domain"),
+        },
+        async execute(args) {
+          const result = await applyProjectInit({ cwd: directory, worktree, name: args.name, domain: args.domain })
+          return renderProjectInitApplyOutput(result)
         },
       }),
     },
