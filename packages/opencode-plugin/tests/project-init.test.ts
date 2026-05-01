@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync } from "node:fs"
+import { existsSync, lstatSync, mkdirSync, readlinkSync, symlinkSync } from "node:fs"
 import { applyProjectInit, renderProjectInitApplyOutput } from "../src/project-init"
 import { inspectReadiness } from "../src/readiness"
 import { hashTree, makeTempProject } from "./fixtures"
@@ -78,6 +78,37 @@ describe("project init apply", () => {
     expect(result.conflicts.map((conflict) => conflict.path)).toContain(".agents/events.jsonl")
     expect(existsSync(project.path("paper.md"))).toBe(false)
     expect(hashTree(project.root)).toBe(before)
+  })
+
+  test("aborts before overwriting a dangling target symlink", async () => {
+    const project = temp()
+    symlinkSync("missing-paper-target", project.path("paper.md"))
+
+    const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z") })
+
+    expect(result.ok).toBe(false)
+    expect(result.changedFiles).toEqual([])
+    expect(result.conflicts.map((conflict) => conflict.path)).toContain("paper.md")
+    expect(lstatSync(project.path("paper.md")).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(project.path("paper.md"))).toBe("missing-paper-target")
+  })
+
+  test("aborts before writing when a target parent is a dangling symlink", async () => {
+    const project = temp()
+    symlinkSync("missing-agents-target", project.path(".agents"))
+
+    const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z") })
+
+    expect(result.ok).toBe(false)
+    expect(result.changedFiles).toEqual([])
+    expect(result.conflicts.map((conflict) => conflict.path)).toContain(".agents/state.json")
+    expect(result.conflicts.map((conflict) => conflict.path)).toContain(".agents/events.jsonl")
+    expect(existsSync(project.path("paper.md"))).toBe(false)
+    expect(existsSync(project.path("storyline.md"))).toBe(false)
+    expect(existsSync(project.path("writingrules.md"))).toBe(false)
+    expect(existsSync(project.path("AGENTS.md"))).toBe(false)
+    expect(lstatSync(project.path(".agents")).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(project.path(".agents"))).toBe("missing-agents-target")
   })
 
   test("renders localized markdown and stable json", async () => {

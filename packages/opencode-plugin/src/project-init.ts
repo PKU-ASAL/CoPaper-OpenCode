@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs"
+import { lstatSync, type Stats } from "node:fs"
 import { join } from "node:path"
 import { assertInsideRoot, writeFileAtomic } from "./fs-utils"
 import { buildInitPreview, INIT_APPLY_PATHS } from "./init-preview"
@@ -115,25 +115,41 @@ function preflightApplyTargets(root: string): ProjectInitConflict[] {
 
 function preflightTarget(root: string, target: string): ProjectInitConflict[] {
   const conflicts: ProjectInitConflict[] = []
+  const targetPath = join(root, target)
   try {
-    assertInsideRoot(root, join(root, target))
+    assertInsideRoot(root, targetPath)
   } catch (error) {
     conflicts.push({ path: target, status: "conflict", reason: errorMessage(error) })
   }
 
+  const targetEntry = lstatEntry(targetPath)
+  if (targetEntry.ok) {
+    conflicts.push({ path: target, status: "conflict", reason: "target already exists" })
+  } else if (!targetEntry.missing) {
+    conflicts.push({ path: target, status: "conflict", reason: `cannot inspect target: ${targetEntry.error}` })
+  }
+
   for (const parent of parentPaths(target)) {
     const parentPath = join(root, parent)
-    if (!existsSync(parentPath)) continue
-    try {
-      if (!statSync(parentPath).isDirectory()) {
-        conflicts.push({ path: target, status: "conflict", reason: `blocking parent ${parent} is not a directory` })
-      }
-    } catch (error) {
-      conflicts.push({ path: target, status: "conflict", reason: `cannot inspect parent ${parent}: ${errorMessage(error)}` })
+    const parentEntry = lstatEntry(parentPath)
+    if (!parentEntry.ok) {
+      if (parentEntry.missing) continue
+      conflicts.push({ path: target, status: "conflict", reason: `cannot inspect parent ${parent}: ${parentEntry.error}` })
+    } else if (!parentEntry.stat.isDirectory()) {
+      conflicts.push({ path: target, status: "conflict", reason: `blocking parent ${parent} is not a directory` })
     }
   }
 
   return conflicts
+}
+
+function lstatEntry(path: string): { ok: true; stat: Stats } | { ok: false; missing: boolean; error: string } {
+  try {
+    return { ok: true, stat: lstatSync(path) }
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : ""
+    return { ok: false, missing: code === "ENOENT", error: errorMessage(error) }
+  }
 }
 
 function parentPaths(target: string): string[] {
