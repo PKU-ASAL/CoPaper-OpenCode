@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { lstatSync, mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, readdirSync, readlinkSync } from "node:fs"
 import { join, relative } from "node:path"
 import { tmpdir } from "node:os"
 import { createHash } from "node:crypto"
@@ -24,10 +24,11 @@ export function hashTree(root: string): string {
     for (const name of readdirSync(dir).sort()) {
       const full = join(dir, name)
       const rel = relative(root, full)
-      const stat = statSync(full)
+      const stat = lstatSync(full)
       hash.update(rel)
-      hash.update(stat.isDirectory() ? "dir" : "file")
+      hash.update(stat.isDirectory() ? "dir" : stat.isSymbolicLink() ? "symlink" : "file")
       if (stat.isDirectory()) walk(full)
+      else if (stat.isSymbolicLink()) hash.update(readlinkSync(full))
       else hash.update(readFileSync(full))
     }
   }

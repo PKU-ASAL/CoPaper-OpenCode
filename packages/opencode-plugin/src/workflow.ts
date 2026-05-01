@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from "node:fs"
-import { isAbsolute, join } from "node:path"
-import { assertInsideRoot } from "./fs-utils"
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, type Stats } from "node:fs"
+import { dirname, isAbsolute, join, resolve } from "node:path"
+import { assertInsideRoot, writeFileAtomic } from "./fs-utils"
 import { resolveLocale, t } from "./i18n"
 import { detectRoot } from "./root"
-import { SCHEMA_VERSION, WORKFLOW_PHASE_STATUSES, type Locale, type WorkflowError, type WorkflowEvent, type WorkflowLogQueryOptions, type WorkflowLogResult, type WorkflowMetadataSummary, type WorkflowPhaseRow, type WorkflowPhaseStatus, type WorkflowRecommendation, type WorkflowStateDocument, type WorkflowStatusResult, type WorkflowSummary } from "./types"
+import { SCHEMA_VERSION, WORKFLOW_PHASE_STATUSES, type Locale, type WorkflowError, type WorkflowEvent, type WorkflowLogQueryOptions, type WorkflowLogResult, type WorkflowMetadataSummary, type WorkflowPhaseRow, type WorkflowPhaseStatus, type WorkflowRecommendation, type WorkflowSetPhaseOptions, type WorkflowSetPhaseResult, type WorkflowStateDocument, type WorkflowStatusResult, type WorkflowSummary } from "./types"
 
 export interface WorkflowReadOptions {
   root?: string
@@ -137,6 +137,148 @@ export async function queryWorkflowLog(options: WorkflowLogQueryOptions): Promis
   })
 }
 
+export async function setWorkflowPhase(options: WorkflowSetPhaseOptions): Promise<WorkflowSetPhaseResult> {
+  const resolved = resolveLocale(options.locale, options.env)
+  const rootResult = await resolveWorkflowRoot(options)
+  if (!rootResult.ok) {
+    return makeSetPhaseResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root: null, phase: options.phase, errors: [rootResult.error] })
+  }
+
+  const stateResult = readWorkflowState(rootResult.root)
+  if (!stateResult.ok) {
+    return makeSetPhaseResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root: rootResult.root, phase: options.phase, errors: [stateResult.error] })
+  }
+
+  const state = stateResult.state
+  const phaseState = ownWorkflowPhase(state.phases, options.phase)
+  if (phaseState === null) {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      errors: [{ code: "invalid-phase", message: `Unknown workflow phase: ${options.phase}` }],
+    })
+  }
+
+  if (!isWorkflowPhaseStatus(options.status)) {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      previousStatus: statusFromPhase(phaseState),
+      previousCurrentPhase: currentPhaseFromState(state),
+      errors: [{ code: "invalid-status", message: `Unsupported workflow phase status: ${options.status}` }],
+    })
+  }
+
+  const reason = typeof options.reason === "string" ? options.reason.trim() : ""
+  if (options.status === "skipped" && reason === "") {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      previousStatus: statusFromPhase(phaseState),
+      nextStatus: options.status,
+      previousCurrentPhase: currentPhaseFromState(state),
+      errors: [{ code: "missing-reason", message: "Skipping a workflow phase requires a non-empty reason." }],
+    })
+  }
+
+  const previousStatus = statusFromPhase(phaseState)
+  const previousCurrentPhase = currentPhaseFromState(state)
+  const relativeLogPath = eventLogPathFromState(state)
+  const logPathResult = preflightWorkflowEventLogPath(rootResult.root, relativeLogPath)
+  if (!logPathResult.ok) {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      previousStatus,
+      nextStatus: options.status,
+      previousCurrentPhase,
+      currentPhase: previousCurrentPhase,
+      eventAppended: false,
+      errors: [logPathResult.error],
+    })
+  }
+
+  const timestamp = (options.now ?? new Date()).toISOString()
+  const nextPhaseState: Record<string, unknown> = {
+    ...phaseState,
+    status: options.status,
+    completed_at: options.status === "complete" ? timestamp : null,
+  }
+  if (options.status === "skipped") nextPhaseState.skip_reason = reason
+
+  const nextState: WorkflowStateDocument = {
+    ...state,
+    phases: {
+      ...state.phases,
+      [options.phase]: nextPhaseState,
+    },
+  }
+  const nextCurrentPhase = recomputeCurrentPhase(nextState)
+  if (nextCurrentPhase !== null) nextState.current_phase = nextCurrentPhase
+
+  try {
+    writeWorkflowState(rootResult.root, nextState)
+  } catch (error) {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      previousStatus,
+      nextStatus: options.status,
+      previousCurrentPhase,
+      currentPhase: nextCurrentPhase,
+      eventAppended: false,
+      errors: [{ code: "write-failed", path: ".agents/state.json", message: `Failed to write workflow state: ${errorMessage(error)}` }],
+    })
+  }
+
+  try {
+    appendWorkflowEvent(logPathResult.path, buildSetPhaseEvent({ timestamp, phase: options.phase, status: options.status, previousStatus, previousCurrentPhase, reason }))
+  } catch (error) {
+    return makeSetPhaseResult({
+      locale: resolved.locale,
+      localeFallback: resolved.fallback,
+      ok: false,
+      root: rootResult.root,
+      phase: options.phase,
+      previousStatus,
+      nextStatus: options.status,
+      previousCurrentPhase,
+      currentPhase: nextCurrentPhase,
+      eventAppended: false,
+      warnings: ["state-written-event-failed"],
+      errors: [{ code: "event-log-failed", path: relativeLogPath, message: `Failed to append workflow event: ${errorMessage(error)}` }],
+    })
+  }
+
+  return makeSetPhaseResult({
+    locale: resolved.locale,
+    localeFallback: resolved.fallback,
+    ok: true,
+    root: rootResult.root,
+    phase: options.phase,
+    previousStatus,
+    nextStatus: options.status,
+    previousCurrentPhase,
+    currentPhase: nextCurrentPhase,
+    eventAppended: true,
+  })
+}
+
 export function renderWorkflowStatusOutput(result: WorkflowStatusResult): string {
   const locale = result.locale
   const phaseRows = result.phases.length > 0 ? result.phases.map((phase) => renderPhaseRow(locale, phase)).join("\n") : `| ${t(locale, "workflow.none")} | ${t(locale, "workflow.none")} | ${t(locale, "workflow.none")} | ${t(locale, "workflow.none")} |`
@@ -178,6 +320,27 @@ ${eventRows}
 ### ${t(locale, "workflow.warnings")}
 
 ${warningRows}
+
+\`\`\`json
+${JSON.stringify(result, null, 2)}
+\`\`\`
+`
+}
+
+export function renderWorkflowSetPhaseOutput(result: WorkflowSetPhaseResult): string {
+  const locale = result.locale
+  return `## ${t(locale, "workflow.setPhaseTitle")}
+
+${result.ok ? t(locale, "workflow.setPhaseSuccess") : t(locale, "workflow.setPhaseFailed")}
+
+**${t(locale, "workflow.phase")}:** ${result.phase ?? t(locale, "workflow.none")}
+**${t(locale, "workflow.previousStatus")}:** ${result.previousStatus ?? t(locale, "workflow.none")}
+**${t(locale, "workflow.nextStatus")}:** ${result.nextStatus ?? t(locale, "workflow.none")}
+**${t(locale, "workflow.currentPhase")}:** ${result.currentPhase ?? t(locale, "workflow.none")}
+
+### ${t(locale, "workflow.errors")}
+
+${renderStringList(locale, result.errors.map((error) => `${error.code}${error.path ? ` (${error.path})` : ""}: ${error.message}`))}
 
 \`\`\`json
 ${JSON.stringify(result, null, 2)}
@@ -305,10 +468,122 @@ function eventLogPathFromState(state: WorkflowStateDocument): string {
   return typeof state.event_log_path === "string" && state.event_log_path.trim() !== "" ? state.event_log_path : ".agents/events.jsonl"
 }
 
+function recomputeCurrentPhase(state: WorkflowStateDocument): string | null {
+  const phaseIds = Object.keys(state.phases)
+  if (phaseIds.length === 0) return null
+  const metadata = parseWorkflowMetadata(state.workflow)
+  const orderedPhaseIds = orderPhaseIds(phaseIds, metadata.phaseOrder)
+  const inProgress = orderedPhaseIds.find((phase) => statusFromPhase(state.phases[phase]) === "in_progress")
+  if (inProgress !== undefined) return inProgress
+  const nextOpen = orderedPhaseIds.find((phase) => {
+    const status = statusFromPhase(state.phases[phase])
+    return status !== "complete" && status !== "skipped"
+  })
+  return nextOpen ?? orderedPhaseIds[orderedPhaseIds.length - 1] ?? null
+}
+
 function safeProjectPath(root: string, projectPath: string): string {
   const target = isAbsolute(projectPath) ? projectPath : join(root, projectPath)
   assertInsideRoot(root, target)
   return target
+}
+
+function preflightWorkflowEventLogPath(root: string, relativeLogPath: string): { ok: true; path: string } | { ok: false; error: WorkflowError } {
+  let logPath: string
+  try {
+    logPath = safeProjectPath(root, relativeLogPath)
+  } catch (error) {
+    return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: `Failed to resolve event log path: ${errorMessage(error)}` } }
+  }
+
+  try {
+    const parent = dirname(logPath)
+    assertInsideRoot(root, parent)
+    const statePath = join(root, ".agents", "state.json")
+    if (resolve(logPath) === resolve(statePath)) {
+      return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: "Event log path must not target .agents/state.json." } }
+    }
+
+    const blockedParent = blockedEventLogAncestor(parent)
+    if (blockedParent !== null) {
+      return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: `Event log parent is not a directory: ${blockedParent}` } }
+    }
+
+    const finalStat = lstatIfExists(logPath)
+    if (finalStat !== null) {
+      if (finalStat.isSymbolicLink()) {
+        return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: `Event log path must not be a symlink: ${logPath}` } }
+      }
+      if (!finalStat.isFile()) {
+        return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: `Event log path is not a regular file: ${logPath}` } }
+      }
+    }
+  } catch (error) {
+    return { ok: false, error: { code: "event-log-failed", path: relativeLogPath, message: `Failed to preflight event log path: ${errorMessage(error)}` } }
+  }
+
+  return { ok: true, path: logPath }
+}
+
+function blockedEventLogAncestor(parent: string): string | null {
+  let current = parent
+  let stat = lstatIfExists(current)
+  while (stat === null) {
+    const next = dirname(current)
+    if (next === current) return null
+    current = next
+    stat = lstatIfExists(current)
+  }
+  if (stat.isSymbolicLink()) return current
+  return stat.isDirectory() ? null : current
+}
+
+function writeWorkflowState(root: string, state: WorkflowStateDocument): void {
+  const statePath = join(root, ".agents", "state.json")
+  assertInsideRoot(root, statePath)
+  writeFileAtomic(statePath, `${JSON.stringify(state, null, 2)}\n`)
+}
+
+function appendWorkflowEvent(logPath: string, event: Record<string, unknown>): void {
+  mkdirSync(dirname(logPath), { recursive: true })
+  const stat = lstatIfExists(logPath)
+  if (stat !== null && stat.isSymbolicLink()) throw new Error(`Refusing to append to symlink: ${logPath}`)
+  if (stat !== null && !stat.isFile()) throw new Error(`Refusing to append to non-file: ${logPath}`)
+  const separator = existingFileNeedsNewline(logPath) ? "\n" : ""
+  appendFileSync(logPath, `${separator}${JSON.stringify(event)}\n`, "utf8")
+}
+
+function existingFileNeedsNewline(logPath: string): boolean {
+  const stat = lstatIfExists(logPath)
+  if (stat === null) return false
+  if (!stat.isFile() || stat.size === 0) return false
+  return !readFileSync(logPath, "utf8").endsWith("\n")
+}
+
+function lstatIfExists(path: string): Stats | null {
+  try {
+    return lstatSync(path) ?? null
+  } catch (error) {
+    if (isMissingPathError(error)) return null
+    throw error
+  }
+}
+
+function buildSetPhaseEvent(input: { timestamp: string; phase: string; status: WorkflowPhaseStatus; previousStatus: string | null; previousCurrentPhase: string | null; reason: string }): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {
+    status: input.status,
+    previous_status: input.previousStatus,
+    previous_current_phase: input.previousCurrentPhase,
+  }
+  if (input.reason !== "") metadata.reason = input.reason
+  return {
+    timestamp: input.timestamp,
+    operator: "user",
+    phase: input.phase,
+    action: "set_phase_status",
+    result: "success",
+    metadata,
+  }
 }
 
 function parseEventLog(content: string): { events: WorkflowEvent[]; skippedMalformed: number } {
@@ -416,6 +691,37 @@ function makeLogResult(input: {
   }
 }
 
+function makeSetPhaseResult(input: {
+  locale: Locale
+  localeFallback: boolean
+  ok: boolean
+  root: string | null
+  phase?: string | null
+  previousStatus?: string | null
+  nextStatus?: WorkflowPhaseStatus | null
+  previousCurrentPhase?: string | null
+  currentPhase?: string | null
+  eventAppended?: boolean
+  warnings?: string[]
+  errors?: WorkflowError[]
+}): WorkflowSetPhaseResult {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    ok: input.ok,
+    root: input.root,
+    locale: input.locale,
+    localeFallback: input.localeFallback,
+    phase: input.phase ?? null,
+    previousStatus: input.previousStatus ?? null,
+    nextStatus: input.nextStatus ?? null,
+    previousCurrentPhase: input.previousCurrentPhase ?? null,
+    currentPhase: input.currentPhase ?? null,
+    eventAppended: input.eventAppended ?? false,
+    warnings: input.warnings ?? [],
+    errors: input.errors ?? [],
+  }
+}
+
 function emptyStatusCounts(): Record<WorkflowPhaseStatus, number> & { unknown: number } {
   return { ...Object.fromEntries(WORKFLOW_PHASE_STATUSES.map((status) => [status, 0])), unknown: 0 } as Record<WorkflowPhaseStatus, number> & { unknown: number }
 }
@@ -430,6 +736,19 @@ function unavailableRecommendation(): WorkflowRecommendation {
 
 function isWorkflowPhaseStatus(value: string): value is WorkflowPhaseStatus {
   return (WORKFLOW_PHASE_STATUSES as readonly string[]).includes(value)
+}
+
+function statusFromPhase(phase: Record<string, unknown> | undefined): string | null {
+  return typeof phase?.status === "string" ? phase.status : null
+}
+
+function currentPhaseFromState(state: WorkflowStateDocument): string | null {
+  return typeof state.current_phase === "string" ? state.current_phase : null
+}
+
+function ownWorkflowPhase(phases: WorkflowStateDocument["phases"], phase: string): Record<string, unknown> | null {
+  if (!Object.prototype.hasOwnProperty.call(phases, phase)) return null
+  return phases[phase] ?? null
 }
 
 function renderPhaseRow(locale: Locale, phase: WorkflowPhaseRow): string {
@@ -457,6 +776,10 @@ function escapePipes(input: string): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "ENOENT"
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

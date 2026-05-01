@@ -282,6 +282,18 @@ export interface WorkflowLogQueryOptions {
   lastN?: number
 }
 
+export interface WorkflowSetPhaseOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  phase: string
+  status: WorkflowPhaseStatus | string
+  reason?: string
+  now?: Date
+}
+
 export interface WorkflowLogResult {
   schemaVersion: typeof SCHEMA_VERSION
   readonly: true
@@ -297,6 +309,22 @@ export interface WorkflowLogResult {
   }
   events: WorkflowEvent[]
   skippedMalformed: number
+  warnings: string[]
+  errors: WorkflowError[]
+}
+
+export interface WorkflowSetPhaseResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  phase: string | null
+  previousStatus: string | null
+  nextStatus: WorkflowPhaseStatus | null
+  previousCurrentPhase: string | null
+  currentPhase: string | null
+  eventAppended: boolean
   warnings: string[]
   errors: WorkflowError[]
 }
