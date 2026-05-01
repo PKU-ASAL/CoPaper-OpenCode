@@ -32,6 +32,7 @@ describe("OpenCode plugin", () => {
       expect(output).toContain("## VibePaper 初始化写入")
       expect(output).toContain("paper.md")
       expect(JSON.parse(project.read(".agents/state.json")).project.name).toBe("Demo Paper")
+      expect(JSON.parse(project.read(".agents/state.json")).project.domain).toBe("software engineering")
     } finally {
       project.cleanup()
     }
