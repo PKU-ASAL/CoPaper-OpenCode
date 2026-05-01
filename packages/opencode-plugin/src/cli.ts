@@ -7,7 +7,7 @@ import type { OutputFormat } from "./types"
 
 const packageVersion = "0.1.0"
 type Command = "init" | "doctor"
-type CommonOptions = { root?: string; config?: string; dryRun?: boolean; force?: boolean; format?: OutputFormat }
+type CommonOptions = { root?: string; config?: string; dryRun?: boolean; force?: boolean; format?: OutputFormat; locale?: string }
 
 async function main(argv: string[]) {
   const [command, ...rest] = argv
@@ -25,7 +25,7 @@ async function runInit(args: string[]) {
     return 2
   }
   const options = parsed.options
-  const locale = resolveLocale().locale
+  const locale = resolveLocale(options.locale).locale
   const plan = await planInit({ ...options, cliEntryPath: fileURLToPath(import.meta.url), locale })
   if (!plan.ok) {
     console.error(plan.error)
@@ -54,11 +54,12 @@ async function runDoctorCommand(args: string[]) {
     return 2
   }
   const options = parsed.options
+  const locale = resolveLocale(options.locale).locale
   const result = await runDoctor({ root: options.root, config: options.config, packageVersion })
   const format = options.format ?? "text"
   if (format === "json") console.log(renderDoctorJson(result))
-  else if (format === "markdown") console.log(renderDoctorMarkdown(result))
-  else console.log(renderDoctorText(result))
+  else if (format === "markdown") console.log(renderDoctorMarkdown(result, locale))
+  else console.log(renderDoctorText(result, locale))
   return result.ok ? 0 : 1
 }
 
@@ -75,6 +76,11 @@ function parseCommonArgs(args: string[], command: Command): { ok: true; options:
       const value = readOptionValue(args, index, arg)
       if (!value.ok) return value
       options.config = value.value
+      index += 1
+    } else if (arg === "--locale") {
+      const value = readOptionValue(args, index, arg)
+      if (!value.ok) return value
+      options.locale = value.value
       index += 1
     } else if (arg === "--dry-run") {
       if (command !== "init") return unsupportedOption(command, arg)
@@ -120,8 +126,8 @@ function unsupportedOption(command: Command, arg: string): { ok: false; error: s
 
 function help(code: number) {
   console.log(`Usage:
-  vibepaper-opencode init [--root <dir>] [--config <path>] [--dry-run] [--force]
-  vibepaper-opencode doctor [--root <dir>] [--config <path>] [--format text|markdown|json]
+  vibepaper-opencode init [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--dry-run] [--force]
+  vibepaper-opencode doctor [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--format text|markdown|json]
 `)
   return code
 }

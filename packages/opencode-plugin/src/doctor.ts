@@ -4,7 +4,8 @@ import { parse, type ParseError } from "jsonc-parser"
 import { assertInsideRoot } from "./fs-utils"
 import { detectRoot } from "./root"
 import { hasManagedMarker } from "./templates"
-import { BUNX_CLI_COMMAND, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, type DoctorCheck, type DoctorResult } from "./types"
+import { t } from "./i18n"
+import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, type DoctorCheck, type DoctorResult, type Locale } from "./types"
 
 const INIT_REMEDIATION = `Run: ${BUNX_CLI_COMMAND} init`
 
@@ -60,30 +61,34 @@ export function renderDoctorJson(result: DoctorResult): string {
   return JSON.stringify(result, null, 2)
 }
 
-export function renderDoctorMarkdown(result: DoctorResult): string {
-  const rows = result.checks.map((check) => `| ${check.id} | ${check.status} | ${escapePipes(check.message)} |`).join("\n")
-  return `## VibePaper Doctor v${result.packageVersion}
+export function renderDoctorMarkdown(result: DoctorResult, locale: Locale = DEFAULT_LOCALE): string {
+  const rows = result.checks.map((check) => `| ${check.id} | ${localizedStatus(locale, check.status)} | ${escapePipes(check.message)} |`).join("\n")
+  return `## ${t(locale, "doctor.title", { version: result.packageVersion })}
 
-**Root:** \`${result.root ?? "unknown"}\` (${result.rootReason})
+**${t(locale, "doctor.root", { root: result.root ?? "unknown", reason: result.rootReason })}**
 
-| Check | Status | Message |
+| ${t(locale, "table.check")} | ${t(locale, "table.status")} | ${t(locale, "table.message")} |
 |---|---|---|
 ${rows}
 
-**Next step:** ${result.nextSteps[0] ?? "No action required"}
+**${t(locale, "doctor.next", { step: result.nextSteps[0] ?? "No action required" })}**
 `
 }
 
-export function renderDoctorText(result: DoctorResult): string {
-  const lines = [`VibePaper OpenCode Doctor v${result.packageVersion}`, `Root: ${result.root ?? "unknown"} (${result.rootReason})`, ""]
+export function renderDoctorText(result: DoctorResult, locale: Locale = DEFAULT_LOCALE): string {
+  const lines = [t(locale, "doctor.title", { version: result.packageVersion }), t(locale, "doctor.root", { root: result.root ?? "unknown", reason: result.rootReason }), ""]
   for (const check of result.checks) {
     const glyph = check.status === "pass" ? "✓" : check.status === "fail" ? "✗" : check.status === "warn" ? "!" : "i"
     lines.push(`${glyph} ${check.id.padEnd(32)} ${check.message}`)
     if (check.remediation) lines.push(`  → ${check.remediation}`)
   }
-  lines.push("", result.ok ? "All required checks passed." : "One or more required checks failed.")
-  lines.push(...result.nextSteps.map((step) => `Next: ${step}`))
+  lines.push("", result.ok ? t(locale, "doctor.allPassed") : t(locale, "doctor.failed"))
+  lines.push(...result.nextSteps.map((step) => t(locale, "doctor.next", { step })))
   return `${lines.join("\n")}\n`
+}
+
+function localizedStatus(locale: Locale, status: DoctorCheck["status"]): string {
+  return t(locale, `status.${status}`)
 }
 
 function selectExistingConfig(root: string): { ok: true; path: string } | { ok: false; message: string; remediation?: string } {

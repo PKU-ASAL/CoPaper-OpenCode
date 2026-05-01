@@ -10,7 +10,12 @@ function temp() { const p = makeTempProject(); projects.push(p); return p }
 
 const cli = join(import.meta.dir, "..", "src", "cli.ts")
 function runCli(args: string[], locale = "") {
-  return spawnSync("bun", [cli, ...args], { encoding: "utf8", env: { ...process.env, VIBEPAPER_LANG: locale } })
+  return spawnSync("bun", [cli, ...args], { encoding: "utf8", env: locale ? cleanEnv({ VIBEPAPER_LANG: locale }) : cleanEnv() })
+}
+
+function cleanEnv(extra: NodeJS.ProcessEnv = {}) {
+  const { VIBEPAPER_LANG: _lang, ...env } = process.env
+  return { ...env, ...extra }
 }
 
 describe("CLI", () => {
@@ -49,6 +54,54 @@ describe("CLI", () => {
     const result = runCli(["doctor", "--root", project.root, "--format", "json"])
     expect(result.status).toBe(0)
     expect(JSON.parse(result.stdout).ok).toBe(true)
+  })
+
+  test("doctor defaults to Chinese text output", () => {
+    const project = temp()
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root], { encoding: "utf8", env: cleanEnv() })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain("VibePaper OpenCode 诊断")
+    expect(result.stdout).toContain("下一步")
+  })
+
+  test("doctor supports English locale via flag", () => {
+    const project = temp()
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root, "--locale", "en-US"], { encoding: "utf8", env: cleanEnv() })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain("VibePaper OpenCode Doctor")
+    expect(result.stdout).toContain("Next:")
+  })
+
+  test("doctor supports English locale via VIBEPAPER_LANG", () => {
+    const project = temp()
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root], { encoding: "utf8", env: cleanEnv({ VIBEPAPER_LANG: "en-US" }) })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain("VibePaper OpenCode Doctor")
+  })
+
+  test("doctor JSON keeps English field names and enum values with Chinese locale", () => {
+    const project = temp()
+    spawnSync("bun", [cli, "init", "--root", project.root], { encoding: "utf8", env: cleanEnv() })
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root, "--format", "json", "--locale", "zh-CN"], { encoding: "utf8", env: cleanEnv() })
+    const parsed = JSON.parse(result.stdout)
+    expect(parsed.ok).toBe(true)
+    expect(parsed.checks[0].status).toBe("pass")
+    expect(parsed.checks[0]).toHaveProperty("remediation")
+  })
+
+  test("doctor falls back to Chinese for unsupported locale without blocking", () => {
+    const project = temp()
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root, "--locale", "fr-FR"], { encoding: "utf8", env: cleanEnv() })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain("VibePaper OpenCode 诊断")
+  })
+
+  test("init supports English locale via flag", () => {
+    const project = temp()
+    const result = spawnSync("bun", [cli, "init", "--root", project.root, "--locale", "en-US", "--dry-run"], { encoding: "utf8", env: cleanEnv() })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain("DRY RUN")
+    expect(result.stdout).toContain("No files were changed.")
   })
 
   test("doctor rejects unsupported format", () => {
