@@ -1,3 +1,4 @@
+import { existsSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { assertInsideRoot, writeFileAtomic } from "./fs-utils"
 import { buildInitPreview, INIT_APPLY_PATHS } from "./init-preview"
@@ -29,7 +30,7 @@ export async function applyProjectInit(options: ProjectInitApplyOptions): Promis
   }
 
   const readinessBefore = inspectReadiness(root)
-  const conflicts = detectApplyConflicts(readinessBefore)
+  const conflicts = uniqueConflicts([...preflightApplyTargets(root), ...detectApplyConflicts(readinessBefore)])
   if (conflicts.length > 0) {
     return makeResult({
       locale,
@@ -83,16 +84,16 @@ export function renderProjectInitApplyOutput(result: ProjectInitApplyResult): st
     result.ok ? t(locale, "apply.success") : t(locale, "apply.failed"),
     "",
     `### ${t(locale, "apply.changedFiles")}`,
-    ...renderStringList(result.changedFiles),
+    ...renderStringList(locale, result.changedFiles),
     "",
     `### ${t(locale, "apply.skippedFiles")}`,
-    ...renderStringList(result.skippedFiles),
+    ...renderStringList(locale, result.skippedFiles),
     "",
     `### ${t(locale, "apply.conflicts")}`,
-    ...renderConflictList(result.conflicts),
+    ...renderConflictList(locale, result.conflicts),
     "",
     `### ${t(locale, "apply.errors")}`,
-    ...renderErrorList(result.errors),
+    ...renderErrorList(locale, result.errors),
     "",
   ]
 
@@ -108,6 +109,42 @@ function validateProjectInput(name: string, domain: string): ProjectInitError[] 
   return errors
 }
 
+function preflightApplyTargets(root: string): ProjectInitConflict[] {
+  return INIT_APPLY_PATHS.flatMap((target) => preflightTarget(root, target))
+}
+
+function preflightTarget(root: string, target: string): ProjectInitConflict[] {
+  const conflicts: ProjectInitConflict[] = []
+  try {
+    assertInsideRoot(root, join(root, target))
+  } catch (error) {
+    conflicts.push({ path: target, status: "conflict", reason: errorMessage(error) })
+  }
+
+  for (const parent of parentPaths(target)) {
+    const parentPath = join(root, parent)
+    if (!existsSync(parentPath)) continue
+    try {
+      if (!statSync(parentPath).isDirectory()) {
+        conflicts.push({ path: target, status: "conflict", reason: `blocking parent ${parent} is not a directory` })
+      }
+    } catch (error) {
+      conflicts.push({ path: target, status: "conflict", reason: `cannot inspect parent ${parent}: ${errorMessage(error)}` })
+    }
+  }
+
+  return conflicts
+}
+
+function parentPaths(target: string): string[] {
+  const segments = target.split("/")
+  const parents: string[] = []
+  for (let index = 1; index < segments.length; index += 1) {
+    parents.push(segments.slice(0, index).join("/"))
+  }
+  return parents
+}
+
 function detectApplyConflicts(readiness: ReadinessResult): ProjectInitConflict[] {
   const applyPaths = new Set<string>(INIT_APPLY_PATHS)
   const preview = buildInitPreview(readiness)
@@ -119,6 +156,15 @@ function detectApplyConflicts(readiness: ReadinessResult): ProjectInitConflict[]
 function conflictFromPreview(item: InitPreviewItem, readiness: ReadinessResult): ProjectInitConflict {
   const readinessItem = readiness.items.find((candidate) => candidate.path === item.path)
   return { path: item.path, status: readinessItem?.status ?? "conflict", reason: item.reason }
+}
+
+function uniqueConflicts(conflicts: ProjectInitConflict[]): ProjectInitConflict[] {
+  const seen = new Set<string>()
+  return conflicts.filter((conflict) => {
+    if (seen.has(conflict.path)) return false
+    seen.add(conflict.path)
+    return true
+  })
 }
 
 function writeProjectFile(root: string, file: ProjectFileTemplate): void {
@@ -161,18 +207,18 @@ function safeInspectReadiness(root: string): ReadinessResult | null {
   }
 }
 
-function renderStringList(items: string[]): string[] {
-  if (items.length === 0) return ["- none"]
+function renderStringList(locale: ProjectInitApplyResult["locale"], items: string[]): string[] {
+  if (items.length === 0) return [`- ${t(locale, "apply.none")}`]
   return items.map((item) => `- ${item}`)
 }
 
-function renderConflictList(conflicts: ProjectInitConflict[]): string[] {
-  if (conflicts.length === 0) return ["- none"]
+function renderConflictList(locale: ProjectInitApplyResult["locale"], conflicts: ProjectInitConflict[]): string[] {
+  if (conflicts.length === 0) return [`- ${t(locale, "apply.none")}`]
   return conflicts.map((conflict) => `- ${conflict.path}: ${conflict.status} (${conflict.reason})`)
 }
 
-function renderErrorList(errors: ProjectInitError[]): string[] {
-  if (errors.length === 0) return ["- none"]
+function renderErrorList(locale: ProjectInitApplyResult["locale"], errors: ProjectInitError[]): string[] {
+  if (errors.length === 0) return [`- ${t(locale, "apply.none")}`]
   return errors.map((error) => `- ${error.code}${error.path ? ` ${error.path}` : ""}: ${error.message}`)
 }
 

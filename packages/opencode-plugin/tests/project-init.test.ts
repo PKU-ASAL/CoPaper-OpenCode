@@ -65,6 +65,21 @@ describe("project init apply", () => {
     expect(hashTree(project.root)).toBe(before)
   })
 
+  test("aborts before writing when a target parent is a file", async () => {
+    const project = temp()
+    project.write(".agents", "blocking parent\n")
+    const before = hashTree(project.root)
+
+    const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z") })
+
+    expect(result.ok).toBe(false)
+    expect(result.changedFiles).toEqual([])
+    expect(result.conflicts.map((conflict) => conflict.path)).toContain(".agents/state.json")
+    expect(result.conflicts.map((conflict) => conflict.path)).toContain(".agents/events.jsonl")
+    expect(existsSync(project.path("paper.md"))).toBe(false)
+    expect(hashTree(project.root)).toBe(before)
+  })
+
   test("renders localized markdown and stable json", async () => {
     const project = temp()
     const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z"), locale: "zh-CN" })
@@ -77,5 +92,7 @@ describe("project init apply", () => {
     expect(markdown).toContain('"mode": "apply"')
     expect(markdown).toContain('"changedFiles"')
     expect(markdown).not.toContain('"将创建"')
+    expect(markdown).toContain("- 无")
+    expect(markdown).not.toContain("- none")
   })
 })
