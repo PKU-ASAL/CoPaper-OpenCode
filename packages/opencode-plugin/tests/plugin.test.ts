@@ -23,8 +23,8 @@ function toolContext(root: string): ToolContext {
     directory: root,
     worktree: root,
     abort: new AbortController().signal,
-    metadata: {},
-    ask: (async () => undefined) as ToolContext["ask"],
+    metadata: () => undefined,
+    ask: (() => { throw new Error("Unexpected permission request") }) as ToolContext["ask"],
   }
 }
 
@@ -58,7 +58,7 @@ describe("OpenCode plugin", () => {
     const runtimeProject = makeTempProject()
     try {
       const hooks = await buildHooks(capturedProject.root)
-      await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: unknown): Promise<string> }).execute(
+      await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute(
         { name: "Demo Paper", domain: "software engineering" },
         toolContext(runtimeProject.root),
       )
