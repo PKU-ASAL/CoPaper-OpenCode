@@ -43,7 +43,7 @@ npm pack --dry-run
 期望结果是 TypeScript 检查和构建通过，Bun 测试全部通过，dry-run tarball 只包含 `dist/`、`README.md` 和 `package.json`。
 
 ###### 最近插件验证
-最近一次完整验证结果为：`bun test` 通过 `97` 项，`test:cli` 通过 `16` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 报告 `28` 个打包文件和 `vibepaper-opencode-0.1.0.tgz` 文件名。
+最近一次完整验证结果为：`bun test` 通过 `114` 项，`test:cli` 通过 `16` 项，`test:package` 通过 `5` 项，`npm pack --dry-run` 报告 `32` 个打包文件和 `vibepaper-opencode-0.1.0.tgz` 文件名。
 
 ###### 本阶段新增覆盖
 - `i18n.test.ts`：验证 `zh-CN` 默认语言、`en-US`、环境变量和 fallback
