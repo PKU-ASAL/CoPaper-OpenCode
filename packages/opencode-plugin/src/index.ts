@@ -11,7 +11,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
   return {
     tool: {
       vibepaper_dashboard: tool({
-        description: "Show VibePaper project installation status and recommended next steps. Read-only, does not modify files.",
+        description: "Show VibePaper project readiness and init preview. Read-only, does not modify files.",
         args: {},
         async execute() {
           const result = await buildDashboardResult({ cwd: directory, worktree, packageVersion })

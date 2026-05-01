@@ -49,13 +49,23 @@ export interface DashboardInstallation {
   vibeDoctorCommandManaged: boolean
 }
 
+export interface DashboardRecommendation {
+  id: "repair-installation" | "preview-init" | "continue-workflow"
+  message: string
+  command: string | null
+}
+
 export interface DashboardResult {
   schemaVersion: typeof SCHEMA_VERSION
   ok: boolean
   root: string | null
   packageVersion: string
-  installation: DashboardInstallation
-  recommendations: string[]
+  locale: Locale
+  localeFallback: boolean
+  integration: DashboardInstallation
+  readiness: ReadinessResult | null
+  initPreview: InitPreviewResult
+  recommendation: DashboardRecommendation
 }
 
 export type ReadinessProjectStatus = "ready" | "needs-init" | "blocked"

@@ -1,57 +1,106 @@
 import { runDoctor } from "./doctor"
-import { SCHEMA_VERSION, type DashboardResult } from "./types"
+import { buildInitPreview } from "./init-preview"
+import { resolveLocale, t } from "./i18n"
+import { inspectReadiness } from "./readiness"
+import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem } from "./types"
 
 export interface DashboardOptions {
   root?: string
   cwd?: string
   worktree?: string
   packageVersion: string
+  locale?: string
+  env?: Record<string, string | undefined>
 }
 
 export async function buildDashboardResult(options: DashboardOptions): Promise<DashboardResult> {
+  const resolved = resolveLocale(options.locale, options.env)
   const doctor = await runDoctor(options)
-  const check = (id: string) => doctor.checks.find((item) => item.id === id)?.status === "pass"
+  const integration = integrationFromDoctor(doctor.checks)
+  const healthyIntegration = doctor.ok
+  const readiness = healthyIntegration && doctor.root ? inspectReadiness(doctor.root) : null
+  const initPreview = readiness ? buildInitPreview(readiness) : { readonly: true as const, blocked: true, items: [] }
+  const recommendation = chooseRecommendation(resolved.locale, healthyIntegration, readiness?.ok ?? false)
+
   return {
     schemaVersion: SCHEMA_VERSION,
-    ok: doctor.ok,
+    ok: healthyIntegration && (readiness?.ok ?? false),
     root: doctor.root,
     packageVersion: doctor.packageVersion,
-    installation: {
-      configPresent: check("config.present"),
-      configParseable: check("config.parse"),
-      pluginConfigured: check("plugin.configured"),
-      vibeCommandPresent: check("commands.vibe.present"),
-      vibeDoctorCommandPresent: check("commands.vibe-doctor.present"),
-      vibeCommandManaged: check("commands.vibe.managed"),
-      vibeDoctorCommandManaged: check("commands.vibe-doctor.managed"),
-    },
-    recommendations: doctor.nextSteps,
+    locale: resolved.locale,
+    localeFallback: resolved.fallback,
+    integration,
+    readiness,
+    initPreview,
+    recommendation,
   }
 }
 
 export function renderDashboardOutput(result: DashboardResult): string {
-  const status = result.ok ? "installed" : "incomplete installation"
-  const rows = [
-    ["OpenCode config", result.installation.configPresent && result.installation.configParseable],
-    ["Plugin configured", result.installation.pluginConfigured],
-    ["/vibe command", result.installation.vibeCommandPresent && result.installation.vibeCommandManaged],
-    ["/vibe-doctor command", result.installation.vibeDoctorCommandPresent && result.installation.vibeDoctorCommandManaged],
-  ].map(([label, ok]) => `| ${label} | ${ok ? "pass" : "fail"} |`).join("\n")
+  const locale = result.locale
+  const dashboardStatus = result.ok ? t(locale, "dashboard.statusReady") : result.readiness?.status === "blocked" ? t(locale, "dashboard.statusBlocked") : t(locale, "dashboard.statusNeedsInit")
+  const readinessRows = result.readiness ? result.readiness.items.map((item) => renderReadinessRow(locale, item)).join("\n") : `| integration | ${t(locale, "status.fail")} | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
+  const previewRows = result.initPreview.items.length > 0 ? result.initPreview.items.map((item) => renderPreviewRow(locale, item)).join("\n") : `| - | - | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
 
-  return `## VibePaper Dashboard
+  return `## ${t(locale, "dashboard.title")}
 
-**Status:** ${status}
-**Version:** ${result.packageVersion}
-**Root:** ${result.root ?? "unknown"}
+**Status:** ${dashboardStatus}
+**${t(locale, "dashboard.version", { version: result.packageVersion })}**
+**${t(locale, "dashboard.root", { root: result.root ?? "unknown" })}**
 
-| Check | Status |
-|---|---|
-${rows}
+### ${t(locale, "dashboard.readiness")}
 
-**Next step:** ${result.recommendations[0] ?? "No action required"}
+${result.readiness ? `ready=${result.readiness.summary.ready}; missing=${result.readiness.summary.missing}; conflict=${result.readiness.summary.conflict}; invalid=${result.readiness.summary.invalid}; optional=${result.readiness.summary.optional}` : t(locale, "dashboard.noPreview")}
+
+### ${t(locale, "dashboard.checklist")}
+
+| ${t(locale, "table.check")} | ${t(locale, "table.status")} | ${t(locale, "table.message")} |
+|---|---|---|
+${readinessRows}
+
+### ${t(locale, "dashboard.nextStep")}
+
+${result.recommendation.message}${result.recommendation.command ? `\n\n\`${result.recommendation.command}\`` : ""}
+
+### ${t(locale, "dashboard.initPreview")}
+
+| ${t(locale, "table.path")} | ${t(locale, "table.action")} | ${t(locale, "table.reason")} |
+|---|---|---|
+${previewRows}
 
 \`\`\`json
 ${JSON.stringify(result, null, 2)}
 \`\`\`
 `
+}
+
+function integrationFromDoctor(checks: { id: string; status: string }[]): DashboardInstallation {
+  const check = (id: string) => checks.find((item) => item.id === id)?.status === "pass"
+  return {
+    configPresent: check("config.present"),
+    configParseable: check("config.parse"),
+    pluginConfigured: check("plugin.configured"),
+    vibeCommandPresent: check("commands.vibe.present"),
+    vibeDoctorCommandPresent: check("commands.vibe-doctor.present"),
+    vibeCommandManaged: check("commands.vibe.managed"),
+    vibeDoctorCommandManaged: check("commands.vibe-doctor.managed"),
+  }
+}
+
+function chooseRecommendation(locale: Locale, healthyIntegration: boolean, ready: boolean): DashboardRecommendation {
+  if (!healthyIntegration) return { id: "repair-installation", message: t(locale, "recommendation.repairInstallation"), command: `${BUNX_CLI_COMMAND} init` }
+  if (ready) return { id: "continue-workflow", message: t(locale, "recommendation.ready"), command: null }
+  return { id: "preview-init", message: t(locale, "recommendation.previewInit"), command: null }
+}
+
+function renderReadinessRow(locale: Locale, item: ReadinessItem): string {
+  return `| ${item.path} | ${t(locale, `status.${item.status}`)} | ${escapePipes(item.message)} |`
+}
+
+function renderPreviewRow(locale: Locale, item: InitPreviewItem): string {
+  return `| ${item.path} | ${t(locale, `action.${item.action}`)} | ${t(locale, `reason.${item.reason}`)} |`
+}
+
+function escapePipes(input: string): string {
+  return input.replace(/\|/g, "\\|")
 }
