@@ -1,6 +1,8 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
+import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
+import { WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
 
 const packageVersion = "0.1.0"
 
@@ -28,6 +30,38 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(args, context) {
           const result = await applyProjectInit({ cwd: context.directory, worktree: context.worktree, name: args.name, domain: args.domain })
           return renderProjectInitApplyOutput(result)
+        },
+      }),
+      vibepaper_workflow_status: tool({
+        description: "Show VibePaper workflow progress, phases, and next step recommendation. Read-only, does not modify files.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildWorkflowStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderWorkflowStatusOutput(result)
+        },
+      }),
+      vibepaper_workflow_log: tool({
+        description: "Show recent VibePaper workflow event records with optional filters. Read-only, does not modify files.",
+        args: {
+          lastN: tool.schema.number().int().min(1).max(50).optional().describe("Maximum number of recent records to return, from 1 to 50"),
+          phase: tool.schema.string().optional().describe("Optional workflow phase id filter"),
+          operator: tool.schema.enum(WORKFLOW_OPERATORS).optional().describe("Optional event operator filter"),
+        },
+        async execute(args, context) {
+          const result = await queryWorkflowLog({ cwd: context.directory, worktree: context.worktree, lastN: args.lastN, phase: args.phase, operator: args.operator })
+          return renderWorkflowLogOutput(result)
+        },
+      }),
+      vibepaper_workflow_set_phase: tool({
+        description: "Set a VibePaper workflow phase status after explicit user confirmation. Writes workflow state and appends an event record.",
+        args: {
+          phase: tool.schema.string().describe("Workflow phase id to update"),
+          status: tool.schema.enum(WORKFLOW_PHASE_STATUSES).describe("Next workflow phase status"),
+          reason: tool.schema.string().optional().describe("Reason for the change; required by the workflow engine when status is skipped"),
+        },
+        async execute(args, context) {
+          const result = await setWorkflowPhase({ cwd: context.directory, worktree: context.worktree, phase: args.phase, status: args.status, reason: args.reason })
+          return renderWorkflowSetPhaseOutput(result)
         },
       }),
     },

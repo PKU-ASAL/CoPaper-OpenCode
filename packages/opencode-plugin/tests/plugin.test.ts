@@ -28,11 +28,33 @@ function toolContext(root: string): ToolContext {
   }
 }
 
+function workflowState() {
+  return {
+    project: {
+      name: "Runtime Workflow Paper",
+      created_at: "2026-05-01T10:00:00.000Z",
+      domain: "runtime context",
+    },
+    phases: {
+      custom_phase: {
+        status: "not_started",
+        completed_at: null,
+        focus: "runtime-only phase",
+      },
+    },
+    current_phase: "custom_phase",
+    event_log_path: ".agents/events.jsonl",
+  }
+}
+
 describe("OpenCode plugin", () => {
-  test("registers dashboard and init apply tools", async () => {
+  test("registers dashboard init apply and workflow tools", async () => {
     const hooks = await buildHooks(process.cwd())
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
+    expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
+    expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
+    expect(hooks.tool.vibepaper_workflow_set_phase).toBeDefined()
   })
 
   test("init apply tool writes files when called with name and domain", async () => {
@@ -82,6 +104,32 @@ describe("OpenCode plugin", () => {
 
       expect(output).toContain(runtimeProject.root)
       expect(output).not.toContain(capturedProject.root)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("workflow tools use runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
+      runtimeProject.write(".agents/events.jsonl", `${JSON.stringify({ timestamp: "2026-05-01T11:00:00.000Z", phase: "custom_phase", operator: "user", action: "create", result: "ok" })}\n`)
+      const hooks = await buildHooks(capturedProject.root)
+
+      const statusOutput = await (hooks.tool.vibepaper_workflow_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const setPhaseOutput = await (hooks.tool.vibepaper_workflow_set_phase as { execute(args: { phase: string; status: string; reason?: string }, context: ToolContext): Promise<string> }).execute(
+        { phase: "custom_phase", status: "in_progress" },
+        toolContext(runtimeProject.root),
+      )
+
+      expect(statusOutput).toContain(runtimeProject.root)
+      expect(statusOutput).toContain("custom_phase")
+      expect(setPhaseOutput).toContain(runtimeProject.root)
+      expect(setPhaseOutput).toContain("custom_phase")
+      expect(JSON.parse(runtimeProject.read(".agents/state.json")).phases.custom_phase.status).toBe("in_progress")
+      expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()

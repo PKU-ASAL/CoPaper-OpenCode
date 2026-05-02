@@ -32,6 +32,10 @@ Before applying initialization, collect:
 
 If either value is missing, ask for it first. Once both values are present and the user explicitly confirms, call the \`vibepaper_init_apply\` tool. Do not call the init tool without confirmation.
 
+If the Dashboard says the project is ready, call \`vibepaper_workflow_status\` to show progress, phases, and next steps, then call \`vibepaper_workflow_log\` for recent workflow records.
+
+Before you change a phase status, restate the phase, status, and reason when status is \`skipped\`, then wait for confirmation. Only after explicit confirmation may you call \`vibepaper_workflow_set_phase\`; never make unconfirmed phase status changes.
+
 If the tool is unavailable, tell the user:
 - Run \`/vibe-doctor\` to diagnose
 - Or run in terminal: \`${BUNX_CLI_COMMAND} doctor\`
@@ -54,6 +58,10 @@ description: 显示 VibePaper 项目仪表盘
 - 研究领域
 
 如果缺少项目名称或研究领域，先用中文追问。参数齐全且用户明确确认后，调用 \`vibepaper_init_apply\` 工具。不要在用户未确认时调用初始化工具。
+
+如果 Dashboard 显示项目已就绪，调用 \`vibepaper_workflow_status\` 展示进度、阶段和下一步，再调用 \`vibepaper_workflow_log\` 查看最近工作流记录。
+
+在修改阶段状态前，必须复述阶段、状态，以及 status 为 \`skipped\` 时的原因，然后等待用户确认。只有用户明确确认后，才可调用 \`vibepaper_workflow_set_phase\`；不得进行未经确认的阶段状态修改。
 
 如果工具不可用，请告诉用户：
 - 运行 \`/vibe-doctor\` 进行诊断
