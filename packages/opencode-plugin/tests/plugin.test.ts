@@ -52,6 +52,7 @@ describe("OpenCode plugin", () => {
     const hooks = await buildHooks(process.cwd())
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
+    expect(hooks.tool.vibepaper_artifact_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_set_phase).toBeDefined()
@@ -104,6 +105,23 @@ describe("OpenCode plugin", () => {
 
       expect(output).toContain(runtimeProject.root)
       expect(output).not.toContain(capturedProject.root)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("artifact status tool reads from runtime context root without writing captured state", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_artifact_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("storyline")
+      expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()

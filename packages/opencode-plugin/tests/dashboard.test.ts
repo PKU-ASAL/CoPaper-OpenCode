@@ -8,6 +8,12 @@ const projects: ReturnType<typeof makeTempProject>[] = []
 afterEach(() => { while (projects.length) projects.pop()!.cleanup() })
 function temp() { const project = makeTempProject(); projects.push(project); return project }
 
+function artifactRow(result: Awaited<ReturnType<typeof buildDashboardResult>>, id: string) {
+  const artifact = result.artifactStatus?.artifacts.find((item) => item.id === id)
+  if (!artifact) throw new Error(`Missing artifact row: ${id}`)
+  return artifact
+}
+
 describe("dashboard", () => {
   test("renders Chinese readiness and init preview for healthy OpenCode integration", async () => {
     const project = temp()
@@ -137,12 +143,63 @@ describe("dashboard", () => {
 
     const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
     const markdown = renderDashboardOutput(result)
+    const initPreviewSection = markdown.slice(markdown.indexOf("### 初始化预览"), markdown.indexOf("```json"))
 
     expect(result.ok).toBe(true)
     expect(result.readiness?.status).toBe("ready")
     expect(markdown).toContain("项目已具备核心 VibePaper 文件")
-    expect(markdown).toContain("relatedwork/")
-    expect(markdown).not.toContain(".agents/skills")
+    expect(initPreviewSection).toContain("relatedwork/")
+    expect(initPreviewSection).not.toContain(".agents/skills")
+  })
+
+  test("renders artifact section before workflow for ready initialized project", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    await applyProjectInit({ root: project.root, name: "Artifact Dashboard Paper", domain: "artifact dashboards", now: new Date("2026-05-01T10:00:00.000Z") })
+    const before = hashTree(project.root)
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+    const artifactIndex = markdown.indexOf("### 工件状态")
+    const workflowIndex = markdown.indexOf("### 工作流")
+    const artifactSection = markdown.slice(artifactIndex, markdown.indexOf("### 推荐下一步"))
+
+    expect(result.ok).toBe(true)
+    expect(result.artifactStatus?.ok).toBe(true)
+    expect(artifactRow(result, "storyline").status).toBe("template")
+    expect(markdown).toContain("### 工件状态")
+    expect(markdown).toContain("storyline")
+    expect(markdown).toContain("template")
+    expect(markdown).toContain('"artifactStatus"')
+    expect(artifactSection).toContain("| 工件 | 状态 | 置信度 | 证据 | 推荐下一步 |")
+    expect(artifactSection).toContain("| storyline | template | high |")
+    expect(artifactSection).toContain("继续完善 storyline.md")
+    expect(artifactSection).not.toContain("路径")
+    expect(artifactSection).not.toContain("警告")
+    expect(artifactIndex).toBeGreaterThanOrEqual(0)
+    expect(workflowIndex).toBeGreaterThanOrEqual(0)
+    expect(artifactIndex).toBeLessThan(workflowIndex)
+    expect(hashTree(project.root)).toBe(before)
+  })
+
+  test("keeps artifact diagnostics in JSON when workflow state is empty", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    await applyProjectInit({ root: project.root, name: "Artifact Diagnostics Paper", domain: "artifact diagnostics", now: new Date("2026-05-01T10:00:00.000Z") })
+    project.write(".agents/state.json", "{}\n")
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+
+    expect(result.readiness?.status).toBe("ready")
+    expect(result.workflowStatus?.ok).toBe(false)
+    expect(result.artifactStatus?.ok).toBe(true)
+    expect(markdown).not.toContain("### 工作流")
+    expect(markdown).toContain('"artifactStatus"')
   })
 
   test("renders workflow section for ready project with dynamic phases", async () => {

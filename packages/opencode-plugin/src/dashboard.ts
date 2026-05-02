@@ -1,8 +1,9 @@
+import { buildArtifactStatus } from "./artifacts"
 import { runDoctor } from "./doctor"
 import { buildInitPreview } from "./init-preview"
 import { resolveLocale, t } from "./i18n"
 import { inspectReadiness } from "./readiness"
-import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem, type ReadinessSummary, type WorkflowEvent, type WorkflowPhaseRow } from "./types"
+import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type ArtifactRow, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem, type ReadinessSummary, type WorkflowEvent, type WorkflowPhaseRow } from "./types"
 import { buildWorkflowStatus, queryWorkflowLog } from "./workflow"
 
 export interface DashboardOptions {
@@ -22,14 +23,16 @@ export async function buildDashboardResult(options: DashboardOptions): Promise<D
   const readiness = healthyIntegration && doctor.root ? inspectReadiness(doctor.root) : null
   const initPreview = readiness ? buildInitPreview(readiness) : { readonly: true as const, blocked: true, items: [] }
   const recommendation = chooseRecommendation(healthyIntegration, readiness?.ok ?? false)
-  const workflowRoot = healthyIntegration && (readiness?.ok ?? false) && doctor.root ? doctor.root : null
+  const readyRoot = healthyIntegration && (readiness?.ok ?? false) && doctor.root ? doctor.root : null
+  let artifactStatus: DashboardResult["artifactStatus"] = null
   let workflowStatus: DashboardResult["workflowStatus"] = null
   let workflowLog: DashboardResult["workflowLog"] = null
-  if (workflowRoot) {
-    const statusResult = await buildWorkflowStatus({ root: workflowRoot, locale: resolved.locale, env: options.env })
+  if (readyRoot) {
+    artifactStatus = await buildArtifactStatus({ root: readyRoot, locale: resolved.locale, env: options.env })
+    const statusResult = await buildWorkflowStatus({ root: readyRoot, locale: resolved.locale, env: options.env })
     workflowStatus = statusResult
     if (statusResult.ok) {
-      const logResult = await queryWorkflowLog({ root: workflowRoot, locale: resolved.locale, env: options.env, lastN: 5 })
+      const logResult = await queryWorkflowLog({ root: readyRoot, locale: resolved.locale, env: options.env, lastN: 5 })
       workflowLog = logResult
     }
   }
@@ -45,6 +48,7 @@ export async function buildDashboardResult(options: DashboardOptions): Promise<D
     readiness,
     initPreview,
     recommendation,
+    artifactStatus,
     workflowStatus,
     workflowLog,
   }
@@ -55,6 +59,7 @@ export function renderDashboardOutput(result: DashboardResult): string {
   const dashboardStatus = result.ok ? t(locale, "dashboard.statusReady") : result.readiness?.status === "blocked" ? t(locale, "dashboard.statusBlocked") : t(locale, "dashboard.statusNeedsInit")
   const readinessRows = result.readiness ? result.readiness.items.map((item) => renderReadinessRow(locale, item)).join("\n") : `| integration | ${t(locale, "status.fail")} | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
   const previewRows = result.initPreview.items.length > 0 ? result.initPreview.items.map((item) => renderPreviewRow(locale, item)).join("\n") : `| - | - | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
+  const artifactSection = renderArtifactSection(locale, result)
   const workflowSection = renderWorkflowSection(locale, result)
 
   return `## ${t(locale, "dashboard.title")}
@@ -73,6 +78,7 @@ ${result.readiness ? renderReadinessSummary(locale, result.readiness.summary) : 
 |---|---|---|
 ${readinessRows}
 
+${artifactSection ? `${artifactSection}\n` : ""}
 ### ${t(locale, "dashboard.nextStep")}
 
 ${t(locale, result.recommendation.messageKey)}${result.recommendation.command ? `\n\n\`${result.recommendation.command}\`` : ""}
@@ -125,6 +131,24 @@ function renderReadinessSummary(locale: Locale, summary: ReadinessSummary): stri
 
 function renderPreviewRow(locale: Locale, item: InitPreviewItem): string {
   return `| ${item.path} | ${t(locale, `action.${item.action}`)} | ${t(locale, `reason.${item.reason}`)} |`
+}
+
+function renderArtifactSection(locale: Locale, result: DashboardResult): string {
+  if (!result.artifactStatus?.ok) return ""
+
+  const none = t(locale, "artifact.none")
+  const rows = result.artifactStatus.artifacts.length > 0 ? result.artifactStatus.artifacts.map((artifact) => renderArtifactRow(locale, artifact)).join("\n") : `| ${none} | ${none} | ${none} | ${none} | ${none} |`
+
+  return `### ${t(locale, "dashboard.artifacts")}
+
+| ${t(locale, "artifact.artifact")} | ${t(locale, "artifact.artifactStatus")} | ${t(locale, "artifact.confidence")} | ${t(locale, "artifact.evidence")} | ${t(locale, "artifact.recommendation")} |
+|---|---|---|---|---|
+${rows}`
+}
+
+function renderArtifactRow(locale: Locale, artifact: ArtifactRow): string {
+  const none = t(locale, "artifact.none")
+  return `| ${escapePipes(artifact.id)} | ${escapePipes(artifact.status)} | ${escapePipes(artifact.confidence)} | ${escapePipes(artifact.evidence.join(", ") || none)} | ${escapePipes(t(locale, artifact.recommendation.messageKey))} |`
 }
 
 function renderWorkflowSection(locale: Locale, result: DashboardResult): string {

@@ -11,6 +11,12 @@ export const WORKFLOW_PHASE_STATUSES = ["not_started", "in_progress", "complete"
 export const WORKFLOW_OPERATORS = ["user", "ai", "system"] as const
 export type WorkflowPhaseStatus = typeof WORKFLOW_PHASE_STATUSES[number]
 export type WorkflowOperator = typeof WORKFLOW_OPERATORS[number]
+export const ARTIFACT_STATUSES = ["missing", "template", "partial", "ready", "stale", "unknown"] as const
+export const ARTIFACT_CONFIDENCE = ["low", "medium", "high"] as const
+export const ARTIFACT_IDS = ["storyline", "paper", "relatedwork", "skills", "checker_results"] as const
+export type ArtifactStatus = typeof ARTIFACT_STATUSES[number]
+export type ArtifactConfidence = typeof ARTIFACT_CONFIDENCE[number]
+export type ArtifactId = typeof ARTIFACT_IDS[number]
 
 export function isVibePaperPluginSpecifier(value: unknown): value is string {
   return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@vibepaper/opencode/dist/index.js")))
@@ -61,6 +67,58 @@ export interface DashboardRecommendation {
   command: string | null
 }
 
+export type ArtifactRecommendationId = "continue-storyline" | "continue-paper" | "continue-relatedwork" | "continue-skills" | "run-checkers" | "continue-workflow" | "unavailable"
+
+export interface ArtifactRecommendation {
+  id: ArtifactRecommendationId
+  messageKey: "artifact.recommendationStoryline" | "artifact.recommendationPaper" | "artifact.recommendationRelatedwork" | "artifact.recommendationSkills" | "artifact.recommendationCheckers" | "artifact.recommendationContinue" | "artifact.recommendationUnavailable"
+  artifactId: ArtifactId | null
+  command: string | null
+}
+
+export interface ArtifactRow {
+  id: ArtifactId
+  labelKey: "artifact.label.storyline" | "artifact.label.paper" | "artifact.label.relatedwork" | "artifact.label.skills" | "artifact.label.checker_results"
+  path: string
+  status: ArtifactStatus
+  confidence: ArtifactConfidence
+  evidence: string[]
+  warnings: string[]
+  recommendation: ArtifactRecommendation
+  metadata: Record<string, unknown>
+  updatedAt: string | null
+}
+
+export interface ArtifactSummary {
+  total: number
+  byStatus: Record<ArtifactStatus, number>
+  readyOrPartial: number
+  readyCount: number
+  blockedCount: number
+  staleCount: number
+  recommendedFocus: ArtifactId | null
+}
+
+export interface ArtifactError {
+  code: "root-detection-failed" | "path-not-file" | "read-failed" | "state-json-invalid"
+  message: string
+  path?: string
+}
+
+export interface ArtifactStatusResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  artifacts: ArtifactRow[]
+  summary: ArtifactSummary
+  recommendation: ArtifactRecommendation
+  warnings: string[]
+  errors: ArtifactError[]
+}
+
 export interface DashboardResult {
   schemaVersion: typeof SCHEMA_VERSION
   ok: boolean
@@ -72,6 +130,7 @@ export interface DashboardResult {
   readiness: ReadinessResult | null
   initPreview: InitPreviewResult
   recommendation: DashboardRecommendation
+  artifactStatus: ArtifactStatusResult | null
   workflowStatus: WorkflowStatusResult | null
   workflowLog: WorkflowLogResult | null
 }

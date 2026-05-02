@@ -1,21 +1,26 @@
 # @vibepaper/opencode 测试手册
-<!-- description: OpenCode 插件 Dashboard 与初始化写入测试流程 -->
+<!-- description: OpenCode 插件 Dashboard、工件状态、初始化写入与 workflow 工具测试流程 -->
 
 ## 文档状态
 <!-- description: 测试手册适用范围和当前基线 -->
 
 ###### 适用阶段
-本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard + 初始化写入阶段。测试范围包括安装、诊断、locale、Dashboard、显式确认初始化、workflow 状态/日志/阶段控制、冲突保护、本地 tarball、打包内容和回归验证。
+本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard、初始化写入、artifact status 和 workflow 工具阶段。测试范围包括安装、诊断、locale、Dashboard、工件状态、显式确认初始化、workflow 状态/日志/阶段控制、冲突保护、本地 tarball、打包内容和回归验证。
 
 ###### 当前边界
 初始化 smoke 只在用户明确确认并提供项目名称、研究领域后写入第一版初始化文件。它不会创建 `.agents/skills/` 或 `relatedwork/`，也不会自动推进阶段、记忆、文献流程或子代理编排；显式 workflow 阶段控制见后文手测步骤。
 
+Artifact status 仅用于只读材料诊断。它不会写 `.agents/state.json`、推进 phase、安装 skills、运行 relatedwork、运行 checker/report/git，或持久化 artifact readiness。
+
 ###### 最近验证基线
-- `python -m pytest tests/ -q`：`305 passed in 41.82s`
-- `bun test`：`114 pass`，`0 fail`
+- `python -m pytest tests/ -q`：`305 passed in 41.68s`
+- `bun test tests/artifacts.test.ts tests/dashboard.test.ts tests/plugin.test.ts tests/command-templates.test.ts`：`30 pass`，`0 fail`
+- `bun test`：`143 pass`，`0 fail`
+- `bun run typecheck`：通过
+- `bun run build`：通过
 - `bun run test:cli`：`16 pass`，`0 fail`
 - `bun run test:package`：`5 pass`，`0 fail`
-- `npm pack --dry-run`：`32` 个 package 文件，tarball 文件名为 `vibepaper-opencode-0.1.0.tgz`
+- `npm pack --dry-run`：`36` 个 package 文件，tarball 文件名为 `vibepaper-opencode-0.1.0.tgz`
 
 ###### 更新规则
 每次修改插件行为后，先更新自动化验证结果，再更新手测记录。命令名、工具名、JSON 字段和枚举保持 English；说明文字默认使用中文。
@@ -64,12 +69,17 @@ git diff --check -- packages/opencode-plugin/README.md packages/opencode-plugin/
 - `init-preview.test.ts`：验证 `create`、`exists-user`、`conflict`、`optional` 和稳定英文枚举。
 - `project-templates.test.ts`：验证第一版初始化文件集合和 Python-compatible state。
 - `project-init.test.ts`：验证 apply 成功、缺参、冲突、父路径阻塞、dangling symlink 和本地化输出。
-- `dashboard.test.ts`：验证中文/英文 Dashboard、坏集成优先修复、ready 项目、apply 后 ready 和 JSON block。
-- `plugin.test.ts`：验证工具注册、`ToolContext` 根目录、Dashboard 只读路径和 init apply 写入路径。
+- `workflow.test.ts`：验证动态 phase status/log、JSONL 容错、set phase、事件追加、路径安全和无固定阶段假设。
+- `artifacts.test.ts`：验证 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/`、checker result 状态值、summary、recommendation、evidence、locale、路径安全和只读行为。
+- `dashboard.test.ts`：验证中文/英文 Dashboard、坏集成优先修复、ready 项目、apply 后 ready、Artifacts→Workflow 展示顺序、artifact recommendation 列和 JSON block。
+- `plugin.test.ts`：验证工具注册、`ToolContext` 根目录、Dashboard 只读路径、artifact status 运行时 root、init apply 写入路径和 workflow 工具运行时 root。
+- `command-templates.test.ts`：验证 `/vibe` 初始化确认、artifact status 只读指引、workflow read 工具指引和 set phase 写入确认规则。
 - `cli.test.ts`、`doctor.test.ts`、`package-smoke.test.ts`：验证 CLI、doctor、打包 smoke 和 locale。
 
 ###### 回归重点
-`/vibe` 必须先返回只读 Dashboard，不应直接写项目文件。`vibepaper_init_apply` 必须要求 `name` 和 `domain`，并在任何目标冲突、父路径阻塞或 dangling symlink 时整体中止。
+`/vibe` 必须先返回只读 Dashboard，不应直接写项目文件。`vibepaper_init_apply` 必须要求 `name` 和 `domain`，并在任何目标冲突、父路径阻塞或 dangling symlink 时整体中止。`vibepaper_workflow_status` 与 `vibepaper_workflow_log` 必须只读；`vibepaper_workflow_set_phase` 只能在确认后写入 `.agents/state.json` 和 `.agents/events.jsonl`，且 phase 列表必须来自实际 `state.phases`。
+
+`vibepaper_artifact_status` 必须保持只读；默认初始化模板不得被误判为 `ready`；所有 artifact status 都必须包含 `evidence` 和 `confidence`。
 
 ## 本地包安装测试
 <!-- description: 不依赖 npm 发布的本地安装流程 -->
@@ -211,6 +221,10 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ###### Workflow 状态检查
 成功初始化后，再次运行 `/vibe`。期望 Dashboard 包含工作流区块，展示当前 phase、动态 phase 状态表和最近事件。若 `.agents/state.json` 中出现非默认 phase 名称，Dashboard 应展示实际 phase 名称，不应假设固定 6 个阶段。
 
+###### Artifact 状态检查
+<!-- description: Manual artifact status after init apply -->
+成功初始化后运行 `/vibe`。期望 Dashboard 先显示 artifact status，再显示 workflow。artifact 行包含 ID、status、confidence、evidence 和推荐下一步；默认模板中的 `storyline` 和 `paper` 应为 `template`，不是 `ready`。
+
 ###### Workflow 日志查询
 询问“最近发生了什么”时，期望 agent 调用 `vibepaper_workflow_log`。输出应包含最近事件表和稳定 JSON block。损坏的 JSONL 行应被跳过并通过 warning 反映。
 
@@ -224,7 +238,7 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 如果预先创建 `paper.md`、`AGENTS.md` 或 `.agents` 阻塞路径，再确认初始化，apply 应整体中止。期望 `changedFiles` 为空，冲突路径出现在 `conflicts`，其他缺失目标仍不存在。
 
 ###### JSON block
-Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`、`integration`、`readiness`、`initPreview` 和 `recommendation`。Apply JSON block 应保留 `mode`、`changedFiles`、`conflicts` 和 `errors` 等英文字段。
+Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`、`integration`、`readiness`、`initPreview`、`recommendation`、`artifactStatus`、`workflowStatus` 和 `workflowLog`。Apply JSON block 应保留 `mode`、`changedFiles`、`conflicts` 和 `errors` 等英文字段。Workflow 与 artifact 输出 JSON block 应保留 `ok`、`warnings`、`errors`、`events`、`phases`、`summary`、`recommendation` 和 `eventAppended` 等英文字段。
 
 ## 场景矩阵
 <!-- description: 手动和自动化场景对照 -->
@@ -238,6 +252,14 @@ Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`�
 | 用户文件冲突 | 预先创建 `paper.md` | 整体中止，`changedFiles` 为空 |
 | 父路径阻塞 | 预先创建 `.agents` 文件 | 整体中止，无部分写入 |
 | 损坏集成 | 删除插件配置或命令 | Dashboard 推荐修复安装 |
+| Workflow 状态 | ready 后运行 `/vibe` | 展示当前 phase、动态 phase 表和最近事件 |
+| Artifact 模板识别 | init apply 后运行 `/vibe` | `storyline` 和 `paper` 显示 `template`，含 evidence |
+| Artifact 只读 | `/vibe` 或直接 artifact tool | 目录 hash 不变，不写 state、不推进 phase |
+| Artifact 空目录 | 创建空 `relatedwork/` 后运行 artifact tool | `relatedwork` 为 `partial`，含 `directory-present` evidence |
+| Artifact stale | `paper.md` 晚于 precheck report | `checker_results` 显示 `stale` 和 warning |
+| Workflow 日志 | 询问最近记录 | 调用 `vibepaper_workflow_log`，坏 JSONL 行只产生 warning |
+| Workflow 修改 | 确认 phase/status 后 | 调用 `vibepaper_workflow_set_phase`，写 state 并追加事件 |
+| 动态 phase | 自定义 `state.phases` 和循环 dependencies | 不要求 DAG，不阻止 status/log/set phase |
 | 英文输出 | `--locale en-US` 或 env | 文案英文，JSON 字段仍 English |
 
 ## 根目录识别测试
@@ -259,15 +281,20 @@ Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`�
 - 仓库级 Python 测试通过。
 - 插件 TypeScript 类型检查通过。
 - 插件 Bun 测试通过。
+- artifact status 自动化测试通过，包括 schema summary、row recommendation、空 `relatedwork/`、symlink 安全和只读 hash。
 - CLI smoke 测试通过。
 - package smoke 测试通过。
 - `npm pack --dry-run` 不包含测试、fixture、环境文件或手动 smoke 文档。
+- workflow status/log/set-phase 自动化测试通过，包括动态 phase、跳过原因、事件日志路径安全和 Dashboard workflow 区块。
 
 ###### 手动验收
 - `init` 能写入 OpenCode 插件配置和两个 slash command。
 - `/vibe-doctor` 能默认展示中文诊断信息。
 - `/vibe` 能展示 readiness、检查清单、推荐下一步、初始化预览和稳定 JSON block。
 - `/vibe` 在收集参数后能确认执行初始化写入。
+- ready 项目的 `/vibe` 能展示 artifact 区块，且 artifact status 只读、不触发写 state 或自动流程。
+- ready 项目的 `/vibe` 能展示 workflow 区块，并在 workflow 状态无效时隐藏区块但保留 JSON 诊断。
+- workflow 状态修改必须先等待用户确认；`skipped` 必须说明 reason，并追加 `set_phase_status` 事件。
 - 冲突场景有明确错误输出，且不会部分写入。
 
 ## 故障记录模板
@@ -289,4 +316,4 @@ Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`�
 包发布到 npm 后，应补充真实 `bunx -p @vibepaper/opencode vibepaper-opencode init` 安装测试，并确认 OpenCode 能从已发布包加载插件。
 
 ###### Workflow 深化
-后续可补充 `.agents/skills/`、`relatedwork/`、阶段推进、状态迁移和更深 workflow 行为测试。第一版 `vibepaper_init_apply` 的核心文件写入已在当前阶段覆盖。
+后续可补充 skills 安装、relatedwork 实际流程、报告联动、状态迁移和更深 workflow 行为测试。第一版 artifact cockpit 只验证这些材料的只读状态，不负责启动对应流程。

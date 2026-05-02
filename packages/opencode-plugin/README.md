@@ -37,6 +37,16 @@ Bun 需要 `-p`，因为包名 `@vibepaper/opencode` 和二进制名 `vibepaper-
 <!-- description: Read-only Dashboard boundary -->
 Dashboard 工具本身只读取项目并展示初始化预览，不写入项目文件。确认初始化后的实际写入由下一节的 `vibepaper_init_apply` 流程完成。
 
+## 工件状态
+
+###### Ready 后的材料视图
+<!-- description: Artifact status shown after ready -->
+项目 ready 后，`/vibe` 会展示 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/` 和 checker results 的工件状态。状态值保持 English：`missing`、`template`、`partial`、`ready`、`stale`、`unknown`。
+
+###### 只读证据
+<!-- description: Read-only artifact evidence behavior -->
+`vibepaper_artifact_status` 只读取文件并展示 evidence、confidence 和 recommendation；它不写 `.agents/state.json`，不推进 phase，不安装 skills，也不运行 relatedwork、checker、report 或 git。
+
 ## 初始化项目
 
 ###### 显式确认写入
@@ -88,7 +98,7 @@ VIBEPAPER_LANG=en-US bunx -p @vibepaper/opencode vibepaper-opencode doctor
 
 ###### 完整验证流程
 <!-- description: Link to usage test manual -->
-完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、初始化写入和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 初始化写入阶段的测试手册。
+完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、Dashboard、工件状态/artifact status、初始化写入、workflow 和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 工件状态 + 初始化写入 + workflow 阶段的测试手册。
 
 ## 本地 Tarball
 

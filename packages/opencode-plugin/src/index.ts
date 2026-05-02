@@ -1,4 +1,5 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
+import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
@@ -30,6 +31,14 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(args, context) {
           const result = await applyProjectInit({ cwd: context.directory, worktree: context.worktree, name: args.name, domain: args.domain })
           return renderProjectInitApplyOutput(result)
+        },
+      }),
+      vibepaper_artifact_status: tool({
+        description: "Show read-only VibePaper artifact readiness, evidence, and recommendation. Does not modify files or workflow state.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildArtifactStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderArtifactStatusOutput(result)
         },
       }),
       vibepaper_workflow_status: tool({
