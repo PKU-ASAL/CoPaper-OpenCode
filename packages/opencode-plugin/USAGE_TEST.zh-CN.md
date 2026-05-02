@@ -5,10 +5,10 @@
 <!-- description: 测试手册适用范围和当前基线 -->
 
 ###### 适用阶段
-本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard + 初始化写入阶段。测试范围包括安装、诊断、locale、Dashboard、显式确认初始化、冲突保护、本地 tarball、打包内容和回归验证。
+本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard + 初始化写入阶段。测试范围包括安装、诊断、locale、Dashboard、显式确认初始化、workflow 状态/日志/阶段控制、冲突保护、本地 tarball、打包内容和回归验证。
 
 ###### 当前边界
-插件只在用户明确确认并提供项目名称、研究领域后写入第一版初始化文件。它不会创建 `.agents/skills/` 或 `relatedwork/`，也不会推进阶段、记忆、文献流程或子代理编排。
+初始化 smoke 只在用户明确确认并提供项目名称、研究领域后写入第一版初始化文件。它不会创建 `.agents/skills/` 或 `relatedwork/`，也不会自动推进阶段、记忆、文献流程或子代理编排；显式 workflow 阶段控制见后文手测步骤。
 
 ###### 最近验证基线
 - `python -m pytest tests/ -q`：`305 passed in 41.82s`
@@ -207,6 +207,18 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 - `.agents/events.jsonl`
 
 不应出现 `.agents/skills/` 或 `relatedwork/`。再次运行 `/vibe` 应显示 ready 语义，`.agents/state.json` 中的 `project.name`、`project.domain` 和 `project.created_at` 应被写入。
+
+###### Workflow 状态检查
+成功初始化后，再次运行 `/vibe`。期望 Dashboard 包含工作流区块，展示当前 phase、动态 phase 状态表和最近事件。若 `.agents/state.json` 中出现非默认 phase 名称，Dashboard 应展示实际 phase 名称，不应假设固定 6 个阶段。
+
+###### Workflow 日志查询
+询问“最近发生了什么”时，期望 agent 调用 `vibepaper_workflow_log`。输出应包含最近事件表和稳定 JSON block。损坏的 JSONL 行应被跳过并通过 warning 反映。
+
+###### Workflow 阶段修改
+要求修改阶段状态时，期望 agent 先复述目标 phase、status，并在 status 为 `skipped` 时复述 reason，然后等待确认。确认后调用 `vibepaper_workflow_set_phase`，更新 `.agents/state.json` 并向 `.agents/events.jsonl` 追加 `set_phase_status` 事件。
+
+###### 动态 phase 回归
+将 `.agents/state.json` 的 `phases` 临时改为自定义 phase，例如 `discussion_problem_framing` 和 `discussion_evidence_mapping`，并加入循环 `workflow.dependencies`。期望 status、Dashboard 和 set phase 都能工作，不要求 DAG，也不阻止写入。
 
 ###### 冲突中止
 如果预先创建 `paper.md`、`AGENTS.md` 或 `.agents` 阻塞路径，再确认初始化，apply 应整体中止。期望 `changedFiles` 为空，冲突路径出现在 `conflicts`，其他缺失目标仍不存在。

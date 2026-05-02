@@ -51,6 +51,16 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 <!-- description: Non-destructive conflict behavior -->
 如果任一目标文件已经存在或不是安全的普通文件，初始化会整体中止，不覆盖用户内容，也不继续写入其他文件。
 
+## 工作流状态
+
+###### Ready 后的工作流视图
+<!-- description: Workflow tools after init apply -->
+项目 ready 后，`/vibe` 会显示当前 phase、phase 状态表和最近事件。phase 列表来自 `.agents/state.json`，不会写死当前 6 个默认阶段。
+
+###### 显式确认修改阶段
+<!-- description: Phase status confirmation rule -->
+修改阶段状态时，agent 必须先复述目标 phase、status 和 reason（当 status 为 `skipped` 时），并等待用户确认后才调用 `vibepaper_workflow_set_phase`。
+
 ## 诊断
 
 ###### 默认中文输出
