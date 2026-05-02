@@ -29,6 +29,7 @@ describe("dashboard", () => {
     expect(markdown).toContain("就绪=")
     expect(markdown).toContain("缺失=")
     expect(markdown).toContain("初始化预览")
+    expect(markdown).not.toContain("### 工作流")
     expect(markdown).toContain("paper.md")
     expect(markdown).toContain("```json")
     expect(markdown).toContain("\"action\": \"create\"")
@@ -105,6 +106,28 @@ describe("dashboard", () => {
     expect(renderDashboardOutput(result)).toContain("项目已具备核心 VibePaper 文件")
   })
 
+  test("does not expose workflow section for ready files with invalid workflow state", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    project.write("paper.md", "# Paper\n")
+    project.write("storyline.md", "# Storyline\n")
+    project.write("writingrules.md", "# Rules\n")
+    project.write(".agents/state.json", "{}\n")
+    project.write(".agents/events.jsonl", "")
+    project.write("AGENTS.md", "# VibePaper project guide\n")
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+
+    expect(result.ok).toBe(true)
+    expect(result.readiness?.status).toBe("ready")
+    expect(result.workflowStatus?.ok).toBe(false)
+    expect(result.workflowStatus?.errors[0]?.code).toBe("invalid-state")
+    expect(markdown).not.toContain("### 工作流")
+  })
+
   test("dashboard becomes ready after init apply", async () => {
     const project = temp()
     const plan = await planInit({ root: project.root })
@@ -120,5 +143,64 @@ describe("dashboard", () => {
     expect(markdown).toContain("项目已具备核心 VibePaper 文件")
     expect(markdown).toContain("relatedwork/")
     expect(markdown).not.toContain(".agents/skills")
+  })
+
+  test("renders workflow section for ready project with dynamic phases", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    await applyProjectInit({ root: project.root, name: "Dynamic Dashboard Paper", domain: "workflow dashboards", now: new Date("2026-05-01T10:00:00.000Z") })
+    project.write(".agents/state.json", `${JSON.stringify({
+      project: {
+        name: "Dynamic Dashboard Paper",
+        created_at: "2026-05-01T10:00:00.000Z",
+        domain: "workflow dashboards",
+      },
+      phases: {
+        intro: {
+          status: "complete",
+          completed_at: "2026-05-01T11:00:00.000Z",
+        },
+        discussion_problem_framing: {
+          status: "in_progress",
+          completed_at: null,
+          dimension: "problem framing",
+        },
+        discussion_evidence_mapping: {
+          status: "not_started",
+          completed_at: null,
+          dimension: "evidence mapping",
+        },
+      },
+      current_phase: "discussion_problem_framing",
+      event_log_path: ".agents/events.jsonl",
+      workflow: {
+        phase_order: ["discussion_problem_framing", "intro"],
+        dependencies: {
+          discussion_problem_framing: ["discussion_evidence_mapping"],
+          discussion_evidence_mapping: ["discussion_problem_framing"],
+        },
+      },
+    }, null, 2)}\n`)
+    project.write(".agents/events.jsonl", `${JSON.stringify({
+      timestamp: "2026-05-01T12:00:00.000Z",
+      phase: "discussion_problem_framing",
+      operator: "user",
+      action: "set_phase_status",
+      result: "success",
+    })}\n`)
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+
+    expect(result.ok).toBe(true)
+    expect(result.workflowStatus?.currentPhase).toBe("discussion_problem_framing")
+    expect(markdown).toContain("### 工作流")
+    expect(markdown).toContain("intro")
+    expect(markdown).toContain("discussion_problem_framing")
+    expect(markdown).toContain("discussion_evidence_mapping")
+    expect(markdown).toContain("set_phase_status")
+    expect(markdown).not.toContain("确认后可将 storyline")
   })
 })

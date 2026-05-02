@@ -72,6 +72,8 @@ export interface DashboardResult {
   readiness: ReadinessResult | null
   initPreview: InitPreviewResult
   recommendation: DashboardRecommendation
+  workflowStatus: WorkflowStatusResult | null
+  workflowLog: WorkflowLogResult | null
 }
 
 export type ReadinessProjectStatus = "ready" | "needs-init" | "blocked"

@@ -2,7 +2,8 @@ import { runDoctor } from "./doctor"
 import { buildInitPreview } from "./init-preview"
 import { resolveLocale, t } from "./i18n"
 import { inspectReadiness } from "./readiness"
-import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem, type ReadinessSummary } from "./types"
+import { BUNX_CLI_COMMAND, SCHEMA_VERSION, type DashboardInstallation, type DashboardRecommendation, type DashboardResult, type InitPreviewItem, type Locale, type ReadinessItem, type ReadinessSummary, type WorkflowEvent, type WorkflowPhaseRow } from "./types"
+import { buildWorkflowStatus, queryWorkflowLog } from "./workflow"
 
 export interface DashboardOptions {
   root?: string
@@ -21,6 +22,17 @@ export async function buildDashboardResult(options: DashboardOptions): Promise<D
   const readiness = healthyIntegration && doctor.root ? inspectReadiness(doctor.root) : null
   const initPreview = readiness ? buildInitPreview(readiness) : { readonly: true as const, blocked: true, items: [] }
   const recommendation = chooseRecommendation(healthyIntegration, readiness?.ok ?? false)
+  const workflowRoot = healthyIntegration && (readiness?.ok ?? false) && doctor.root ? doctor.root : null
+  let workflowStatus: DashboardResult["workflowStatus"] = null
+  let workflowLog: DashboardResult["workflowLog"] = null
+  if (workflowRoot) {
+    const statusResult = await buildWorkflowStatus({ root: workflowRoot, locale: resolved.locale, env: options.env })
+    workflowStatus = statusResult
+    if (statusResult.ok) {
+      const logResult = await queryWorkflowLog({ root: workflowRoot, locale: resolved.locale, env: options.env, lastN: 5 })
+      workflowLog = logResult
+    }
+  }
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -33,6 +45,8 @@ export async function buildDashboardResult(options: DashboardOptions): Promise<D
     readiness,
     initPreview,
     recommendation,
+    workflowStatus,
+    workflowLog,
   }
 }
 
@@ -41,6 +55,7 @@ export function renderDashboardOutput(result: DashboardResult): string {
   const dashboardStatus = result.ok ? t(locale, "dashboard.statusReady") : result.readiness?.status === "blocked" ? t(locale, "dashboard.statusBlocked") : t(locale, "dashboard.statusNeedsInit")
   const readinessRows = result.readiness ? result.readiness.items.map((item) => renderReadinessRow(locale, item)).join("\n") : `| integration | ${t(locale, "status.fail")} | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
   const previewRows = result.initPreview.items.length > 0 ? result.initPreview.items.map((item) => renderPreviewRow(locale, item)).join("\n") : `| - | - | ${escapePipes(t(locale, "dashboard.noPreview"))} |`
+  const workflowSection = renderWorkflowSection(locale, result)
 
   return `## ${t(locale, "dashboard.title")}
 
@@ -62,6 +77,7 @@ ${readinessRows}
 
 ${t(locale, result.recommendation.messageKey)}${result.recommendation.command ? `\n\n\`${result.recommendation.command}\`` : ""}
 
+${workflowSection ? `${workflowSection}\n` : ""}
 ### ${t(locale, "dashboard.initPreview")}
 
 | ${t(locale, "table.path")} | ${t(locale, "table.action")} | ${t(locale, "table.reason")} |
@@ -109,6 +125,43 @@ function renderReadinessSummary(locale: Locale, summary: ReadinessSummary): stri
 
 function renderPreviewRow(locale: Locale, item: InitPreviewItem): string {
   return `| ${item.path} | ${t(locale, `action.${item.action}`)} | ${t(locale, `reason.${item.reason}`)} |`
+}
+
+function renderWorkflowSection(locale: Locale, result: DashboardResult): string {
+  if (!result.workflowStatus || !result.workflowLog) return ""
+  if (!result.workflowStatus.ok || !result.workflowLog.ok) return ""
+
+  const none = t(locale, "workflow.none")
+  const phaseRows = result.workflowStatus.phases.length > 0 ? result.workflowStatus.phases.map((phase) => renderWorkflowPhaseRow(locale, phase)).join("\n") : `| ${none} | ${none} | ${none} |`
+  const eventRows = result.workflowLog.events.length > 0 ? result.workflowLog.events.map((event) => renderWorkflowEventRow(locale, event)).join("\n") : `| ${none} | ${none} | ${none} | ${none} | ${none} |`
+
+  return `### ${t(locale, "dashboard.workflow")}
+
+**${t(locale, "workflow.currentPhase")}:** ${result.workflowStatus.currentPhase ?? none}
+
+| ${t(locale, "workflow.phase")} | ${t(locale, "workflow.phaseStatus")} | ${t(locale, "workflow.completedAt")} |
+|---|---|---|
+${phaseRows}
+
+#### ${t(locale, "dashboard.recentEvents")}
+
+| ${t(locale, "workflow.timestamp")} | ${t(locale, "workflow.phase")} | ${t(locale, "workflow.operator")} | ${t(locale, "workflow.action")} | ${t(locale, "workflow.result")} |
+|---|---|---|---|---|
+${eventRows}`
+}
+
+function renderWorkflowPhaseRow(locale: Locale, phase: WorkflowPhaseRow): string {
+  return `| ${escapePipes(phase.id)} | ${escapePipes(phase.status)} | ${escapePipes(phase.completedAt ?? t(locale, "workflow.none"))} |`
+}
+
+function renderWorkflowEventRow(locale: Locale, event: WorkflowEvent): string {
+  return `| ${formatWorkflowValue(locale, event.timestamp)} | ${formatWorkflowValue(locale, event.phase)} | ${formatWorkflowValue(locale, event.operator)} | ${formatWorkflowValue(locale, event.action)} | ${formatWorkflowValue(locale, event.result)} |`
+}
+
+function formatWorkflowValue(locale: Locale, value: unknown): string {
+  if (value === null || value === undefined || value === "") return t(locale, "workflow.none")
+  if (typeof value === "string") return escapePipes(value)
+  return escapePipes(JSON.stringify(value))
 }
 
 function escapePipes(input: string): string {
