@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, symlinkSync, utimesSync } from "node:fs"
 import { join } from "node:path"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "../src/artifacts"
 import { buildProjectFiles } from "../src/project-templates"
+import { ARTIFACT_IDS, ARTIFACT_RECORD_IDS } from "../src/types"
 import { hashTree, makeTempProject } from "./fixtures"
 
 const projects: ReturnType<typeof makeTempProject>[] = []
@@ -22,6 +23,13 @@ function row(result: Awaited<ReturnType<typeof buildArtifactStatus>>, id: string
 }
 
 describe("artifact status", () => {
+  test("keeps scan artifact ids broader than recordable artifact ids", () => {
+    expect(ARTIFACT_IDS).toEqual(["storyline", "paper", "relatedwork", "cross_index", "skills", "checker_results"])
+    expect(ARTIFACT_RECORD_IDS).toEqual(["storyline", "paper", "relatedwork", "cross_index", "checker_results"])
+    expect(ARTIFACT_IDS).toContain("skills")
+    expect(ARTIFACT_RECORD_IDS).not.toContain("skills")
+  })
+
   test("classifies default init templates without writing project files", async () => {
     const project = temp()
     writeDefaultProject(project)
@@ -40,7 +48,7 @@ describe("artifact status", () => {
     expect(row(result, "skills").status).toBe("missing")
     expect(row(result, "checker_results").status).toBe("missing")
     expect(result.summary.readyCount).toBe(0)
-    expect(result.summary.blockedCount).toBe(5)
+    expect(result.summary.blockedCount).toBe(6)
     expect(result.summary.staleCount).toBe(0)
     expect(result.summary.recommendedFocus).toBe("storyline")
     expect(result.recommendation.artifactId).toBe("storyline")
@@ -92,6 +100,75 @@ The status view distinguishes templates, partial work, ready artifacts, and stal
     expect(row(result, "paper").status).toBe("ready")
     expect(row(result, "paper").evidence.some((item) => item.startsWith("substantive-sections="))).toBe(true)
     expect(markdown).toContain("## Artifact Status")
+  })
+
+  test("includes cross_index as a scan artifact", async () => {
+    const project = temp()
+    writeDefaultProject(project)
+    project.write(".agents/cross_index.json", "{\"nodes\":[]}\n")
+
+    const result = await buildArtifactStatus({ root: project.root, locale: "zh-CN" })
+    const crossIndex = row(result, "cross_index")
+
+    expect(crossIndex.status).toBe("ready")
+    expect(crossIndex.confidence).toBe("high")
+    expect(crossIndex.evidence).toContain("cross-index-present")
+    expect(crossIndex.recorded).toBe(null)
+  })
+
+  test("merges recorded readiness from state without writing files", async () => {
+    const project = temp()
+    writeDefaultProject(project)
+    project.write(".agents/state.json", `${JSON.stringify({
+      project: { name: "Recorded Paper" },
+      phases: {},
+      event_log_path: ".agents/events.jsonl",
+      artifacts: {
+        paper: {
+          status: "ready",
+          confidence: "high",
+          evidence: ["manual-review"],
+          provenance: { source: "opencode", operator: "user", reason: "reviewed draft" },
+          updated_at: "2026-05-02T12:00:00.000Z",
+        },
+      },
+    }, null, 2)}\n`)
+    const before = hashTree(project.root)
+
+    const result = await buildArtifactStatus({ root: project.root, locale: "zh-CN" })
+    const paper = row(result, "paper")
+
+    expect(paper.status).toBe("template")
+    expect(paper.recorded?.record?.status).toBe("ready")
+    expect(paper.recorded?.record?.provenance.reason).toBe("reviewed draft")
+    expect(result.recordedArtifacts?.find((item) => item.artifact === "paper")?.record?.confidence).toBe("high")
+    expect(hashTree(project.root)).toBe(before)
+  })
+
+  test("marks recorded readiness stale when content hash differs", async () => {
+    const project = temp()
+    writeDefaultProject(project)
+    project.write(".agents/state.json", `${JSON.stringify({
+      phases: {},
+      event_log_path: ".agents/events.jsonl",
+      artifacts: {
+        storyline: {
+          status: "ready",
+          confidence: "high",
+          evidence: ["manual-review"],
+          provenance: { source: "opencode", operator: "user", reason: "reviewed storyline" },
+          updated_at: "2026-05-02T12:00:00.000Z",
+          content_hash: "sha256:old",
+        },
+      },
+    }, null, 2)}\n`)
+
+    const result = await buildArtifactStatus({ root: project.root, locale: "zh-CN" })
+    const storyline = row(result, "storyline")
+
+    expect(storyline.recorded?.stale).toBe(true)
+    expect(storyline.recorded?.warnings).toContain("recorded-content-hash-mismatch")
+    expect(result.summary.staleCount).toBeGreaterThanOrEqual(1)
   })
 
   test("classifies relatedwork partial and five skills ready", async () => {
@@ -170,6 +247,39 @@ The status view distinguishes templates, partial work, ready artifacts, and stal
 
     expect(relatedwork.status).toBe("unknown")
     expect(relatedwork.warnings.length).toBeGreaterThan(0)
+  })
+
+  test("keeps recorded relatedwork readiness when nested symlink points outside root", async () => {
+    const project = temp()
+    const outside = temp()
+    writeDefaultProject(project)
+    project.write("relatedwork/literature.json", `${JSON.stringify([{ id: "smith2026", title: "Artifact Cockpits" }], null, 2)}\n`)
+    symlinkSync(outside.root, project.path("relatedwork", "external"), "dir")
+    project.write(".agents/state.json", `${JSON.stringify({
+      phases: {},
+      event_log_path: ".agents/events.jsonl",
+      artifacts: {
+        relatedwork: {
+          status: "ready",
+          confidence: "high",
+          evidence: ["manual-review"],
+          provenance: { source: "opencode", operator: "user", reason: "reviewed relatedwork" },
+          updated_at: "2026-05-02T12:00:00.000Z",
+          content_hash: "sha256:old",
+        },
+      },
+    }, null, 2)}\n`)
+    const before = hashTree(project.root)
+
+    const resultPromise = buildArtifactStatus({ root: project.root, locale: "zh-CN" })
+    await expect(resultPromise).resolves.toBeDefined()
+    const result = await resultPromise
+    const relatedwork = row(result, "relatedwork")
+
+    expect(relatedwork.recorded?.record?.status).toBe("ready")
+    expect(relatedwork.recorded?.record?.provenance.reason).toBe("reviewed relatedwork")
+    expect(result.recordedArtifacts?.find((item) => item.artifact === "relatedwork")?.record?.content_hash).toBe("sha256:old")
+    expect(hashTree(project.root)).toBe(before)
   })
 
   test("marks checker results stale when precheck predates paper", async () => {

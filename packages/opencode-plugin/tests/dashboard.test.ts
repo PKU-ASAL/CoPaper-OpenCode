@@ -173,8 +173,8 @@ describe("dashboard", () => {
     expect(markdown).toContain("storyline")
     expect(markdown).toContain("template")
     expect(markdown).toContain('"artifactStatus"')
-    expect(artifactSection).toContain("| 工件 | 状态 | 置信度 | 证据 | 推荐下一步 |")
-    expect(artifactSection).toContain("| storyline | template | high |")
+    expect(artifactSection).toContain("| 工件 | 状态 | 置信度 | 记录状态 | 记录新鲜度 | 证据 | 推荐下一步 |")
+    expect(artifactSection).toContain("| storyline | template | high | 未记录 | 无 |")
     expect(artifactSection).toContain("继续完善 storyline.md")
     expect(artifactSection).not.toContain("路径")
     expect(artifactSection).not.toContain("警告")
@@ -182,6 +182,43 @@ describe("dashboard", () => {
     expect(workflowIndex).toBeGreaterThanOrEqual(0)
     expect(artifactIndex).toBeLessThan(workflowIndex)
     expect(hashTree(project.root)).toBe(before)
+  })
+
+  test("renders recorded artifact readiness and stale marker", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    await applyProjectInit({ root: project.root, name: "Recorded Dashboard Paper", domain: "artifact dashboards", now: new Date("2026-05-01T10:00:00.000Z") })
+    const state = JSON.parse(project.read(".agents/state.json"))
+    state.artifacts = {
+      paper: {
+        status: "ready",
+        confidence: "high",
+        evidence: ["manual-review"],
+        provenance: { source: "opencode", operator: "user", reason: "reviewed paper" },
+        updated_at: "2026-05-02T12:00:00.000Z",
+        content_hash: "sha256:old",
+      },
+    }
+    project.write(".agents/state.json", `${JSON.stringify(state, null, 2)}\n`)
+
+    const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
+    const markdown = renderDashboardOutput(result)
+    const artifactSection = markdown.slice(markdown.indexOf("### 工件状态"), markdown.indexOf("### 推荐下一步"))
+    const paperRow = artifactSection.split("\n").find((line) => line.startsWith("| paper |"))
+    const paper = artifactRow(result, "paper")
+    if (!paperRow) throw new Error("Missing rendered paper artifact row")
+
+    expect(paper.recorded?.record?.status).toBe("ready")
+    expect(paper.recorded?.stale).toBe(true)
+    expect(artifactSection).toContain("记录状态")
+    expect(artifactSection).toContain("记录新鲜度")
+    expect(paperRow).toContain("ready")
+    expect(paperRow).toContain("stale")
+    expect(paperRow).toContain("recorded-content-hash-mismatch")
+    expect(paperRow).toContain("substantive-sections=")
+    expect(paperRow).toContain("bytes=")
   })
 
   test("keeps artifact diagnostics in JSON when workflow state is empty", async () => {

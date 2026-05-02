@@ -13,10 +13,12 @@ export type WorkflowPhaseStatus = typeof WORKFLOW_PHASE_STATUSES[number]
 export type WorkflowOperator = typeof WORKFLOW_OPERATORS[number]
 export const ARTIFACT_STATUSES = ["missing", "template", "partial", "ready", "stale", "unknown"] as const
 export const ARTIFACT_CONFIDENCE = ["low", "medium", "high"] as const
-export const ARTIFACT_IDS = ["storyline", "paper", "relatedwork", "skills", "checker_results"] as const
+export const ARTIFACT_IDS = ["storyline", "paper", "relatedwork", "cross_index", "skills", "checker_results"] as const
+export const ARTIFACT_RECORD_IDS = ["storyline", "paper", "relatedwork", "cross_index", "checker_results"] as const
 export type ArtifactStatus = typeof ARTIFACT_STATUSES[number]
 export type ArtifactConfidence = typeof ARTIFACT_CONFIDENCE[number]
 export type ArtifactId = typeof ARTIFACT_IDS[number]
+export type ArtifactRecordId = typeof ARTIFACT_RECORD_IDS[number]
 
 export function isVibePaperPluginSpecifier(value: unknown): value is string {
   return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@vibepaper/opencode/dist/index.js")))
@@ -67,18 +69,43 @@ export interface DashboardRecommendation {
   command: string | null
 }
 
-export type ArtifactRecommendationId = "continue-storyline" | "continue-paper" | "continue-relatedwork" | "continue-skills" | "run-checkers" | "continue-workflow" | "unavailable"
+export type ArtifactRecommendationId = "continue-storyline" | "continue-paper" | "continue-relatedwork" | "continue-cross-index" | "continue-skills" | "run-checkers" | "confirm-readiness" | "refresh-readiness" | "continue-workflow" | "unavailable"
 
 export interface ArtifactRecommendation {
   id: ArtifactRecommendationId
-  messageKey: "artifact.recommendationStoryline" | "artifact.recommendationPaper" | "artifact.recommendationRelatedwork" | "artifact.recommendationSkills" | "artifact.recommendationCheckers" | "artifact.recommendationContinue" | "artifact.recommendationUnavailable"
+  messageKey: "artifact.recommendationStoryline" | "artifact.recommendationPaper" | "artifact.recommendationRelatedwork" | "artifact.recommendationCrossIndex" | "artifact.recommendationSkills" | "artifact.recommendationCheckers" | "artifact.recommendationConfirmReadiness" | "artifact.recommendationRefreshReadiness" | "artifact.recommendationContinue" | "artifact.recommendationUnavailable"
   artifactId: ArtifactId | null
   command: string | null
 }
 
+export interface ArtifactReadinessProvenance {
+  source: "opencode" | string
+  operator: "user" | string
+  reason: string
+  [key: string]: unknown
+}
+
+export interface ArtifactReadinessRecord {
+  status: ArtifactStatus
+  confidence: ArtifactConfidence
+  evidence: string[]
+  provenance: ArtifactReadinessProvenance
+  updated_at: string
+  content_hash?: string
+  [key: string]: unknown
+}
+
+export interface RecordedArtifactReadiness {
+  artifact: ArtifactRecordId
+  record: ArtifactReadinessRecord | null
+  stale: boolean
+  currentContentHash: string | null
+  warnings: string[]
+}
+
 export interface ArtifactRow {
   id: ArtifactId
-  labelKey: "artifact.label.storyline" | "artifact.label.paper" | "artifact.label.relatedwork" | "artifact.label.skills" | "artifact.label.checker_results"
+  labelKey: "artifact.label.storyline" | "artifact.label.paper" | "artifact.label.relatedwork" | "artifact.label.cross_index" | "artifact.label.skills" | "artifact.label.checker_results"
   path: string
   status: ArtifactStatus
   confidence: ArtifactConfidence
@@ -87,6 +114,7 @@ export interface ArtifactRow {
   recommendation: ArtifactRecommendation
   metadata: Record<string, unknown>
   updatedAt: string | null
+  recorded?: RecordedArtifactReadiness | null
 }
 
 export interface ArtifactSummary {
@@ -113,10 +141,50 @@ export interface ArtifactStatusResult {
   locale: Locale
   localeFallback: boolean
   artifacts: ArtifactRow[]
+  recordedArtifacts?: RecordedArtifactReadiness[]
   summary: ArtifactSummary
   recommendation: ArtifactRecommendation
   warnings: string[]
   errors: ArtifactError[]
+}
+
+export type ArtifactRecordErrorCode = "root-detection-failed" | "missing-state" | "invalid-state" | "invalid-artifact" | "invalid-status" | "invalid-confidence" | "missing-evidence" | "missing-reason" | "write-failed" | "event-log-failed"
+
+export interface ArtifactRecordError {
+  code: ArtifactRecordErrorCode
+  message: string
+  path?: string
+}
+
+export interface ArtifactRecordOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  artifact: ArtifactRecordId | string
+  status: ArtifactStatus | string
+  confidence: ArtifactConfidence | string
+  evidence: string[]
+  reason: string
+  contentHash?: string
+  now?: Date
+}
+
+export interface ArtifactRecordResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  artifact: ArtifactRecordId | string | null
+  previousRecord: ArtifactReadinessRecord | null
+  record: ArtifactReadinessRecord | null
+  stale: boolean
+  currentContentHash: string | null
+  eventAppended: boolean
+  warnings: string[]
+  errors: ArtifactRecordError[]
 }
 
 export interface DashboardResult {

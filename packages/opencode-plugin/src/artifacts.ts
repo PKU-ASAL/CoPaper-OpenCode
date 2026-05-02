@@ -1,9 +1,10 @@
-import { lstatSync, readFileSync, readdirSync, type Dirent, type Stats } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, lstatSync, readFileSync, readdirSync, type Dirent, type Stats } from "node:fs"
 import { isAbsolute, join } from "node:path"
 import { assertInsideRoot } from "./fs-utils"
 import { resolveLocale, t } from "./i18n"
 import { detectRoot } from "./root"
-import { ARTIFACT_STATUSES, SCHEMA_VERSION, type ArtifactConfidence, type ArtifactError, type ArtifactId, type ArtifactRecommendation, type ArtifactRow, type ArtifactStatus, type ArtifactStatusResult, type ArtifactSummary, type Locale } from "./types"
+import { ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, SCHEMA_VERSION, type ArtifactConfidence, type ArtifactError, type ArtifactId, type ArtifactReadinessRecord, type ArtifactRecordId, type ArtifactRecommendation, type ArtifactRow, type ArtifactStatus, type ArtifactStatusResult, type ArtifactSummary, type Locale, type RecordedArtifactReadiness } from "./types"
 
 export interface ArtifactStatusOptions {
   root?: string
@@ -18,6 +19,8 @@ type LabelKey = ArtifactRow["labelKey"]
 interface StateInspection {
   status: "valid" | "missing" | "invalid"
   warnings: string[]
+  records: Map<ArtifactRecordId, ArtifactReadinessRecord>
+  extraRecords: Record<string, unknown>
 }
 
 type FileReadResult = {
@@ -49,6 +52,7 @@ const LABEL_KEYS: Record<ArtifactId, LabelKey> = {
   storyline: "artifact.label.storyline",
   paper: "artifact.label.paper",
   relatedwork: "artifact.label.relatedwork",
+  cross_index: "artifact.label.cross_index",
   skills: "artifact.label.skills",
   checker_results: "artifact.label.checker_results",
 }
@@ -63,13 +67,16 @@ export async function buildArtifactStatus(options: ArtifactStatusOptions): Promi
   }
 
   const state = inspectState(root)
-  const artifacts = [
+  const scanned = [
     inspectStoryline(root),
     inspectPaper(root),
     inspectRelatedwork(root),
+    inspectCrossIndex(root),
     inspectSkills(root),
     inspectCheckerResults(root, state),
   ]
+  const recordedArtifacts = buildRecordedReadiness(root, state.records)
+  const artifacts = scanned.map((artifact) => attachRecordedReadiness(artifact, recordedArtifacts))
   const recommendation = chooseRecommendation(artifacts)
 
   return makeResult({
@@ -78,6 +85,7 @@ export async function buildArtifactStatus(options: ArtifactStatusOptions): Promi
     ok: true,
     root,
     artifacts,
+    recordedArtifacts,
     summary: summarizeArtifacts(artifacts, recommendation),
     recommendation,
     warnings: state.warnings,
@@ -152,6 +160,22 @@ export function inspectRelatedwork(root: string): ArtifactRow {
   const status: ArtifactStatus = literature.entries > 0 && bib.present && summaryCount >= literature.entries && crossIndex.present ? "ready" : evidence.length > 0 ? "partial" : "missing"
   const confidence: ArtifactConfidence = status === "ready" ? "high" : status === "partial" ? "medium" : "high"
   return row("relatedwork", `${path}/`, status, confidence, { evidence, warnings, updatedAt: directory.stat.mtime.toISOString() })
+}
+
+export function inspectCrossIndex(root: string): ArtifactRow {
+  const result = readRegularFile(root, ".agents/cross_index.json")
+  if (!result.ok) return row("cross_index", ".agents/cross_index.json", result.status, result.confidence, result)
+
+  try {
+    const parsed = JSON.parse(result.content)
+    const evidence = ["cross-index-present", `bytes=${Buffer.byteLength(result.content, "utf8")}`]
+    if (!isRecord(parsed) && !Array.isArray(parsed)) {
+      return row("cross_index", ".agents/cross_index.json", "unknown", "low", { evidence, warnings: ["cross-index-json-invalid"], updatedAt: result.stat.mtime.toISOString() })
+    }
+    return row("cross_index", ".agents/cross_index.json", "ready", "high", { evidence, updatedAt: result.stat.mtime.toISOString() })
+  } catch {
+    return row("cross_index", ".agents/cross_index.json", "unknown", "low", { evidence: ["cross-index-present"], warnings: ["cross-index-json-invalid"], updatedAt: result.stat.mtime.toISOString() })
+  }
 }
 
 export function inspectSkills(root: string): ArtifactRow {
@@ -290,18 +314,116 @@ function countMarkdownFiles(directory: string): number {
 }
 
 function inspectState(root: string): StateInspection {
+  const empty = { records: new Map<ArtifactRecordId, ArtifactReadinessRecord>(), extraRecords: {} }
   const state = readRegularFile(root, ".agents/state.json")
   if (!state.ok) {
-    if (state.status === "missing") return { status: "missing", warnings: ["state-json-missing"] }
-    return { status: "invalid", warnings: ["state-json-invalid", ...state.warnings] }
+    if (state.status === "missing") return { status: "missing", warnings: ["state-json-missing"], ...empty }
+    return { status: "invalid", warnings: ["state-json-invalid", ...state.warnings], ...empty }
   }
   try {
     const parsed = JSON.parse(state.content)
-    if (!isRecord(parsed)) return { status: "invalid", warnings: ["state-json-invalid"] }
-    return { status: "valid", warnings: [] }
+    if (!isRecord(parsed)) return { status: "invalid", warnings: ["state-json-invalid"], ...empty }
+    const records = new Map<ArtifactRecordId, ArtifactReadinessRecord>()
+    const extraRecords: Record<string, unknown> = {}
+    if (isRecord(parsed.artifacts)) {
+      for (const [artifact, value] of Object.entries(parsed.artifacts)) {
+        if (isArtifactRecordId(artifact) && isArtifactReadinessRecord(value)) records.set(artifact, value)
+        else extraRecords[artifact] = value
+      }
+    }
+    return { status: "valid", warnings: [], records, extraRecords }
   } catch {
-    return { status: "invalid", warnings: ["state-json-invalid"] }
+    return { status: "invalid", warnings: ["state-json-invalid"], ...empty }
   }
+}
+
+function buildRecordedReadiness(root: string, records: Map<ArtifactRecordId, ArtifactReadinessRecord>): RecordedArtifactReadiness[] {
+  return ARTIFACT_RECORD_IDS.map((artifact) => {
+    const record = records.get(artifact) ?? null
+    const currentContentHash = hashArtifactContent(root, artifact)
+    const warnings: string[] = []
+    let stale = false
+    if (record?.content_hash && currentContentHash !== null && record.content_hash !== currentContentHash) {
+      stale = true
+      warnings.push("recorded-content-hash-mismatch")
+    }
+    return { artifact, record, stale, currentContentHash, warnings }
+  })
+}
+
+function attachRecordedReadiness(artifact: ArtifactRow, recordedArtifacts: RecordedArtifactReadiness[]): ArtifactRow {
+  const recorded = isArtifactRecordId(artifact.id) ? recordedArtifacts.find((item) => item.artifact === artifact.id) ?? null : null
+  if (recorded === null || (recorded.record === null && recorded.warnings.length === 0)) return { ...artifact, recorded: null }
+  return {
+    ...artifact,
+    recorded,
+    warnings: [...artifact.warnings, ...recorded.warnings],
+    metadata: { ...artifact.metadata, recorded },
+  }
+}
+
+function hashArtifactContent(root: string, artifact: ArtifactRecordId): string | null {
+  try {
+    if (artifact === "storyline") return hashProjectFile(root, "storyline.md")
+    if (artifact === "paper") return hashProjectFile(root, "paper.md")
+    if (artifact === "cross_index") return hashProjectFile(root, ".agents/cross_index.json")
+    if (artifact === "checker_results") return hashProjectFile(root, ".agents/precheck_report.md")
+    return hashProjectTree(root, "relatedwork")
+  } catch {
+    return null
+  }
+}
+
+function hashProjectFile(root: string, projectPath: string): string | null {
+  try {
+    const file = inspectProjectPath(root, projectPath, "file")
+    if (!file.ok || !existsSync(file.path)) return null
+    const hash = createHash("sha256")
+    hash.update(projectPath)
+    hash.update(readFileSync(file.path))
+    return `sha256:${hash.digest("hex")}`
+  } catch {
+    return null
+  }
+}
+
+function hashProjectTree(root: string, projectPath: string): string | null {
+  try {
+    const directory = inspectProjectPath(root, projectPath, "directory")
+    if (!directory.ok || !existsSync(directory.path)) return null
+    const hash = createHash("sha256")
+    hashDirectory(hash, root, directory.path)
+    return `sha256:${hash.digest("hex")}`
+  } catch {
+    return null
+  }
+}
+
+function hashDirectory(hash: ReturnType<typeof createHash>, root: string, directory: string): void {
+  const entries = readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))
+  for (const entry of entries) {
+    const child = join(directory, entry.name)
+    const stat = lstatSync(child)
+    if (stat.isSymbolicLink()) continue
+    assertInsideRoot(root, child)
+    const relativePath = child.slice(root.length + 1)
+    hash.update(relativePath)
+    if (stat.isDirectory()) hashDirectory(hash, root, child)
+    else if (stat.isFile()) hash.update(readFileSync(child))
+  }
+}
+
+function isArtifactRecordId(value: string): value is ArtifactRecordId {
+  return (ARTIFACT_RECORD_IDS as readonly string[]).includes(value)
+}
+
+function isArtifactReadinessRecord(value: unknown): value is ArtifactReadinessRecord {
+  if (!isRecord(value)) return false
+  if (typeof value.status !== "string" || !(ARTIFACT_STATUSES as readonly string[]).includes(value.status)) return false
+  if (typeof value.confidence !== "string" || !["low", "medium", "high"].includes(value.confidence)) return false
+  if (!Array.isArray(value.evidence) || !value.evidence.every((item) => typeof item === "string")) return false
+  if (!isRecord(value.provenance) || typeof value.provenance.reason !== "string") return false
+  return typeof value.updated_at === "string"
 }
 
 function countSubstantiveSections(content: string): number {
@@ -369,19 +491,21 @@ function row(id: ArtifactId, path: string, status: ArtifactStatus, confidence: A
     recommendation: recommendationForArtifact(id, status),
     metadata: { path, updatedAt, ...(input.metadata ?? {}) },
     updatedAt,
+    recorded: null,
   }
 }
 
 function summarizeArtifacts(artifacts: ArtifactRow[], recommendation = chooseRecommendation(artifacts)): ArtifactSummary {
   const byStatus = emptyArtifactStatusCounts()
   for (const artifact of artifacts) byStatus[artifact.status] += 1
+  const recordedStaleCount = artifacts.filter((artifact) => artifact.recorded?.stale).length
   return {
     total: artifacts.length,
     byStatus,
     readyOrPartial: artifacts.filter((artifact) => artifact.status === "ready" || artifact.status === "partial").length,
     readyCount: byStatus.ready,
     blockedCount: byStatus.missing + byStatus.template + byStatus.unknown,
-    staleCount: byStatus.stale,
+    staleCount: byStatus.stale + recordedStaleCount,
     recommendedFocus: recommendation.artifactId,
   }
 }
@@ -392,11 +516,14 @@ function emptyArtifactStatusCounts(): Record<ArtifactStatus, number> {
 
 function chooseRecommendation(artifacts: ArtifactRow[]): ArtifactRecommendation {
   const byId = new Map(artifacts.map((artifact) => [artifact.id, artifact]))
+  const staleRecorded = artifacts.find((artifact) => artifact.recorded?.stale)
+  if (staleRecorded) return { id: "refresh-readiness", messageKey: "artifact.recommendationRefreshReadiness", artifactId: staleRecorded.id, command: null }
   const unknown = artifacts.find((artifact) => artifact.status === "unknown")
   if (unknown) return { id: "unavailable", messageKey: "artifact.recommendationUnavailable", artifactId: unknown.id, command: null }
   if (needsWork(byId.get("storyline"))) return recommendationForArtifact("storyline", byId.get("storyline")?.status ?? "missing")
   if (needsWork(byId.get("paper"))) return recommendationForArtifact("paper", byId.get("paper")?.status ?? "missing")
   if (needsWork(byId.get("relatedwork"))) return recommendationForArtifact("relatedwork", byId.get("relatedwork")?.status ?? "missing")
+  if (needsWork(byId.get("cross_index"))) return recommendationForArtifact("cross_index", byId.get("cross_index")?.status ?? "missing")
   if (needsWork(byId.get("skills"))) return recommendationForArtifact("skills", byId.get("skills")?.status ?? "missing")
   const checker = byId.get("checker_results")
   if (!checker || checker.status !== "ready") return recommendationForArtifact("checker_results", checker?.status ?? "missing")
@@ -413,6 +540,7 @@ function recommendationForArtifact(id: ArtifactId, status: ArtifactStatus): Arti
   if (id === "storyline") return { id: "continue-storyline", messageKey: "artifact.recommendationStoryline", artifactId: id, command: null }
   if (id === "paper") return { id: "continue-paper", messageKey: "artifact.recommendationPaper", artifactId: id, command: null }
   if (id === "relatedwork") return { id: "continue-relatedwork", messageKey: "artifact.recommendationRelatedwork", artifactId: id, command: null }
+  if (id === "cross_index") return { id: "continue-cross-index", messageKey: "artifact.recommendationCrossIndex", artifactId: id, command: null }
   return { id: "continue-skills", messageKey: "artifact.recommendationSkills", artifactId: id, command: null }
 }
 
@@ -428,6 +556,7 @@ function makeResult(input: {
   artifacts?: ArtifactRow[]
   summary?: ArtifactSummary
   recommendation?: ArtifactRecommendation
+  recordedArtifacts?: RecordedArtifactReadiness[]
   warnings?: string[]
   errors?: ArtifactError[]
 }): ArtifactStatusResult {
@@ -441,6 +570,7 @@ function makeResult(input: {
     locale: input.locale,
     localeFallback: input.localeFallback,
     artifacts,
+    recordedArtifacts: input.recordedArtifacts ?? [],
     summary: input.summary ?? summarizeArtifacts(artifacts, recommendation),
     recommendation,
     warnings: input.warnings ?? [],

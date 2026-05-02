@@ -1,9 +1,10 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
+import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
-import { WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
+import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
 
 const packageVersion = "0.1.0"
 
@@ -39,6 +40,21 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildArtifactStatus({ cwd: context.directory, worktree: context.worktree })
           return renderArtifactStatusOutput(result)
+        },
+      }),
+      vibepaper_artifact_record: tool({
+        description: "Record VibePaper artifact readiness after explicit user confirmation. Writes artifact state and appends an event record; does not modify workflow phases.",
+        args: {
+          artifact: tool.schema.enum(ARTIFACT_RECORD_IDS).describe("Artifact id to record"),
+          status: tool.schema.enum(ARTIFACT_STATUSES).describe("Recorded artifact readiness status"),
+          confidence: tool.schema.enum(ARTIFACT_CONFIDENCE).describe("Confidence for the recorded status"),
+          evidence: tool.schema.array(tool.schema.string()).min(1).describe("Evidence supporting the recorded status"),
+          reason: tool.schema.string().describe("Human-readable reason for the record"),
+          contentHash: tool.schema.string().optional().describe("Optional precomputed content hash"),
+        },
+        async execute(args, context) {
+          const result = await recordArtifactReadiness({ cwd: context.directory, worktree: context.worktree, artifact: args.artifact, status: args.status, confidence: args.confidence, evidence: args.evidence, reason: args.reason, contentHash: args.contentHash })
+          return renderArtifactRecordOutput(result)
         },
       }),
       vibepaper_workflow_status: tool({

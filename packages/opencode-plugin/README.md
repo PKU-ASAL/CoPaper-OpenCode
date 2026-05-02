@@ -41,11 +41,15 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 
 ###### Ready 后的材料视图
 <!-- description: Artifact status shown after ready -->
-项目 ready 后，`/vibe` 会展示 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/` 和 checker results 的工件状态。状态值保持 English：`missing`、`template`、`partial`、`ready`、`stale`、`unknown`。
+项目 ready 后，`/vibe` 会展示 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/`、`.agents/cross_index.json` 和 checker results 的工件状态。状态值保持 English：`missing`、`template`、`partial`、`ready`、`stale`、`unknown`。
 
 ###### 只读证据
 <!-- description: Read-only artifact evidence behavior -->
 `vibepaper_artifact_status` 只读取文件并展示 evidence、confidence 和 recommendation；它不写 `.agents/state.json`，不推进 phase，不安装 skills，也不运行 relatedwork、checker、report 或 git。
+
+###### 显式记录就绪度
+<!-- description: Artifact readiness write behavior -->
+当用户明确要求记录工件就绪度时，agent 必须先复述 artifact、status、confidence 和 reason，并等待确认后才调用 `vibepaper_artifact_record`。该工具只写 `.agents/state.json` 的 `artifacts` 区域并追加 `.agents/events.jsonl`，不推进 phase，不运行 checker、relatedwork、report、skills 或 git。
 
 ## 初始化项目
 
@@ -98,7 +102,7 @@ VIBEPAPER_LANG=en-US bunx -p @vibepaper/opencode vibepaper-opencode doctor
 
 ###### 完整验证流程
 <!-- description: Link to usage test manual -->
-完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、Dashboard、工件状态/artifact status、初始化写入、workflow 和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 工件状态 + 初始化写入 + workflow 阶段的测试手册。
+完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、Dashboard、工件状态/artifact status、artifact readiness record、初始化写入、workflow 和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 工件状态 + 显式就绪度记录 + 初始化写入 + workflow 阶段的测试手册。
 
 ## 本地 Tarball
 

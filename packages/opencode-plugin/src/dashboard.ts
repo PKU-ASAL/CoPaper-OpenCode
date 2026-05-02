@@ -137,18 +137,21 @@ function renderArtifactSection(locale: Locale, result: DashboardResult): string 
   if (!result.artifactStatus?.ok) return ""
 
   const none = t(locale, "artifact.none")
-  const rows = result.artifactStatus.artifacts.length > 0 ? result.artifactStatus.artifacts.map((artifact) => renderArtifactRow(locale, artifact)).join("\n") : `| ${none} | ${none} | ${none} | ${none} | ${none} |`
+  const rows = result.artifactStatus.artifacts.length > 0 ? result.artifactStatus.artifacts.map((artifact) => renderArtifactRow(locale, artifact)).join("\n") : `| ${none} | ${none} | ${none} | ${none} | ${none} | ${none} | ${none} |`
 
   return `### ${t(locale, "dashboard.artifacts")}
 
-| ${t(locale, "artifact.artifact")} | ${t(locale, "artifact.artifactStatus")} | ${t(locale, "artifact.confidence")} | ${t(locale, "artifact.evidence")} | ${t(locale, "artifact.recommendation")} |
-|---|---|---|---|---|
+| ${t(locale, "artifact.artifact")} | ${t(locale, "artifact.artifactStatus")} | ${t(locale, "artifact.confidence")} | ${t(locale, "artifact.recordedStatus")} | ${t(locale, "artifact.recordedFreshness")} | ${t(locale, "artifact.evidence")} | ${t(locale, "artifact.recommendation")} |
+|---|---|---|---|---|---|---|
 ${rows}`
 }
 
 function renderArtifactRow(locale: Locale, artifact: ArtifactRow): string {
   const none = t(locale, "artifact.none")
-  return `| ${escapePipes(artifact.id)} | ${escapePipes(artifact.status)} | ${escapePipes(artifact.confidence)} | ${escapePipes(artifact.evidence.join(", ") || none)} | ${escapePipes(t(locale, artifact.recommendation.messageKey))} |`
+  const recordedStatus = artifact.recorded?.record?.status ?? t(locale, "artifact.recordedMissing")
+  const recordedFreshness = artifact.recorded?.record ? artifact.recorded.stale ? t(locale, "artifact.staleRecorded") : t(locale, "artifact.fresh") : none
+  const evidence = [...artifact.evidence, ...artifact.warnings].join(", ") || none
+  return `| ${escapePipes(artifact.id)} | ${escapePipes(artifact.status)} | ${escapePipes(artifact.confidence)} | ${escapePipes(recordedStatus)} | ${escapePipes(recordedFreshness)} | ${escapePipes(evidence)} | ${escapePipes(t(locale, artifact.recommendation.messageKey))} |`
 }
 
 function renderWorkflowSection(locale: Locale, result: DashboardResult): string {

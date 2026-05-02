@@ -48,11 +48,12 @@ function workflowState() {
 }
 
 describe("OpenCode plugin", () => {
-  test("registers dashboard init apply and workflow tools", async () => {
+  test("registers dashboard init apply artifact and workflow tools", async () => {
     const hooks = await buildHooks(process.cwd())
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_status).toBeDefined()
+    expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_set_phase).toBeDefined()
@@ -121,6 +122,29 @@ describe("OpenCode plugin", () => {
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("storyline")
       expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("artifact record tool writes to runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("paper.md", "# Paper\n###### Draft\n<!-- description: Draft -->\nRuntime root draft text is long enough to hash and record readiness.\n")
+      runtimeProject.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
+      runtimeProject.write(".agents/events.jsonl", "")
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+        { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
+        toolContext(runtimeProject.root),
+      )
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("paper")
+      expect(JSON.parse(runtimeProject.read(".agents/state.json")).artifacts.paper.status).toBe("ready")
       expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
     } finally {
       capturedProject.cleanup()
