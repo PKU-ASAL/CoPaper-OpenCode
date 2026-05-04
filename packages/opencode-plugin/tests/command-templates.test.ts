@@ -35,6 +35,11 @@ describe("command templates", () => {
     expect(output).toContain("等待用户确认")
     expect(output).toContain("只能使用工具返回的信息")
     expect(output).toContain("不要编造 VibePaper 状态")
+    expect(output).toContain("@vibepaper-coordinator")
+    expect(output).toContain("@vibepaper-storyline")
+    expect(output).toContain("@vibepaper-writer")
+    expect(output).toContain("@vibepaper-recorder")
+    expect(output).toContain("agent profile")
     expect(output).not.toContain("!`")
   })
 
@@ -67,6 +72,11 @@ describe("command templates", () => {
     expect(output).toContain("wait for confirmation")
     expect(output).toContain("Only use information returned by tools")
     expect(output).toContain("Do not invent VibePaper status")
+    expect(output).toContain("@vibepaper-coordinator")
+    expect(output).toContain("@vibepaper-storyline")
+    expect(output).toContain("@vibepaper-writer")
+    expect(output).toContain("@vibepaper-recorder")
+    expect(output).toContain("agent profile")
   })
 
   test("renders /vibe-doctor in Chinese by default", () => {
@@ -75,8 +85,14 @@ describe("command templates", () => {
     expect(output).toContain("description: 诊断 VibePaper OpenCode 插件安装")
     expect(output).toContain("bunx -p @vibepaper/opencode vibepaper-opencode doctor --format markdown 2>&1 || true")
     expect(output).toContain("原样显示输出")
+    expect(output).toContain("agent profile diagnostics")
     expect(output).not.toContain("bunx @vibepaper/opencode doctor")
     expect(output).not.toContain("$ARGUMENTS")
+  })
+
+  test("renders /vibe-doctor in English with agent diagnostics", () => {
+    const output = renderCommandTemplate("vibe-doctor", "en-US")
+    expect(output).toContain("agent profile diagnostics")
   })
 
   test("detects VibePaper-managed command markers", () => {

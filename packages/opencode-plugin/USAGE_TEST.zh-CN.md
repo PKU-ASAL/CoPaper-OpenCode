@@ -5,22 +5,25 @@
 <!-- description: 测试手册适用范围和当前基线 -->
 
 ###### 适用阶段
-本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard、初始化写入、artifact status、artifact readiness record 和 workflow 工具阶段。测试范围包括安装、诊断、locale、Dashboard、工件状态、显式就绪度记录、显式确认初始化、workflow 状态/日志/阶段控制、冲突保护、本地 tarball、打包内容和回归验证。
+本文档覆盖 `feature/opencode-plugin-mvp` 分支的 Dashboard、初始化写入、artifact status、artifact readiness record、workflow 工具和 VibePaper agent profile 阶段。测试范围包括安装、诊断、locale、Dashboard、工件状态、显式就绪度记录、专用 subagent 注入、权限 profile、显式确认初始化、workflow 状态/日志/阶段控制、冲突保护、本地 tarball、打包内容和回归验证。
 
 ###### 当前边界
 初始化 smoke 只在用户明确确认并提供项目名称、研究领域后写入第一版初始化文件。它不会创建 `.agents/skills/` 或 `relatedwork/`，也不会自动推进阶段、记忆、文献流程或子代理编排；显式 workflow 阶段控制见后文手测步骤。
 
-Artifact status 默认用于只读材料诊断。只有用户明确要求并确认后，`vibepaper_artifact_record` 才能写入 `.agents/state.json.artifacts` 并追加 `.agents/events.jsonl`；该记录不会推进 phase、安装 skills、运行 relatedwork、运行 checker/report/git，或触发 Python CLI parity。
+Artifact status 默认用于只读材料诊断。只有用户明确要求并确认后，`vibepaper-recorder` 才能通过 `vibepaper_artifact_record` 写入 `.agents/state.json.artifacts` 并追加 `.agents/events.jsonl`；非 recorder agent 调用该工具应返回 `agent-not-authorized` 且不写文件。该记录不会推进 phase、安装 skills、运行 relatedwork、运行 checker/report/git，或触发 Python CLI parity。
+
+Agent profile 层默认注入 `@vibepaper-coordinator`、`@vibepaper-storyline`、`@vibepaper-writer` 和 `@vibepaper-recorder`。项目覆盖只能禁用 agent、设置 model hint/temperature、追加 prompt preference 或降级 permission profile；不能扩大到 shell、Git、network、external directory、unrestricted edit 或 provider secret/API key 访问。
 
 ###### 最近验证基线
-- `python -m pytest tests/ -q`：`305 passed in 42.38s`
-- `bun test tests/artifact-record.test.ts tests/artifacts.test.ts tests/dashboard.test.ts tests/plugin.test.ts tests/command-templates.test.ts`：`47 pass`，`0 fail`
-- `bun test`：`160 pass`，`0 fail`
+- `python -m pytest tests/ -q`：`305 passed in 45.82s`
+- `bun test tests/permission-profiles.test.ts tests/agent-profiles.test.ts tests/vibepaper-config.test.ts tests/agent-config.test.ts`：`31 pass`，`0 fail`
+- `bun test tests/plugin.test.ts tests/doctor.test.ts tests/command-templates.test.ts`：`34 pass`，`0 fail`
+- `bun test`：`202 pass`，`0 fail`
 - `bun run typecheck`：通过
 - `bun run build`：通过
 - `bun run test:cli`：`16 pass`，`0 fail`
 - `bun run test:package`：`5 pass`，`0 fail`
-- `npm pack --dry-run`：`38` 个 package 文件，tarball 文件名为 `vibepaper-opencode-0.1.0.tgz`
+- `npm pack --dry-run`：`48` 个 package 文件，tarball 文件名为 `vibepaper-opencode-0.1.0.tgz`
 
 ###### 更新规则
 每次修改插件行为后，先更新自动化验证结果，再更新手测记录。命令名、工具名、JSON 字段和枚举保持 English；说明文字默认使用中文。
@@ -69,6 +72,15 @@ bun test tests/artifact-record.test.ts tests/artifacts.test.ts tests/dashboard.t
 
 期望 `artifact_record` 核心写入、artifact status 合并、Dashboard 展示、工具注册和 slash command 确认规则全部通过。
 
+###### Agent profile 聚焦回归
+在 `packages/opencode-plugin` 运行：
+
+```bash
+bun test tests/permission-profiles.test.ts tests/agent-profiles.test.ts tests/vibepaper-config.test.ts tests/agent-config.test.ts tests/plugin.test.ts tests/doctor.test.ts tests/command-templates.test.ts
+```
+
+期望 permission profile、内置 agent prompt、`.opencode/vibepaper.json` 解析、OpenCode agent 注入、同名冲突、权限升级拒绝、recorder 工具门控和 doctor/template 诊断全部通过。
+
 ## 自动化覆盖
 <!-- description: 测试文件和行为映射 -->
 
@@ -82,16 +94,22 @@ bun test tests/artifact-record.test.ts tests/artifacts.test.ts tests/dashboard.t
 - `artifacts.test.ts`：验证 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/`、`.agents/cross_index.json`、checker result 状态值、recorded readiness 合并、stale hash、summary、recommendation、evidence、locale、路径安全和只读行为。
 - `artifact-record.test.ts`：验证 `vibepaper_artifact_record` 核心逻辑，包括参数校验、state artifacts 写入、事件追加、previous record、hash fallback、事件路径边界、symlink 安全和失败不写入。
 - `dashboard.test.ts`：验证中文/英文 Dashboard、坏集成优先修复、ready 项目、apply 后 ready、Artifacts→Workflow 展示顺序、artifact recommendation 列、recorded readiness/stale 展示和 JSON block。
-- `plugin.test.ts`：验证工具注册、`ToolContext` 根目录、Dashboard 只读路径、artifact status 运行时 root、artifact record 运行时 root、init apply 写入路径和 workflow 工具运行时 root。
-- `command-templates.test.ts`：验证 `/vibe` 初始化确认、artifact status 只读指引、artifact record 显式确认指引、workflow read 工具指引和 set phase 写入确认规则。
-- `cli.test.ts`、`doctor.test.ts`、`package-smoke.test.ts`：验证 CLI、doctor、打包 smoke 和 locale。
+- `permission-profiles.test.ts`：验证 `readOnly`、`storylineWrite`、`paperWrite`、`stateRecord` 权限模板、secret read deny、VibePaper 工具 allow/deny、降级矩阵和 clone safety。
+- `agent-profiles.test.ts`：验证四个内置 subagent、permission ceiling、prompt 边界、反编造规则、writer reference boundary 和 handoff policy。
+- `vibepaper-config.test.ts`：验证 `.opencode/vibepaper.json` 缺失、JSONC 解析、schema fallback、未知字段/agent、无效 locale/temperature/permission profile 和 no-write 行为。
+- `agent-config.test.ts`：验证默认注入、model/temperature/promptAppend 合并、禁用 agent、同名冲突、权限升级拒绝、安全降级和 diagnostic path/field。
+- `plugin.test.ts`：验证工具注册、`config` hook 注入和幂等、root-aware diagnostics、`ToolContext` 根目录、Dashboard 只读路径、artifact status 运行时 root、recorder-only artifact record、init apply 写入路径和 workflow 工具运行时 root。
+- `command-templates.test.ts`：验证 `/vibe` 初始化确认、artifact status 只读指引、artifact record 显式确认指引、workflow read 工具指引、set phase 写入确认规则和 agent profile 指引。
+- `cli.test.ts`、`doctor.test.ts`、`package-smoke.test.ts`：验证 CLI、doctor、agent profile diagnostics、打包 smoke 和 locale。
 
 ###### 回归重点
 `/vibe` 必须先返回只读 Dashboard，不应直接写项目文件。`vibepaper_init_apply` 必须要求 `name` 和 `domain`，并在任何目标冲突、父路径阻塞或 dangling symlink 时整体中止。`vibepaper_workflow_status` 与 `vibepaper_workflow_log` 必须只读；`vibepaper_workflow_set_phase` 只能在确认后写入 `.agents/state.json` 和 `.agents/events.jsonl`，且 phase 列表必须来自实际 `state.phases`。
 
 `vibepaper_artifact_status` 必须保持只读；默认初始化模板不得被误判为 `ready`；所有 artifact status 都必须包含 `evidence` 和 `confidence`。
 
-`vibepaper_artifact_record` 只能在用户确认后写 `.agents/state.json.artifacts` 和 `.agents/events.jsonl`；必须拒绝 `skills`、无效 status/confidence、空 evidence/reason、缺失/损坏 state，以及非 `.agents/events.jsonl` 的事件路径。
+`vibepaper_artifact_record` 只能由 `vibepaper-recorder` 在用户确认后写 `.agents/state.json.artifacts` 和 `.agents/events.jsonl`；非 recorder agent 必须返回 `agent-not-authorized` 且不写文件。该工具还必须拒绝 `skills`、无效 status/confidence、空 evidence/reason、缺失/损坏 state，以及非 `.agents/events.jsonl` 的事件路径。
+
+Agent profile config hook 启动时只能读取 `.opencode/vibepaper.json` 并注入缺失的 `vibepaper-*` agents；不得写 `.agents/state.json`、`.agents/events.jsonl`、`.opencode/agents` 或任何项目 artifact。同名 OpenCode agent 必须由用户定义优先，VibePaper 只记录 conflict diagnostic。`read` 权限必须保留 `.env` 和 `.env.*` deny，并允许 `.env.example`。
 
 ## 本地包安装测试
 <!-- description: 不依赖 npm 发布的本地安装流程 -->
@@ -244,6 +262,9 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 ###### Artifact 记录边界
 手测时可把 `.agents/state.json` 的 `event_log_path` 临时改成 `paper.md`，再尝试记录 `paper`。期望工具返回 `event-log-failed`，`paper.md` 和 `.agents/state.json` 都保持不变。
 
+###### Artifact 记录 agent 门控
+在非 `@vibepaper-recorder` 角色中尝试调用 `vibepaper_artifact_record`。期望工具返回 `agent-not-authorized`，`.agents/state.json` 和 `.agents/events.jsonl` 都保持不变。切换到 `@vibepaper-recorder` 并明确确认后，才允许记录 readiness。
+
 ###### Workflow 日志查询
 询问“最近发生了什么”时，期望 agent 调用 `vibepaper_workflow_log`。输出应包含最近事件表和稳定 JSON block。损坏的 JSONL 行应被跳过并通过 warning 反映。
 
@@ -258,6 +279,38 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 
 ###### JSON block
 显式要求 JSON、debug、原始输出或完整工具输出时，Dashboard JSON block 应保留稳定英文模型字段，例如 `schemaVersion`、`integration`、`readiness`、`initPreview`、`recommendation`、`artifactStatus`、`workflowStatus` 和 `workflowLog`。Apply JSON block 应保留 `mode`、`changedFiles`、`conflicts` 和 `errors` 等英文字段。Workflow 与 artifact 输出 JSON block 应保留 `ok`、`warnings`、`errors`、`events`、`phases`、`summary`、`recommendation`、`recordedArtifacts` 和 `eventAppended` 等英文字段。
+
+## Agent Profile 手动检查
+<!-- description: OpenCode agent profile diagnostics manual checks -->
+
+###### Agent 基线检查
+在 OpenCode 会话中运行 `/vibe`。期望 Dashboard 或 agent selector 可见四个注入 agent：`@vibepaper-coordinator`、`@vibepaper-storyline`、`@vibepaper-writer` 和 `@vibepaper-recorder`。
+
+###### Agent 诊断检查
+运行 `/vibe-doctor`。期望 agent profile diagnostics 列出四个注入 agent，并显示每个 agent 的 permission profile；有效覆盖配置不应产生 config warning。
+
+###### Writer 偏好覆盖
+在项目根创建 `.opencode/vibepaper.json`，只覆盖 `vibepaper-writer.promptAppend`：
+
+```json
+{
+  "schemaVersion": 1,
+  "agents": {
+    "vibepaper-writer": {
+      "promptAppend": "Prefer concise transitions during manual smoke tests."
+    }
+  }
+}
+```
+
+###### Doctor 覆盖诊断
+重启 OpenCode 后运行 `/vibe-doctor`。期望 agent profile diagnostics 通过，`vibepaper-writer` 仍处于可用状态，且有效 `.opencode/vibepaper.json` 覆盖不会产生 config warning。
+
+###### Coordinator 权限降级
+把 `.opencode/vibepaper.json` 改为给 `vibepaper-coordinator` 设置 `permissionProfile: "paperWrite"`，重启 OpenCode 并运行 `/vibe-doctor`。期望出现 `permission-escalation-denied`，且 coordinator 最终仍保持 `readOnly`。
+
+###### 配置清理
+完成权限降级检查后，删除 `.opencode/vibepaper.json`，或还原为只包含 `vibepaper-writer.promptAppend` 的覆盖配置。再次运行 `/vibe-doctor`，确认不再出现 `permission-escalation-denied`，避免污染后续手测。
 
 ## 场景矩阵
 <!-- description: 手动和自动化场景对照 -->
@@ -276,11 +329,15 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 | Artifact 只读 | `/vibe` 或直接 artifact tool | 目录 hash 不变，不写 state、不推进 phase |
 | Artifact 记录 | 确认 artifact/status/confidence/reason 后 | 调用 `vibepaper_artifact_record`，写 `state.artifacts` 并追加 `record_artifact_readiness` 事件 |
 | Artifact 记录边界 | `event_log_path` 指向 `paper.md` | 返回 `event-log-failed`，不写 state，不污染 `paper.md` |
+| Artifact recorder 门控 | 非 recorder agent 调用 record tool | 返回 `agent-not-authorized`，不写 state/events |
 | Artifact 空目录 | 创建空 `relatedwork/` 后运行 artifact tool | `relatedwork` 为 `partial`，含 `directory-present` evidence |
 | Artifact stale | `paper.md` 晚于 precheck report | `checker_results` 显示 `stale` 和 warning |
 | Workflow 日志 | 询问最近记录 | 调用 `vibepaper_workflow_log`，坏 JSONL 行只产生 warning |
 | Workflow 修改 | 确认 phase/status 后 | 调用 `vibepaper_workflow_set_phase`，写 state 并追加事件 |
 | 动态 phase | 自定义 `state.phases` 和循环 dependencies | 不要求 DAG，不阻止 status/log/set phase |
+| Agent 默认注入 | OpenCode 重启后运行 `/vibe-doctor` | 四个 `vibepaper-*` agent injected，显示 permission profile |
+| Agent 权限升级拒绝 | coordinator 请求 `paperWrite` | `permission-escalation-denied`，coordinator 保持 `readOnly` |
+| Agent 同名冲突 | OpenCode config 已有 `vibepaper-writer` | 用户 agent 保留，doctor 显示 conflict diagnostic |
 | 英文输出 | `--locale en-US` 或 env | 文案英文，JSON 字段仍 English |
 
 ## 根目录识别测试
@@ -303,7 +360,8 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 - 插件 TypeScript 类型检查通过。
 - 插件 Bun 测试通过。
 - artifact status 自动化测试通过，包括 schema summary、row recommendation、空 `relatedwork/`、symlink 安全和只读 hash。
-- artifact record 自动化测试通过，包括确认后的 state artifacts 写入、事件追加、invalid args no-write、hash fallback、event path 边界和 symlink 安全。
+- artifact record 自动化测试通过，包括确认后的 state artifacts 写入、recorder agent 门控、事件追加、invalid args no-write、hash fallback、event path 边界和 symlink 安全。
+- agent profile 自动化测试通过，包括 permission profile、secret read deny、配置解析、注入幂等、同名冲突、权限升级拒绝和 doctor/template 诊断。
 - CLI smoke 测试通过。
 - package smoke 测试通过。
 - `npm pack --dry-run` 不包含测试、fixture、环境文件或手动 smoke 文档。
@@ -316,6 +374,8 @@ bunx -p @vibepaper/opencode vibepaper-opencode doctor --root "$tmp_project"
 - `/vibe` 在收集参数后能确认执行初始化写入。
 - ready 项目的 `/vibe` 能展示 artifact 区块，且 artifact status 只读、不触发写 state 或自动流程。
 - artifact readiness 记录必须先等待用户确认；成功后只写 `state.artifacts` 和 event log，不自动推进 phase。
+- artifact readiness 记录必须由 `@vibepaper-recorder` 执行；非 recorder agent 被拒绝且不写 state/events。
+- `/vibe-doctor` 能展示 agent profile diagnostics，包括 injected、disabled/conflicted、permission profile 和 permission escalation warning。
 - ready 项目的 `/vibe` 能展示 workflow 区块，并在 workflow 状态无效时隐藏区块但保留 JSON 诊断。
 - workflow 状态修改必须先等待用户确认；`skipped` 必须说明 reason，并追加 `set_phase_status` 事件。
 - 冲突场景有明确错误输出，且不会部分写入。

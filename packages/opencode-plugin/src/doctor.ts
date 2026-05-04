@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { parse, type ParseError } from "jsonc-parser"
+import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
+import { agentRuntimeToDoctorChecks } from "./agent-diagnostics"
 import { assertInsideRoot } from "./fs-utils"
 import { detectRoot } from "./root"
 import { hasManagedMarker } from "./templates"
@@ -21,6 +23,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   const detection = await detectRoot({ cwd: options.cwd ?? process.cwd(), explicitRoot: options.root, worktree: options.worktree })
   const root = detection.root
   const checks: DoctorCheck[] = []
+  let existingAgents: Record<string, OpenCodeAgentConfig> = {}
   checks.push({ id: "root.detected", status: "pass", severity: "error", message: `Root detected: ${root}`, remediation: null })
 
   const configSelection = selectConfigPath(root, options.config)
@@ -47,12 +50,14 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
         const plugins = parsedConfig.plugin
         const configured = Array.isArray(plugins) && plugins.some(isVibePaperPluginSpecifier)
         checks.push({ id: "plugin.configured", status: configured ? "pass" : "fail", severity: "error", message: configured ? `${PACKAGE_NAME} is listed in plugin config` : `${PACKAGE_NAME} not found in plugin config`, remediation: configured ? null : INIT_REMEDIATION })
+        existingAgents = extractExistingAgents(parsedConfig)
       }
     }
   }
 
   addCommandChecks(root, checks, "vibe")
   addCommandChecks(root, checks, "vibe-doctor")
+  checks.push(...buildAgentChecks(root, existingAgents))
   const ok = checks.every((check) => !(check.severity === "error" && check.status === "fail"))
   return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /vibe"] : [INIT_REMEDIATION, "Restart OpenCode, then run /vibe-doctor"] }
 }
@@ -148,6 +153,37 @@ function addCommandChecks(root: string, checks: DoctorCheck[], command: "vibe" |
   checks.push({ id: presentId, status: "pass", severity, message: `${path} exists`, remediation: null })
   const managed = hasManagedMarker(content, command)
   checks.push({ id: managedId, status: managed ? "pass" : "warn", severity: "warning", message: managed ? `${command} command is VibePaper-managed` : `${command} command exists but is not VibePaper-managed`, remediation: managed ? null : "Review the command file or rerun init with --force" })
+}
+
+function buildAgentChecks(root: string, existingAgents: Record<string, OpenCodeAgentConfig>): DoctorCheck[] {
+  const result = buildVibePaperAgentConfig({ root, existingAgents })
+  const permissionProfiles = new Map(result.runtime.agents.map((agent) => [`agents.${agent.name}`, agent.permissionProfile]))
+  return agentRuntimeToDoctorChecks(result.runtime).map((check) => {
+    const permissionProfile = permissionProfiles.get(check.id)
+    if (permissionProfile !== undefined) {
+      return {
+        ...check,
+        message: `${check.message} (permission profile: ${permissionProfile})`,
+      }
+    }
+    return normalizeAgentDiagnosticCheck(check)
+  })
+}
+
+function normalizeAgentDiagnosticCheck(check: DoctorCheck): DoctorCheck {
+  const prefix = "agent-config."
+  if (!check.id.startsWith(prefix)) return check
+  const code = check.id.slice(prefix.length).split(".")[0]
+  return { ...check, id: `agents.diagnostic.${code}` }
+}
+
+function extractExistingAgents(config: Record<string, unknown>): Record<string, OpenCodeAgentConfig> {
+  if (!isRecord(config.agent)) return {}
+  return Object.fromEntries(Object.entries(config.agent).filter(([, value]) => value !== undefined)) as Record<string, OpenCodeAgentConfig>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function readTextFile(path: string): { ok: true; content: string } | { ok: false; error: string; missing: boolean } {

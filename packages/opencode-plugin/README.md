@@ -27,6 +27,40 @@ Bun 需要 `-p`，因为包名 `@vibepaper/opencode` 和二进制名 `vibepaper-
 
 如果已经安装过旧版本地构建，重新运行 `init` 以刷新受管 slash commands。
 
+## VibePaper Agents
+
+###### Injected Agents
+<!-- description: Managed VibePaper agent profiles -->
+- `@vibepaper-coordinator`: read-only workflow routing and next-step recommendations; it does not write project files.
+- `@vibepaper-storyline`: confirmed edits to `storyline.md` only; it cannot edit other project files.
+- `@vibepaper-writer`: confirmed edits to `paper.md` only, following VibePaper writing rules.
+- `@vibepaper-recorder`: confirmed readiness records through VibePaper state-write tools; it does not edit paper content.
+
+###### Project Overrides
+<!-- description: Project-level agent override example -->
+可在项目根目录创建 `.opencode/vibepaper.json` 覆盖默认 agent profile。例如：
+
+```json
+{
+  "schemaVersion": 1,
+  "defaults": {
+    "model": "anthropic/claude-sonnet-4.5",
+    "temperature": 0.2
+  },
+  "agents": {
+    "vibepaper-writer": {
+      "model": "openai/gpt-5.1",
+      "promptAppend": "Prefer concise transitions and preserve Markdown headings.",
+      "permissionProfile": "paperWrite"
+    }
+  }
+}
+```
+
+###### Override Boundaries
+<!-- description: Agent override security boundaries -->
+覆盖配置可以禁用 agents、设置 model hints、设置 temperature、追加 preferences，或把 permissions downgrade 到更严格的 profile。覆盖配置不能授予 shell、Git、unrestricted editing、network 或 external directory access。VibePaper does not expose or manage raw provider secrets/API keys; model calls still use the provider credentials configured in OpenCode.
+
 ## Dashboard
 
 ###### 只读仪表盘
@@ -102,7 +136,7 @@ VIBEPAPER_LANG=en-US bunx -p @vibepaper/opencode vibepaper-opencode doctor
 
 ###### 完整验证流程
 <!-- description: Link to usage test manual -->
-完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、Dashboard、工件状态/artifact status、artifact readiness record、初始化写入、workflow 和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 工件状态 + 显式就绪度记录 + 初始化写入 + workflow 阶段的测试手册。
+完整自动化验证、本地 tarball 安装、OpenCode 手动 smoke、Dashboard、工件状态/artifact status、artifact readiness record、agent profile、初始化写入、workflow 和冲突场景见 `USAGE_TEST.zh-CN.md`。该文档是当前 Dashboard + 工件状态 + 显式就绪度记录 + agent profile + 初始化写入 + workflow 阶段的测试手册。
 
 ## 本地 Tarball
 

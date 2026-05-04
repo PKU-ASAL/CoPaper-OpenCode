@@ -1,4 +1,6 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
+import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
+import { setLatestVibePaperAgentRuntimeState } from "./agent-diagnostics"
 import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
@@ -8,12 +10,30 @@ import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, WORKFLOW_O
 
 const packageVersion = "0.1.0"
 
+type PluginConfigInput = Parameters<NonNullable<Awaited<ReturnType<Plugin>>["config"]>>[0]
+
 export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) => {
   await client?.app?.log?.({
     body: { service: "vibepaper", level: "info", message: "VibePaper OpenCode plugin initialized" },
   }).catch(() => undefined)
 
+  let managedAgentFingerprints = new Map<string, string>()
+
   return {
+    async config(input: PluginConfigInput) {
+      const retainedAgents: Record<string, OpenCodeAgentConfig> = {}
+      for (const [agentName, agentConfig] of Object.entries(input.agent ?? {})) {
+        if (agentConfig === undefined) continue
+        const previousManagedFingerprint = managedAgentFingerprints.get(agentName)
+        if (previousManagedFingerprint !== undefined && agentConfigFingerprint(agentConfig) === previousManagedFingerprint) continue
+        retainedAgents[agentName] = agentConfig as OpenCodeAgentConfig
+      }
+
+      const result = buildVibePaperAgentConfig({ root: directory, existingAgents: retainedAgents })
+      setLatestVibePaperAgentRuntimeState(result.runtime, directory)
+      managedAgentFingerprints = new Map(Object.entries(result.injectedAgents).map(([agentName, agentConfig]) => [agentName, agentConfigFingerprint(agentConfig)]))
+      input.agent = { ...retainedAgents, ...result.injectedAgents } as PluginConfigInput["agent"]
+    },
     tool: {
       vibepaper_dashboard: tool({
         description: "Show VibePaper project readiness and init preview. Read-only, does not modify files.",
@@ -53,7 +73,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           contentHash: tool.schema.string().optional().describe("Optional precomputed content hash"),
         },
         async execute(args, context) {
-          const result = await recordArtifactReadiness({ cwd: context.directory, worktree: context.worktree, artifact: args.artifact, status: args.status, confidence: args.confidence, evidence: args.evidence, reason: args.reason, contentHash: args.contentHash })
+          const result = await recordArtifactReadiness({ cwd: context.directory, worktree: context.worktree, agent: context.agent, artifact: args.artifact, status: args.status, confidence: args.confidence, evidence: args.evidence, reason: args.reason, contentHash: args.contentHash })
           return renderArtifactRecordOutput(result)
         },
       }),
@@ -91,6 +111,25 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
       }),
     },
   }
+}
+
+function agentConfigFingerprint(agentConfig: unknown): string {
+  return JSON.stringify(toStableJsonValue(agentConfig))
+}
+
+function toStableJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toStableJsonValue)
+  if (!isPlainObject(value)) return value
+
+  const stableObject: Record<string, unknown> = {}
+  for (const key of Object.keys(value).sort()) {
+    stableObject[key] = toStableJsonValue(value[key])
+  }
+  return stableObject
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 export default VibePaperPlugin

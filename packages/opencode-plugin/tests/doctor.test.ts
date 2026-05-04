@@ -4,6 +4,7 @@ import { basename } from "node:path"
 import { applyInitPlan, planInit } from "../src/installer"
 import { renderDoctorJson, renderDoctorMarkdown, renderDoctorText, runDoctor } from "../src/doctor"
 import { hashTree, makeTempProject } from "./fixtures"
+import { SCHEMA_VERSION } from "../src/types"
 
 const projects: ReturnType<typeof makeTempProject>[] = []
 afterEach(() => { while (projects.length) projects.pop()!.cleanup() })
@@ -24,7 +25,54 @@ describe("doctor", () => {
     expect(renderDoctorText(result, "en-US")).toContain("VibePaper OpenCode Doctor v0.1.0")
     expect(renderDoctorMarkdown(result)).toContain("| 检查项 | 状态 | 说明 |")
     expect(renderDoctorMarkdown(result, "en-US")).toContain("| Check | Status | Message |")
+    expect(result.checks.find((check) => check.id === "agents.vibepaper-coordinator")?.status).toBe("pass")
+    expect(result.checks.find((check) => check.id === "agents.vibepaper-writer")?.message).toContain("paperWrite")
+    expect(renderDoctorMarkdown(result)).toContain("agents.vibepaper-writer")
     expect(JSON.parse(renderDoctorJson(result)).ok).toBe(true)
+  })
+
+  test("reports agent permission escalation diagnostics", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    project.write(
+      ".opencode/vibepaper.json",
+      JSON.stringify({
+        schemaVersion: SCHEMA_VERSION,
+        agents: {
+          "vibepaper-coordinator": { permissionProfile: "paperWrite" },
+        },
+      }),
+    )
+
+    const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
+
+    expect(result.ok).toBe(true)
+    expect(result.checks.find((check) => check.id === "agents.vibepaper-coordinator")?.message).toContain("readOnly")
+    expect(result.checks.find((check) => check.id === "agents.diagnostic.permission-escalation-denied")?.status).toBe("warn")
+  })
+
+  test("reports same-name OpenCode agent conflicts", async () => {
+    const project = temp()
+    const plan = await planInit({ root: project.root })
+    if (!plan.ok) throw new Error(plan.error)
+    await applyInitPlan(plan)
+    project.write(
+      "opencode.json",
+      JSON.stringify({
+        plugin: ["@vibepaper/opencode"],
+        agent: {
+          "vibepaper-writer": { prompt: "user writer" },
+        },
+      }),
+    )
+
+    const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
+
+    expect(result.ok).toBe(true)
+    expect(result.checks.find((check) => check.id === "agents.vibepaper-writer")?.status).toBe("fail")
+    expect(result.checks.find((check) => check.id === "agents.diagnostic.agent-name-conflict")?.status).toBe("warn")
   })
 
   test("reports missing config without mutating files", async () => {
@@ -131,7 +179,7 @@ describe("doctor", () => {
   test("does not include paper artifact checks", async () => {
     const project = temp()
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
-    const ids = result.checks.map((check) => check.id).join("\n")
+    const ids = result.checks.map((check) => check.id).filter((id) => !id.startsWith("agents.")).join("\n")
     expect(ids).not.toContain("paper")
     expect(ids).not.toContain("storyline")
     expect(ids).not.toContain("relatedwork")

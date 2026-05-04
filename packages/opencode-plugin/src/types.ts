@@ -148,7 +148,7 @@ export interface ArtifactStatusResult {
   errors: ArtifactError[]
 }
 
-export type ArtifactRecordErrorCode = "root-detection-failed" | "missing-state" | "invalid-state" | "invalid-artifact" | "invalid-status" | "invalid-confidence" | "missing-evidence" | "missing-reason" | "write-failed" | "event-log-failed"
+export type ArtifactRecordErrorCode = "root-detection-failed" | "agent-not-authorized" | "missing-state" | "invalid-state" | "invalid-artifact" | "invalid-status" | "invalid-confidence" | "missing-evidence" | "missing-reason" | "write-failed" | "event-log-failed"
 
 export interface ArtifactRecordError {
   code: ArtifactRecordErrorCode
@@ -162,6 +162,7 @@ export interface ArtifactRecordOptions {
   worktree?: string
   locale?: string
   env?: Record<string, string | undefined>
+  agent?: string
   artifact: ArtifactRecordId | string
   status: ArtifactStatus | string
   confidence: ArtifactConfidence | string

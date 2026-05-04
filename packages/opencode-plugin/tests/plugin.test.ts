@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import type { ToolContext } from "@opencode-ai/plugin"
 import { existsSync } from "node:fs"
+import type { VibePaperAgentRuntimeState } from "../src/agent-config"
+import { agentRuntimeToDoctorChecks, getLatestVibePaperAgentRuntimeState, setLatestVibePaperAgentRuntimeState } from "../src/agent-diagnostics"
 import { applyInitPlan, planInit } from "../src/installer"
 import { VibePaperPlugin } from "../src/index"
-import { makeTempProject } from "./fixtures"
+import { hashTree, makeTempProject } from "./fixtures"
+
+type PluginConfigInput = {
+  agent?: Record<string, unknown>
+}
+
+type PluginConfigHook = (input: PluginConfigInput) => void | PluginConfigInput | Promise<void | PluginConfigInput>
 
 async function buildHooks(root: string) {
   return VibePaperPlugin({
@@ -15,11 +23,17 @@ async function buildHooks(root: string) {
   } as never)
 }
 
-function toolContext(root: string): ToolContext {
+function configHook(hooks: Awaited<ReturnType<typeof buildHooks>>): PluginConfigHook {
+  const config = (hooks as { config?: PluginConfigHook }).config
+  if (config === undefined) throw new Error("Expected plugin config hook to be registered")
+  return config
+}
+
+function toolContext(root: string, agent = "test-agent"): ToolContext {
   return {
     sessionID: "session-id",
     messageID: "message-id",
-    agent: "test-agent",
+    agent,
     directory: root,
     worktree: root,
     abort: new AbortController().signal,
@@ -48,6 +62,185 @@ function workflowState() {
 }
 
 describe("OpenCode plugin", () => {
+  test("config hook injects VibePaper subagents into empty agent config", async () => {
+    const project = makeTempProject("plugin-config-empty-")
+    try {
+      const hooks = await buildHooks(project.root)
+      const input: PluginConfigInput = {}
+
+      await configHook(hooks)(input)
+
+      expect(Object.keys(input.agent ?? {})).toEqual([
+        "vibepaper-coordinator",
+        "vibepaper-storyline",
+        "vibepaper-writer",
+        "vibepaper-recorder",
+      ])
+    } finally {
+      project.cleanup()
+    }
+  })
+
+  test("config hook does not overwrite user-defined same-name agent", async () => {
+    const project = makeTempProject("plugin-config-conflict-")
+    try {
+      const userAgent = {
+        description: "User-owned writer",
+        mode: "subagent",
+        prompt: "Do not replace me.",
+        permission: { read: "allow" },
+      }
+      const input: PluginConfigInput = { agent: { "vibepaper-writer": userAgent } }
+      const hooks = await buildHooks(project.root)
+
+      await configHook(hooks)(input)
+
+      expect(input.agent?.["vibepaper-writer"]).toBe(userAgent)
+      expect(input.agent?.["vibepaper-coordinator"]).toBeDefined()
+      expect(Object.keys(input.agent ?? {})).not.toContain("vibepaper-writer-copy")
+    } finally {
+      project.cleanup()
+    }
+  })
+
+  test("config hook remains idempotent across repeated runs", async () => {
+    const project = makeTempProject("plugin-config-idempotent-")
+    try {
+      const input: PluginConfigInput = {}
+      const hooks = await buildHooks(project.root)
+      const configure = configHook(hooks)
+
+      await configure(input)
+      await configure(input)
+
+      expect(Object.keys(input.agent ?? {})).toEqual([
+        "vibepaper-coordinator",
+        "vibepaper-storyline",
+        "vibepaper-writer",
+        "vibepaper-recorder",
+      ])
+      expect(getLatestVibePaperAgentRuntimeState(project.root).agents.every((agent) => agent.status !== "conflicted")).toBe(true)
+    } finally {
+      project.cleanup()
+    }
+  })
+
+  test("config hook preserves user replacement of a previously injected agent", async () => {
+    const project = makeTempProject("plugin-config-user-replacement-")
+    try {
+      const input: PluginConfigInput = {}
+      const hooks = await buildHooks(project.root)
+      const configure = configHook(hooks)
+
+      await configure(input)
+      const userWriter = { prompt: "user writer" }
+      input.agent = { ...input.agent, "vibepaper-writer": userWriter }
+      await configure(input)
+
+      expect(input.agent?.["vibepaper-writer"]).toBe(userWriter)
+      expect(getLatestVibePaperAgentRuntimeState(project.root).agents.find((agent) => agent.name === "vibepaper-writer")?.status).toBe("conflicted")
+    } finally {
+      project.cleanup()
+    }
+  })
+
+  test("runtime state helpers isolate roots with latest fallback", () => {
+    const firstProject = makeTempProject("runtime-state-first-")
+    const secondProject = makeTempProject("runtime-state-second-")
+    const missingProject = makeTempProject("runtime-state-missing-")
+    const firstRuntime: VibePaperAgentRuntimeState = {
+      agents: [{ name: "vibepaper-coordinator", status: "injected", description: "First root", permissionProfile: "readOnly", temperature: 0.2 }],
+      diagnostics: [],
+    }
+    const secondRuntime: VibePaperAgentRuntimeState = {
+      agents: [{ name: "vibepaper-writer", status: "disabled", description: "Second root", permissionProfile: "paperWrite", temperature: 0.4 }],
+      diagnostics: [],
+    }
+
+    try {
+      setLatestVibePaperAgentRuntimeState(firstRuntime, firstProject.root)
+      expect(getLatestVibePaperAgentRuntimeState(missingProject.root)).toEqual({ agents: [], diagnostics: [] })
+
+      setLatestVibePaperAgentRuntimeState(secondRuntime, secondProject.root)
+
+      expect(getLatestVibePaperAgentRuntimeState(firstProject.root)).toBe(firstRuntime)
+      expect(getLatestVibePaperAgentRuntimeState(secondProject.root)).toBe(secondRuntime)
+      expect(getLatestVibePaperAgentRuntimeState()).toBe(secondRuntime)
+    } finally {
+      firstProject.cleanup()
+      secondProject.cleanup()
+      missingProject.cleanup()
+    }
+  })
+
+  test("agent runtime maps to doctor checks and skips config missing", () => {
+    const checks = agentRuntimeToDoctorChecks({
+      agents: [
+        { name: "vibepaper-coordinator", status: "injected", description: "Coordinator", permissionProfile: "readOnly", temperature: 0.2 },
+        { name: "vibepaper-storyline", status: "disabled", description: "Storyline", permissionProfile: "readOnly", temperature: 0.4 },
+        { name: "vibepaper-writer", status: "conflicted", description: "Writer", permissionProfile: "paperWrite", temperature: 0.4 },
+      ],
+      diagnostics: [
+        { severity: "info", code: "config-missing", message: "Project config is missing; defaults are used." },
+        { severity: "warning", code: "unsupported-field", message: "Unsupported field is ignored.", field: "defaults.extra" },
+        { severity: "error", code: "config-read-failed", message: "Project config could not be read." },
+      ],
+    })
+
+    expect(checks).toEqual([
+      {
+        id: "agents.vibepaper-coordinator",
+        status: "pass",
+        severity: "info",
+        message: "VibePaper agent \"vibepaper-coordinator\" is injected",
+        remediation: null,
+      },
+      {
+        id: "agents.vibepaper-storyline",
+        status: "warn",
+        severity: "warning",
+        message: "VibePaper agent \"vibepaper-storyline\" is disabled",
+        remediation: "Set agents.vibepaper-storyline.enabled to true in .opencode/vibepaper.json",
+      },
+      {
+        id: "agents.vibepaper-writer",
+        status: "fail",
+        severity: "warning",
+        message: "VibePaper agent \"vibepaper-writer\" conflicts with an existing OpenCode agent",
+        remediation: "Rename the existing agent or disable agents.vibepaper-writer in .opencode/vibepaper.json",
+      },
+      {
+        id: "agent-config.unsupported-field.defaults.extra",
+        status: "warn",
+        severity: "warning",
+        message: "Unsupported field is ignored.",
+        remediation: "Fix .opencode/vibepaper.json, then restart OpenCode",
+      },
+      {
+        id: "agent-config.config-read-failed",
+        status: "fail",
+        severity: "error",
+        message: "Project config could not be read.",
+        remediation: "Fix .opencode/vibepaper.json, then restart OpenCode",
+      },
+    ])
+  })
+
+  test("config hook has no startup file write side effects", async () => {
+    const project = makeTempProject("plugin-config-readonly-")
+    try {
+      const before = hashTree(project.root)
+      const hooks = await buildHooks(project.root)
+      const input: PluginConfigInput = {}
+
+      await configHook(hooks)(input)
+
+      expect(hashTree(project.root)).toBe(before)
+    } finally {
+      project.cleanup()
+    }
+  })
+
   test("registers dashboard init apply artifact and workflow tools", async () => {
     const hooks = await buildHooks(process.cwd())
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
@@ -139,7 +332,7 @@ describe("OpenCode plugin", () => {
       const hooks = await buildHooks(capturedProject.root)
       const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
-        toolContext(runtimeProject.root),
+        toolContext(runtimeProject.root, "vibepaper-recorder"),
       )
 
       expect(output).toContain(runtimeProject.root)
@@ -149,6 +342,28 @@ describe("OpenCode plugin", () => {
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()
+    }
+  })
+
+  test("artifact record tool denies non-recorder agents without writing state", async () => {
+    const project = makeTempProject()
+    try {
+      project.write("paper.md", "# Paper\n###### Draft\n<!-- description: Draft -->\nRuntime root draft text is long enough to hash and record readiness.\n")
+      project.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
+      project.write(".agents/events.jsonl", "")
+      const beforeState = project.read(".agents/state.json")
+      const hooks = await buildHooks(project.root)
+
+      const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+        { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
+        toolContext(project.root, "vibepaper-writer"),
+      )
+
+      expect(output).toContain("agent-not-authorized")
+      expect(project.read(".agents/state.json")).toBe(beforeState)
+      expect(project.read(".agents/events.jsonl")).toBe("")
+    } finally {
+      project.cleanup()
     }
   })
 

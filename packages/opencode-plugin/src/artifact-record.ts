@@ -25,6 +25,10 @@ export async function recordArtifactReadiness(options: ArtifactRecordOptions): P
     return makeResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root: null, artifact: options.artifact, errors: [{ code: "root-detection-failed", message: `Failed to detect project root: ${errorMessage(error)}` }] })
   }
 
+  if (options.agent !== undefined && options.agent !== "vibepaper-recorder") {
+    return makeResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root, artifact: options.artifact, errors: [{ code: "agent-not-authorized", message: `Agent "${options.agent}" is not authorized to record artifact readiness.` }] })
+  }
+
   const validation = validateOptions(options)
   if (!validation.ok) {
     return makeResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root, artifact: options.artifact, errors: validation.errors })
