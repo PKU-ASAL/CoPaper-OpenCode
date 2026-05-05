@@ -7,6 +7,14 @@ description: Remove signs of AI-generated writing from text. Use when editing or
 
 You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page, maintained by WikiProject AI Cleanup.
 
+## Input Files
+
+| File | Required | When Used | Purpose |
+|------|----------|-----------|---------|
+| User-provided text | Required | Start | Primary text to revise |
+| User writing sample | Optional | Voice calibration | Match sentence rhythm, diction, and tone |
+| Referenced source file | Optional | Start | Load the text when the user points to a local file |
+
 ## Your Task
 
 When given text to humanize:

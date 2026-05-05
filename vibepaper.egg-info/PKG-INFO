@@ -22,10 +22,10 @@ Requires-Dist: pytest-cov>=4.0; extra == "dev"
 VibePaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成：
 
 1. **Python 包 (`vibepaper/`)**：提供六阶段流水线的状态管理、事件日志、Git 操作、周报生成和 7-checker 集成。
-2. **Agent Skills (`.agents/skills/`)**：22 个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换的完整写作流程。
+2. **Agent Skills (`.agents/skills/`)**：多个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换，再到文本去 AI 痕迹润色的完整流程。
 3. **CLI (`vibe` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、显式阶段状态更新、阶段跳过、Git 提交/回滚、周报和差异对比。
 
-核心理念：**结构与模板优先，AI 辅助优化**。AI 基于你提供的 Insight 和实验数据组织语言、优化文字，而非自由发挥。
+核心理念：**结构与模板优先，AI 辅助优化**。AI 基于你提供的 Insight 和实验数据组织语言、优化文字，而非自由发挥；对成稿可结合 `humanizer` 做“去 AI 味”润色，保持原意同时提升自然度。
 
 ## 目标用户与非目标
 
@@ -93,7 +93,7 @@ VibePaper-Skill/
 │   ├── dimensions.py           # 讨论维度定义
 │   └── identity.py             # Git 身份管理
 ├── .agents/
-│   ├── skills/                 # 22 个 Agent Skills 目录
+│   ├── skills/                 # Agent Skills 目录
 │   │   ├── storyline-helper/   # 研究主线构建
 │   │   ├── relatedwork-finder/  # 文献检索与阅读
 │   │   ├── socratic-discussion/ # 苏格拉底式讨论
@@ -104,6 +104,8 @@ VibePaper-Skill/
 │   │   ├── review-revise/       # 多轮审查修订
 │   │   ├── submission-precheck/ # 提交前检查
 │   │   ├── markdown2latex/      # Markdown 转 LaTeX
+│   │   ├── pdf2paper/           # PDF 初稿逐 section 转 paper.md
+│   │   ├── ppt2storyline/       # PPT/PPTX 转 storyline
 │   │   ├── latex2markdown/      # LaTeX 转 Markdown
 │   │   ├── problem-checker/     # 问题定义检查
 │   │   ├── novelty-checker/     # 新颖度检查
@@ -114,6 +116,7 @@ VibePaper-Skill/
 │   │   ├── data-checker/        # 数据真实性检查
 │   │   ├── bogus-data-helper/   # 占位数据生成
 │   │   ├── human-comment-helper/ # 人工评审注释
+│   │   ├── humanizer/           # 去 AI 痕迹润色
 │   │   ├── mad-writer/          # 自动写作循环
 │   │   └── vibepaper-manage/    # CLI 工作流管理
 │   ├── state.json              # 项目状态文件（init 后生成）
@@ -479,6 +482,16 @@ vibe rollback storyline -y
 
 7 个检查器名称：`problem-checker`、`novelty-checker`、`technical-depth-checker`、`logic-checker`、`clarity-checker`、`evaluation-protocol-checker`、`data-checker`。
 
+可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
+
+```bash
+vibe --root <project-dir> checkers collect
+vibe --root <project-dir> checkers collect --checker logic --checker clarity
+vibe --root <project-dir> checkers status
+```
+
+harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。
+
 ## Skill 使用指南
 
 Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应的 `SKILL.md` 文件分配给 Subagent 执行。以下是主要 Skill 的触发方式与功能说明：
@@ -545,6 +558,32 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 - 将 `paper.md` 内容转换为高质量 LaTeX 格式
 - 支持用户提供的会议模板进行格式适配
 - 适用于顶级会议和期刊投稿
+
+### pdf2paper — PDF 初稿逐 Section 转 Paper
+
+**触发**：`"convert pdf to paper.md"`、`"从PDF初稿生成paper.md"`、`"将位于 <path> 的pdf转变为paper.md"`
+
+- 从已有 `.pdf` 初稿提取内容，按语义映射到 `paper.md` 的既有 section
+- 可以从已有的论文初稿转变为paper.md进行审稿
+- 严格按 section 逐步转换，并在每节写入前走用户确认
+- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `paper.md`，先执行 `vibe --root <project-dir> init ...` 再更新 `writing` phase
+
+### ppt2storyline — PPT/PPTX 转 Storyline
+
+**触发**：`"convert ppt to storyline"`、`"从PPT生成storyline"`、`"将位于 <path> 的pptx文件转变为storyline.md"`
+
+- 从 `.pptx` 提取幻灯片文本并映射到 `storyline.md` 既有 section
+- 可以从小组会ppt直接转变成storyline.md并进行完整的工作流程
+- 以“忠实原文 + 轻量润色”为原则，不新增未在 PPT 出现的研究结论
+- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `storyline.md`，先执行 `vibe --root <project-dir> init ...` 再更新 phase
+
+### humanizer — 去 AI 痕迹润色
+
+**触发**：`"humanize this"`、`"make this sound more human"`、`"remove AI traces"`
+
+- 识别常见 AI 写作痕迹（如宣传腔、空泛归因、过度模板化句式、被动语态堆叠等）
+- 在不改变原始观点和事实的前提下重写表达，使语气更自然、更像真实作者
+- 可按用户样本文风做 voice matching，减少“统一 AI 腔”
 
 ## 人工测试指南
 

@@ -89,6 +89,7 @@ VibePaper-Skill/
 │   │   ├── review-revise/       # 多轮审查修订
 │   │   ├── submission-precheck/ # 提交前检查
 │   │   ├── markdown2latex/      # Markdown 转 LaTeX
+│   │   ├── template-latex-export/ # 基于模板生成最终 LaTeX
 │   │   ├── pdf2paper/           # PDF 初稿逐 section 转 paper.md
 │   │   ├── ppt2storyline/       # PPT/PPTX 转 storyline
 │   │   ├── latex2markdown/      # LaTeX 转 Markdown
@@ -112,6 +113,8 @@ VibePaper-Skill/
 │   ├── pdfs/                   # 下载的论文 PDF
 │   └── papers/                 # 每篇论文的 Markdown 摘要
 ├── fig/                        # 论文图片目录（JPG/PNG/GIF，≤5MB）
+├── templates/
+│   └── latex/                  # 用户自行放置会议/期刊 LaTeX 模板
 ├── tests/                      # 测试目录
 │   ├── test_cli.py             # CLI 命令测试
 │   ├── test_state.py           # 状态管理测试
@@ -467,6 +470,16 @@ vibe rollback storyline -y
 
 7 个检查器名称：`problem-checker`、`novelty-checker`、`technical-depth-checker`、`logic-checker`、`clarity-checker`、`evaluation-protocol-checker`、`data-checker`。
 
+可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
+
+```bash
+vibe --root <project-dir> checkers collect
+vibe --root <project-dir> checkers collect --checker logic --checker clarity
+vibe --root <project-dir> checkers status
+```
+
+harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。
+
 ## Skill 使用指南
 
 Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应的 `SKILL.md` 文件分配给 Subagent 执行。以下是主要 Skill 的触发方式与功能说明：
@@ -534,6 +547,15 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 - 支持用户提供的会议模板进行格式适配
 - 适用于顶级会议和期刊投稿
 
+### template-latex-export — 模板化最终 LaTeX
+
+**触发**：`"generate final latex from paper.md"`、`"use templates/latex"`、`"基于模板生成最终latex论文"`
+
+- 将 `paper.md` 转换为最终 LaTeX 论文项目
+- 使用用户自行放入 `templates/latex/` 的会议或期刊模板
+- 输出写入 `target/latex/`，不覆盖原始模板目录
+- 不自动下载模板；用户需要先把 `.tex`、`.cls`、`.sty`、`.bst` 等模板文件放入 `templates/latex/`
+
 ### pdf2paper — PDF 初稿逐 Section 转 Paper
 
 **触发**：`"convert pdf to paper.md"`、`"从PDF初稿生成paper.md"`、`"将位于 <path> 的pdf转变为paper.md"`
@@ -559,6 +581,17 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 - 识别常见 AI 写作痕迹（如宣传腔、空泛归因、过度模板化句式、被动语态堆叠等）
 - 在不改变原始观点和事实的前提下重写表达，使语气更自然、更像真实作者
 - 可按用户样本文风做 voice matching，减少“统一 AI 腔”
+
+### phase-navigation — 阶段跳转
+
+**触发**：`"show current phase"`、`"go to next phase"`、`"go back to previous phase"`、`"jump to writing"`、`"查看当前阶段"`、`"进入下一阶段"`、`"回到上一个阶段"`、`"跳到 experiments 阶段"`
+
+- 通过 `vibe --root . status --json` 读取当前阶段
+- 查看当前阶段时只读状态，不修改 workflow
+- “下一阶段”会把当前 phase 标记为 `complete`，让 CLI 自动推进
+- “回到上一阶段/前面某阶段”会把目标 phase 设为 `in_progress`，并把后续 phase 重置为 `not_started`
+- “跳到某阶段”会用 `vibe --root . set-phase <phase> --status in_progress`
+- 跳转后在同一轮直接打开该阶段对应的 `SKILL.md` 并继续执行，例如 `writing` 打开 `writing-orchestrator`，`literature` 打开 `relatedwork-finder`
 
 ## 人工测试指南
 
