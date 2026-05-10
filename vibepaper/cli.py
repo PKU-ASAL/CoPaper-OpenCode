@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,39 @@ _STATUS_DISPLAY = {
     PhaseStatus.SKIPPED: "[skip]",
     PhaseStatus.NOT_STARTED: "[    ]",
 }
+
+
+def _load_env_file(env_path: Path) -> int:
+    """Best-effort KEY=VALUE loader for ``.env``. Returns count of vars set.
+
+    Skips silently if the file is missing. Existing environment variables
+    take precedence — a value already in ``os.environ`` is never overwritten.
+    """
+    if not env_path.exists() or not env_path.is_file():
+        return 0
+    count = 0
+    try:
+        text = env_path.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("export "):
+            line = line[len("export ") :].lstrip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        os.environ[key] = value
+        count += 1
+    return count
 
 
 def _load_state_manager_or_exit(root: str) -> StateManager:
@@ -82,6 +116,11 @@ def main(ctx: click.Context, root: str) -> None:
     """VibePaper - AI-assisted academic writing framework."""
     ctx.ensure_object(dict)
     ctx.obj["root"] = root
+
+    root_path = Path(root)
+    for candidate in (root_path / ".env", Path.cwd() / ".env"):
+        if _load_env_file(candidate):
+            break
 
 
 @main.command()
@@ -205,6 +244,151 @@ def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
             f"{('yes' if paper.get('summary_exists') else 'no'):<10}"
             f"{str(year):<8}"
             f"{title}"
+        )
+
+
+@relatedwork_group.command(name="search")
+@click.option(
+    "--query",
+    "queries",
+    multiple=True,
+    help="Search query (repeatable).",
+)
+@click.option(
+    "--queries-file",
+    "queries_file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Text file with one query per line (lines starting with # ignored).",
+)
+@click.option(
+    "--limit",
+    default=20,
+    show_default=True,
+    type=click.IntRange(1, 100),
+    help="Results per query (max 100).",
+)
+@click.option(
+    "--year",
+    default=None,
+    help="Year or year range, e.g. '2023' or '2020-2024'.",
+)
+@click.option(
+    "--fields-of-study",
+    "fields_of_study",
+    default=None,
+    help="Comma-separated S2 fields of study (e.g. 'Computer Science').",
+)
+@click.option(
+    "--venue",
+    default=None,
+    help="Comma-separated venue filter (e.g. 'CVPR,NeurIPS').",
+)
+@click.option(
+    "--open-access",
+    "open_access_only",
+    is_flag=True,
+    help="Restrict results to papers with a public PDF.",
+)
+@click.option(
+    "--cache-path",
+    "cache_path",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Override cache path (default: <root>/relatedwork/search_cache.json).",
+)
+@click.option(
+    "--api-base",
+    "api_base",
+    default=None,
+    help="Override S2 base URL (env: S2_API_BASE). Use to point at a proxy.",
+)
+@click.pass_context
+def relatedwork_search_cmd(
+    ctx: click.Context,
+    queries: tuple[str, ...],
+    queries_file: Path | None,
+    limit: int,
+    year: str | None,
+    fields_of_study: str | None,
+    venue: str | None,
+    open_access_only: bool,
+    cache_path: Path | None,
+    api_base: str | None,
+) -> None:
+    """Search Semantic Scholar and write metadata to relatedwork/search_cache.json."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.relatedwork_search import (
+        SemanticScholarError,
+        _read_queries_file,
+        resolve_api_key,
+        resolve_base_url,
+        run as run_search,
+    )
+
+    collected: list[str] = list(queries)
+    if queries_file is not None:
+        collected.extend(_read_queries_file(queries_file))
+
+    if not collected:
+        click.echo(
+            "Error: provide at least one --query or a --queries-file with entries.",
+            err=True,
+        )
+        sys.exit(1)
+
+    api_key = resolve_api_key()
+    base_url = resolve_base_url(api_base)
+
+    try:
+        outcome = run_search(
+            root,
+            queries=collected,
+            limit=limit,
+            year=year,
+            fields_of_study=fields_of_study,
+            open_access_only=open_access_only,
+            venue=venue,
+            cache_path=cache_path,
+            api_key=api_key,
+            base_url=base_url,
+        )
+    except SemanticScholarError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "search_relatedwork_metadata",
+        "user",
+        "success",
+        phase="literature",
+        queries=outcome.queries,
+        papers_found=len(outcome.papers),
+        cache_path=outcome.cache_path,
+        api_key_used=outcome.api_key_used,
+        endpoint=base_url,
+    )
+
+    click.echo(
+        f"Searched {len(outcome.queries)} queries, "
+        f"found {len(outcome.papers)} unique papers."
+    )
+    click.echo(f"Cache written to {outcome.cache_path}")
+    click.echo(f"Endpoint: {base_url}")
+    click.echo(
+        f"Next: vibe --root {root} relatedwork import --input {outcome.cache_path}"
+    )
+    if not outcome.api_key_used:
+        click.echo(
+            "Hint: set S2_API_KEY (or SEMANTIC_SCHOLAR_API_KEY) in .env "
+            "for higher rate limits."
         )
 
 
