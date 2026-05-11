@@ -348,14 +348,16 @@ vibe relatedwork status
 vibe relatedwork keywords --count 8 --model gpt-4o-mini --out relatedwork/queries.txt
 
 # search —— S2 检索 + BibTeX/arXiv/PDF URL/TLDR 自动归一化
-# 默认过滤(可覆盖):--fields-of-study "Computer Science" 和 --open-access 默认开启
+# 默认过滤(可覆盖):--fields-of-study "Computer Science" 默认开启,--open-access 默认关闭
 vibe relatedwork search --queries-file relatedwork/queries.txt \
     --limit 20 --year 2022-2026 \
     --venue "CVPR,NeurIPS"
 
-# 关闭默认过滤(跨学科搜索 / 包含没有 OA PDF 的论文)
-vibe relatedwork search --queries-file relatedwork/queries.txt \
-    --fields-of-study "" --no-open-access
+# 只要有 OA PDF 的论文(便于后续 download)
+vibe relatedwork search --queries-file relatedwork/queries.txt --open-access
+
+# 跨学科搜索(关掉默认的 CS 限定)
+vibe relatedwork search --queries-file relatedwork/queries.txt --fields-of-study ""
 
 # 也可不写 queries-file,直接传 query
 vibe relatedwork search --query "streaming vla" --query "robot policy"

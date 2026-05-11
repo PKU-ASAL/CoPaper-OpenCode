@@ -291,9 +291,9 @@ def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
 @click.option(
     "--open-access/--no-open-access",
     "open_access_only",
-    default=True,
+    default=False,
     show_default=True,
-    help="Restrict results to papers with a public PDF.",
+    help="Restrict results to papers with a public PDF (off by default).",
 )
 @click.option(
     "--cache-path",
@@ -795,6 +795,75 @@ def relatedwork_summarize_cmd(
     click.echo(
         f"Catalog summaries: {summary['counts']['summaries_done']} done."
     )
+
+
+@relatedwork_group.command(name="clean")
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip the confirmation prompt.",
+)
+@click.option(
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    help="List the paths that would be removed without deleting them.",
+)
+@click.pass_context
+def relatedwork_clean_cmd(
+    ctx: click.Context,
+    yes: bool,
+    dry_run: bool,
+) -> None:
+    """Wipe relatedwork progress and reset the literature phase counters."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.relatedwork_clean import clean_relatedwork, plan_targets
+
+    targets = [path for path in plan_targets(root) if path.exists()]
+    if not targets:
+        click.echo(
+            "Nothing to clean. relatedwork/ and cross_index.json are already absent."
+        )
+        return
+
+    click.echo("Will remove (to trash if available):")
+    for path in targets:
+        click.echo(f"  - {path}")
+    click.echo("Then reset the literature phase counters in .agents/state.json.")
+
+    if dry_run:
+        click.echo("(--dry-run) No changes made.")
+        return
+
+    if not yes and not click.confirm("Proceed?", default=False):
+        click.echo("Aborted.")
+        return
+
+    outcome = clean_relatedwork(root)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "clean_relatedwork",
+        "user",
+        "success",
+        phase="literature",
+        removed=outcome.removed,
+        used_trash=outcome.used_trash,
+        state_reset=outcome.state_reset,
+    )
+
+    for path in outcome.removed:
+        click.echo(f"[cleaned] {path}")
+    if outcome.state_reset:
+        click.echo("Literature phase counters reset to not_started.")
+    if not outcome.used_trash:
+        click.echo(
+            "Note: `trash` CLI not available — items were permanently deleted."
+        )
 
 
 @main.command(name="set-phase")
