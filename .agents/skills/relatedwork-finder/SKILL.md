@@ -5,7 +5,7 @@ description: Find the related work papers in the relatedwork folder based on sto
 
 # Related Work Finder Skill
 
-This skill automatically finds related work papers, records canonical metadata through the `vibe` CLI, downloads PDFs through the `vibe` CLI, and generates serialized multimodal summaries based on the research storyline or paper content.
+This skill automatically finds related-work papers. Every substantive step (keyword extraction, Semantic Scholar search, BibTeX sync, PDF download) is delegated to a `vibe` CLI subcommand, so the skill never calls MCP search tools or spawns subagents. The skill's job is to orchestrate the CLI calls and interact with the user.
 
 ## When to Use This Skill
 
@@ -15,8 +15,9 @@ This skill automatically finds related work papers, records canonical metadata t
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Required if present | Step 1 (start) | Primary source for keyword extraction, research questions, methods, and challenges |
-| `paper.md` | Fallback | Step 1 (if `storyline.md` missing) | Alternative source for keyword extraction when `storyline.md` is absent |
+| `storyline.md` | Required if present | Step 1 (input to CLI) | Primary source for keyword extraction by `vibe relatedwork keywords` |
+| `paper.md` | Fallback | Step 1 (auto-fallback) | Used by the CLI when `storyline.md` is missing |
+| `relatedwork/queries.txt` | Read/write | Steps 1-2 | One query per line; written by `vibe relatedwork keywords`, consumed by `vibe relatedwork search --queries-file` |
 | `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) — written by `vibe relatedwork search` |
 | `relatedwork/paper_list.bib` | Required | Step 3 | BibTeX entries for formalizing the reference list |
 | `relatedwork/literature.json` | Required | Steps 2-6 (after import) | Canonical metadata catalog; read after `vibe relatedwork import` to track download status and summary paths |
@@ -55,24 +56,24 @@ After invoking any tool, run a terminal command to append a structured JSON log 
 
 You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
 
-### Step 1: Parse Input & Extract Keywords [WAIT FOR CONFIRMATION]
-- Read `storyline.md` (or `paper.md`).
-- Extract 5-10 research keywords and search queries.
-- **ACTION**: Present the extracted keywords and queries to the user.
-- **STOP**: Ask "These are the keywords and search queries I extracted. Do you want to modify or add any before I start the search?"
+### Step 1: Extract Keywords [WAIT FOR CONFIRMATION]
+- Run `vibe --root . relatedwork keywords --count 8` (adjust `--count` if the storyline is unusually broad/narrow). The CLI reads `storyline.md` (falling back to `paper.md`), calls the configured LLM via `VIBEPAPER_MODEL`, and writes the queries one-per-line to `relatedwork/queries.txt`.
+- Do NOT extract keywords yourself in this context. Do NOT call any MCP search tool. The CLI is the single source of truth.
+- After the CLI finishes, `cat relatedwork/queries.txt` and present the list to the user.
+- **STOP**: Ask "These are the queries the CLI extracted. Do you want to edit `relatedwork/queries.txt` (add/remove/replace lines) before I run the search?"
+- If the user edits the file, re-read it before Step 2.
 
 ### Step 2: Search & Cache Metadata [WAIT FOR CONFIRMATION]
-- Run the search CLI with one `--query` flag per approved query, e.g.:
+- Run the search CLI consuming the queries file from Step 1:
 
   ```bash
   vibe --root . relatedwork search \
-      --query "streaming vision language action" \
-      --query "robot policy diffusion" \
+      --queries-file relatedwork/queries.txt \
       --limit 20 \
       --year 2022-2026
   ```
 
-  Useful flags: `--limit N` (per-query, max 100), `--year 2020-2024`, `--fields-of-study "Computer Science"`, `--venue "CVPR,NeurIPS"`, `--open-access` (restrict to papers with a public PDF), `--queries-file queries.txt` (one query per line, # comments allowed).
+  Useful flags: `--limit N` (per-query, max 100), `--year 2020-2024`, `--fields-of-study "Computer Science"`, `--venue "CVPR,NeurIPS"`, `--open-access` (restrict to papers with a public PDF). `--query "..."` is still accepted as an alternative to `--queries-file`.
 - The CLI writes `relatedwork/search_cache.json` with deduplicated metadata (BibTeX, arXiv ID, PDF URL, venue, TLDR) — you do NOT need to fetch BibTeX, venue, or PDF URLs separately. Do NOT hand-edit the cache to "enrich" it; rerun the CLI with refined queries instead.
 - **ACTION**: Read `relatedwork/search_cache.json` and present a numbered list of papers to the user. Show `title`, `authors[0]+et al.`, `year`, `venue`, and `tldr` (if present) for each entry.
 - **STOP**: Ask "Here is the list of papers the CLI found. Which ones should I keep? (Metadata is already cached for all entries.)"

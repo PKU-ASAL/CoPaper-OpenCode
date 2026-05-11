@@ -597,6 +597,201 @@ def relatedwork_build_index(ctx: click.Context) -> None:
     )
 
 
+@relatedwork_group.command(name="keywords")
+@click.option(
+    "--from",
+    "source",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Source file (default: storyline.md, falling back to paper.md).",
+)
+@click.option(
+    "--count",
+    type=click.IntRange(1, 30),
+    default=8,
+    show_default=True,
+    help="Number of queries to extract.",
+)
+@click.option(
+    "--out",
+    "out_path",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Output file (default: <root>/relatedwork/queries.txt).",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override VIBEPAPER_MODEL.",
+)
+@click.pass_context
+def relatedwork_keywords_cmd(
+    ctx: click.Context,
+    source: Path | None,
+    count: int,
+    out_path: Path | None,
+    model: str | None,
+) -> None:
+    """Extract related-work search queries from storyline.md via the LLM."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.llm_client import LLMConfigError
+    from vibepaper.relatedwork_keywords import extract_keywords
+
+    try:
+        outcome = extract_keywords(
+            root,
+            source=source,
+            count=count,
+            output=out_path,
+            model=model,
+        )
+    except LLMConfigError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "extract_relatedwork_keywords",
+        "user",
+        "success",
+        phase="literature",
+        model=outcome.model,
+        count=len(outcome.queries),
+        output_path=outcome.output_path,
+    )
+
+    click.echo(
+        f"Extracted {len(outcome.queries)} queries using {outcome.model}."
+    )
+    click.echo(f"Written to {outcome.output_path}")
+    for query in outcome.queries:
+        click.echo(f"  - {query}")
+    click.echo(
+        f"Next: vibe --root {root} relatedwork search "
+        f"--queries-file {outcome.output_path}"
+    )
+
+
+@relatedwork_group.command(name="summarize")
+@click.option("--paper-id", default=None, help="Limit to one paper.")
+@click.option(
+    "--storyline",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Storyline file (default: storyline.md).",
+)
+@click.option(
+    "--template",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Summary template (default: .agents/skills/relatedwork-finder/template.md).",
+)
+@click.option("--model", default=None, help="Override VIBEPAPER_MODEL.")
+@click.option(
+    "--qps",
+    type=float,
+    default=16.0,
+    show_default=True,
+    help="Requests per second cap.",
+)
+@click.option(
+    "--concurrency",
+    type=click.IntRange(1, 64),
+    default=8,
+    show_default=True,
+    help="Max concurrent worker threads.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Re-summarize papers that already have a summary.",
+)
+@click.option(
+    "--max-pdf-bytes",
+    type=int,
+    default=50 * 1024 * 1024,
+    show_default=True,
+    help="Reject PDFs larger than this (bytes).",
+)
+@click.pass_context
+def relatedwork_summarize_cmd(
+    ctx: click.Context,
+    paper_id: str | None,
+    storyline: Path | None,
+    template: Path | None,
+    model: str | None,
+    qps: float,
+    concurrency: int,
+    force: bool,
+    max_pdf_bytes: int,
+) -> None:
+    """Summarize downloaded PDFs via the LLM, writing relatedwork/papers/<id>.md."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.llm_client import LLMConfigError
+    from vibepaper.relatedwork_summarize import summarize_papers
+
+    try:
+        outcome = summarize_papers(
+            root,
+            paper_id=paper_id,
+            storyline=storyline,
+            template=template,
+            model=model,
+            qps=qps,
+            concurrency=concurrency,
+            force=force,
+            max_pdf_bytes=max_pdf_bytes,
+        )
+    except LLMConfigError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "summarize_relatedwork_papers",
+        "user",
+        "success",
+        phase="literature",
+        processed=outcome.processed,
+        succeeded=outcome.succeeded,
+        failed=outcome.failed,
+        skipped=outcome.skipped,
+        paper_id=paper_id,
+    )
+
+    for result in outcome.results:
+        if result.success:
+            click.echo(f"[ok]   {result.paper_id} -> {result.summary_path}")
+        else:
+            click.echo(f"[fail] {result.paper_id} -> {result.error}")
+
+    click.echo(
+        f"Processed {outcome.processed} papers: "
+        f"{outcome.succeeded} succeeded, "
+        f"{outcome.failed} failed, "
+        f"{outcome.skipped} skipped."
+    )
+    click.echo(
+        f"Catalog summaries: {summary['counts']['summaries_done']} done."
+    )
+
+
 @main.command(name="set-phase")
 @click.argument(
     "phase",

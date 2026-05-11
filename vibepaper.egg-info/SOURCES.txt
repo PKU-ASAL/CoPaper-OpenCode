@@ -9,6 +9,7 @@ tests/test_eventlog.py
 tests/test_git_ops.py
 tests/test_identity.py
 tests/test_literature.py
+tests/test_relatedwork_search.py
 tests/test_report.py
 tests/test_scaffold.py
 tests/test_skill_conventions.py
@@ -24,8 +25,11 @@ vibepaper/eventlog.py
 vibepaper/git_ops.py
 vibepaper/identity.py
 vibepaper/literature.py
+vibepaper/llm_client.py
 vibepaper/relatedwork_download.py
+vibepaper/relatedwork_keywords.py
 vibepaper/relatedwork_search.py
+vibepaper/relatedwork_summarize.py
 vibepaper/report.py
 vibepaper/scaffold.py
 vibepaper/schema.py
