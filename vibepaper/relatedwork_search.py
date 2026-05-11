@@ -320,8 +320,14 @@ def search_papers(
     base_url: str | None = None,
     retries: int = DEFAULT_RETRIES,
     timeout: int = DEFAULT_TIMEOUT,
+    inter_query_delay: float = 1.1,
 ) -> list[dict[str, Any]]:
-    """Run one search per query, dedupe by S2 paperId, return normalized records."""
+    """Run one search per query, dedupe by S2 paperId, return normalized records.
+
+    Sleeps ``inter_query_delay`` seconds between consecutive queries to stay
+    under Semantic Scholar's 1 req/sec keyed limit; the per-request retry path
+    handles transient 429s on top of that.
+    """
 
     cleaned_queries = [query.strip() for query in queries if query and query.strip()]
     if not cleaned_queries:
@@ -331,7 +337,9 @@ def search_papers(
     by_paper: dict[str, dict[str, Any]] = {}
     fallback_index = 0
 
-    for query in cleaned_queries:
+    for index, query in enumerate(cleaned_queries):
+        if index > 0 and inter_query_delay > 0:
+            time.sleep(inter_query_delay)
         url = _build_search_url(
             query,
             base_url=resolved_base,

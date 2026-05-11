@@ -73,7 +73,9 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
       --year 2022-2026
   ```
 
-  Useful flags: `--limit N` (per-query, max 100), `--year 2020-2024`, `--fields-of-study "Computer Science"`, `--venue "CVPR,NeurIPS"`, `--open-access` (restrict to papers with a public PDF). `--query "..."` is still accepted as an alternative to `--queries-file`.
+  **默认过滤(可覆盖)**:`--fields-of-study "Computer Science"` 和 `--open-access`(只要有公开 PDF 的)默认就生效 —— 多数情况下不用显式写。要关掉:`--fields-of-study ""`(空串禁用学科过滤)或 `--no-open-access`。
+
+  其他常用 flag:`--limit N`(每条 query,max 100)、`--year 2020-2024`、`--venue "CVPR,NeurIPS"`(限定 venue;`arXiv.org` 也算 venue)。`--query "..."` 仍接受作为 `--queries-file` 的替代。
 - The CLI writes `relatedwork/search_cache.json` with deduplicated metadata (BibTeX, arXiv ID, PDF URL, venue, TLDR) — you do NOT need to fetch BibTeX, venue, or PDF URLs separately. Do NOT hand-edit the cache to "enrich" it; rerun the CLI with refined queries instead.
 - **ACTION**: Read `relatedwork/search_cache.json` and present a numbered list of papers to the user. Show `title`, `authors[0]+et al.`, `year`, `venue`, and `tldr` (if present) for each entry.
 - **STOP**: Ask "Here is the list of papers the CLI found. Which ones should I keep? (Metadata is already cached for all entries.)"

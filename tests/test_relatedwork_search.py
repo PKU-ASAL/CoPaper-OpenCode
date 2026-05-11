@@ -148,7 +148,7 @@ class TestSearchPapers:
             ),
         )
 
-        records = search_papers(["vla", "robot"], limit=5)
+        records = search_papers(["vla", "robot"], limit=5, inter_query_delay=0)
 
         assert len(records) == 1
         assert sorted(records[0]["source_queries"]) == ["robot", "vla"]
@@ -274,6 +274,82 @@ class TestSearchCli:
         assert result.exit_code != 0
         assert "at least one --query" in result.output
 
+    def test_search_command_defaults_to_cs_and_open_access(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"],
+        )
+
+        captured: list[str] = []
+
+        def _urlopen(request, timeout: int = 30) -> _FakeResponse:
+            captured.append(request.full_url)
+            return _FakeResponse(json.dumps({"data": [_fake_s2_paper()]}).encode())
+
+        monkeypatch.setattr(relatedwork_search, "urlopen", _urlopen)
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "search",
+                "--query",
+                "vla",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert len(captured) == 1
+        url = captured[0]
+        assert "fieldsOfStudy=Computer+Science" in url or "fieldsOfStudy=Computer%20Science" in url
+        assert url.endswith("&openAccessPdf")
+
+    def test_search_command_disables_defaults_when_overridden(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        runner = CliRunner()
+        _invoke(
+            runner,
+            ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"],
+        )
+
+        captured: list[str] = []
+
+        def _urlopen(request, timeout: int = 30) -> _FakeResponse:
+            captured.append(request.full_url)
+            return _FakeResponse(json.dumps({"data": [_fake_s2_paper()]}).encode())
+
+        monkeypatch.setattr(relatedwork_search, "urlopen", _urlopen)
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "relatedwork",
+                "search",
+                "--query",
+                "vla",
+                "--fields-of-study",
+                "",
+                "--no-open-access",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        url = captured[0]
+        # fieldsOfStudy as a query param key has '=' after it; the bare token
+        # also appears inside the `fields=` list and must be ignored.
+        assert "fieldsOfStudy=" not in url
+        # openAccessPdf as a flag appears as "&openAccessPdf" at end; the bare
+        # token inside the fields list is preceded by "," not "&".
+        assert "&openAccessPdf" not in url
+
 
 class TestResolvers:
     def test_resolve_base_url_default_when_no_env(self, monkeypatch) -> None:
@@ -321,10 +397,6 @@ class TestAuthHeaders:
     def test_no_key_yields_empty_headers(self) -> None:
         assert _auth_headers(DEFAULT_S2_BASE, None) == {}
         assert _auth_headers("https://proxy.example/x", None) == {}
-
-
-class _RecordingResponse(_FakeResponse):
-    pass
 
 
 class TestEndToEndAuthHeader:

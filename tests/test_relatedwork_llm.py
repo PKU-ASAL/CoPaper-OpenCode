@@ -445,6 +445,9 @@ class TestCli:
     def test_keywords_command_missing_model_errors(
         self, tmp_path: Path, monkeypatch
     ) -> None:
+        # chdir into tmp_path so the CLI's .env CWD-fallback does not pick up a
+        # real .env from wherever pytest was launched.
+        monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         _invoke(
             runner,
@@ -463,6 +466,7 @@ class TestCli:
     def test_summarize_command_missing_api_key_errors(
         self, tmp_path: Path, monkeypatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         _invoke(
             runner,

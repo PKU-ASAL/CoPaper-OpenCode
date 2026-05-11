@@ -276,8 +276,12 @@ def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
 @click.option(
     "--fields-of-study",
     "fields_of_study",
-    default=None,
-    help="Comma-separated S2 fields of study (e.g. 'Computer Science').",
+    default="Computer Science",
+    show_default=True,
+    help=(
+        "Comma-separated S2 fields of study. Pass an empty string "
+        "(--fields-of-study '') to disable the filter."
+    ),
 )
 @click.option(
     "--venue",
@@ -285,9 +289,10 @@ def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
     help="Comma-separated venue filter (e.g. 'CVPR,NeurIPS').",
 )
 @click.option(
-    "--open-access",
+    "--open-access/--no-open-access",
     "open_access_only",
-    is_flag=True,
+    default=True,
+    show_default=True,
     help="Restrict results to papers with a public PDF.",
 )
 @click.option(
