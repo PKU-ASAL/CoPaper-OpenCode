@@ -119,7 +119,7 @@ If one PDF paragraph supports multiple destinations, split conservatively and ke
 ### Step 3: Scan target framework
 
 1. Read `paper.md` structure (`#` to `#####`) and descriptions.
-2. If available, read `writingrules.md` for additional constraints.
+2. If available, use `writingrules.md` for additional structure constraints.
 3. Build a target section map for insertion planning.
 
 ### Step 4: Build section evidence map

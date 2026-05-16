@@ -40,6 +40,7 @@ vibepaper/scaffold/paper.md
 vibepaper/scaffold/storyline.md
 vibepaper/scaffold/writingrules.md
 vibepaper/scaffold/skills/AGENTS.md
+vibepaper/scaffold/skills/auto-init/SKILL.md
 vibepaper/scaffold/skills/bogus-data-helper/SKILL.md
 vibepaper/scaffold/skills/clarity-checker/SKILL.md
 vibepaper/scaffold/skills/clarity-checker/examples.md
@@ -49,6 +50,10 @@ vibepaper/scaffold/skills/evaluation-protocol-checker/SKILL.md
 vibepaper/scaffold/skills/evaluation-protocol-checker/examples.md
 vibepaper/scaffold/skills/experiment-analyzer/SKILL.md
 vibepaper/scaffold/skills/human-comment-helper/SKILL.md
+vibepaper/scaffold/skills/humanizer/LICENSE
+vibepaper/scaffold/skills/humanizer/README.md
+vibepaper/scaffold/skills/humanizer/SKILL.md
+vibepaper/scaffold/skills/humanizer/WARP.md
 vibepaper/scaffold/skills/latex2markdown/SKILL.md
 vibepaper/scaffold/skills/logic-checker/SKILL.md
 vibepaper/scaffold/skills/logic-checker/examples.md
@@ -58,12 +63,17 @@ vibepaper/scaffold/skills/markdown-review/SKILL.md
 vibepaper/scaffold/skills/markdown2latex/SKILL.md
 vibepaper/scaffold/skills/novelty-checker/SKILL.md
 vibepaper/scaffold/skills/novelty-checker/examples.md
+vibepaper/scaffold/skills/pdf2paper/SKILL.md
+vibepaper/scaffold/skills/ppt2storyline/SKILL.md
 vibepaper/scaffold/skills/problem-checker/SKILL.md
 vibepaper/scaffold/skills/problem-checker/examples.md
 vibepaper/scaffold/skills/relatedwork-finder/SKILL.md
 vibepaper/scaffold/skills/relatedwork-finder/template.md
+vibepaper/scaffold/skills/relatedwork-summarizer/SKILL.md
+vibepaper/scaffold/skills/relatedwork-summarizer/template.md
 vibepaper/scaffold/skills/review-revise/SKILL.md
 vibepaper/scaffold/skills/socratic-discussion/SKILL.md
+vibepaper/scaffold/skills/state-machine-markdown-helper/SKILL.md
 vibepaper/scaffold/skills/storyline-helper/SKILL.md
 vibepaper/scaffold/skills/submission-precheck/SKILL.md
 vibepaper/scaffold/skills/technical-depth-checker/SKILL.md

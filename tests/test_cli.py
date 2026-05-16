@@ -159,6 +159,59 @@ class TestStatus:
         )
 
 
+class TestCheckers:
+    """Tests for the checker harness CLI."""
+
+    def test_checkers_collect_updates_state(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+        (tmp_path / "paper.md").write_text(
+            """# Paper
+<!-- AI Comments:
+Checker: problem-checker
+[CRITICAL] Problem statement is vague.
+[MAJOR] Motivation lacks evidence.
+-->""",
+            encoding="utf-8",
+        )
+
+        result = _invoke(
+            runner,
+            [
+                "--root",
+                str(tmp_path),
+                "checkers",
+                "collect",
+                "--checker",
+                "problem",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "problem-checker" in result.output
+        assert "Collected checker results" in result.output
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        saved = state["checkers"]["problem-checker"]
+        assert saved["issues"]["critical"] == 1
+        assert saved["issues"]["major"] == 1
+
+    def test_checkers_status_json(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        _ = _invoke(
+            runner, ["--root", str(tmp_path), "init", "--name", "P", "--domain", "D"]
+        )
+
+        result = _invoke(runner, ["--root", str(tmp_path), "checkers", "status", "--json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == {}
+
+
 class TestSkip:
     """Tests for the 'vibe skip' command."""
 
