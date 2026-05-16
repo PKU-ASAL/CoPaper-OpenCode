@@ -1,11 +1,11 @@
 ---
 name: relatedwork-summarizer
-description: Generate sequential multimodal summaries for downloaded papers and build literature cross-index.
+description: Drive the relatedwork summarization CLI, build the literature cross-index, and produce a coverage report.
 ---
 
 # Related Work Summarizer Skill
 
-This skill generates serialized multimodal summaries for downloaded PDFs, builds cross-references, and creates a final literature coverage report.
+This skill orchestrates per-paper summarization for downloaded PDFs by calling the `vibe relatedwork summarize` CLI, builds the literature cross-index via `vibe relatedwork build-index`, and produces a coverage report comparing summaries to `storyline.md`. The skill itself does not read PDFs, spawn subagents, or call MCP tools — all heavy lifting lives in the CLI.
 
 ## When to Use This Skill
 
@@ -16,14 +16,27 @@ This skill generates serialized multimodal summaries for downloaded PDFs, builds
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Required | Step 2 | Used to compare technical coverage and gaps |
-| `relatedwork/literature.json` | Required | Step 1 | Canonical metadata catalog; used to find papers with `downloaded` status |
-| `.agents/skills/relatedwork-finder/template.md` | Required | Step 1 | Template for PDF summary generation; passed to subagent |
+| `relatedwork/literature.json` | Required | Steps 1, 4 | Catalog used to know which papers are `downloaded` and which already have `summary_exists=true` |
+| `storyline.md` | Required | Steps 2, 3 | Passed to the CLI as context for the "relation to our work" section, and used by the coverage report |
+| `.agents/skills/relatedwork-finder/template.md` | Required | Step 2 | Summary template; passed to the CLI |
+| `relatedwork/papers/<paper_id>.md` | Read/write | Steps 2-3 | Per-paper summary files written by the CLI |
+| `relatedwork/summary.md` | Read/write | Step 3 | Aggregated multi-paper summary (skill maintains this file) |
+| `.agents/cross_index.json` | Read/write | Step 4 | Built by `vibe relatedwork build-index` |
+
+## Required Environment
+
+The summarization CLI uses an OpenAI-compatible LLM. Before running this skill, confirm the following are set (typically in `.env`):
+
+- `OPENAI_API_KEY` — required
+- `VIBEPAPER_MODEL` — required (e.g. `gpt-4o-mini`)
+- `OPENAI_BASE_URL` — optional, only if using a proxy endpoint
+
+If any of these are missing the CLI will fail loudly; do NOT try to summarize by reading the PDFs yourself.
 
 ## Action Logging
 
-You MUST log your tools usage (such as file reads, MCP tool calls, file modifications) during the execution of this skill.
-After invoking any tool, run a terminal command to append a structured JSON log to `.agents/events.jsonl`.
+You MUST log your tools usage during the execution of this skill.
+After invoking any tool, append a structured JSON log to `.agents/events.jsonl`.
 **Example Action Logging Command:**
 `echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/events.jsonl`
 
@@ -32,46 +45,49 @@ After invoking any tool, run a terminal command to append a structured JSON log 
 You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
 
 ### Step 1: Target Scope Parsing [WAIT FOR CONFIRMATION]
-- Check if the user specified a specific paper to summarize (e.g., by Title or ID).
-- If a single specific paper IS requested:
-  - Verify it exists in `relatedwork/literature.json` and its `download_status` is `downloaded`.
-  - If the paper is NOT downloaded or NOT found, **REFUSE** the request immediately and explain why.
-  - Setting: Your target queue contains ONLY this requested paper.
-- If NO specific paper is requested:
-  - Setting: Your target queue contains ALL papers whose `download_status` is `downloaded`.
-- **ACTION**: Present the target queue of paper(s) to summarize.
-- **STOP**: Ask "I have identified the target paper(s). Should I proceed with generating summaries?"
+- Read `relatedwork/literature.json`.
+- Check if the user requested a specific paper (by title or `paper_id`):
+  - If yes: verify the paper exists in `literature.json` and its `download_status` is `downloaded`. If not, REFUSE the request and explain why. The target queue contains ONLY this paper.
+  - If no: the target queue contains every paper with `download_status=downloaded` AND `summary_exists=false`.
+- **ACTION**: Present the target queue (paper_id + title for each entry) to the user. Note the count.
+- **STOP**: Ask "I will summarize these N papers. Should I proceed?" If the user wants to force-redo papers that already have summaries, they should answer yes and tell you to use `--force`.
 
-### Step 2: Sequential PDF Summaries [WAIT FOR CONFIRMATION PER PAPER]
-- **CRITICAL - MULTI-MODAL & ISOLATED CONTEXT**: You MUST NOT summarize the PDFs yourself in the current context. You MUST ensure each PDF is summarized in its own dedicated context window using the multi-modal model.
-- **Approach**: Process each paper in your target queue **STRICTLY ONE BY ONE sequentially**. Do NOT launch multiple tasks in parallel. Do NOT generate all summaries at once.
-- **Context Management**: When transitioning to a new paper, you MUST explicitly load the current target PDF, AND you must instruct the system/subagent to ignore or clear any memory of the previously summarized PDF to prevent token overflow and cross-contamination.
-- **Workflow per paper**:
-  1. Evaluate your target queue. Tell the user which paper is up next. Ask: "Should I spawn the agent to summarize the next paper: [Next Paper Title]?"
-  2. **STOP** here and wait for the user to say yes.
-  3. Once confirmed, spawn a `task` agent using the multimodal agent type (`subagent_type="multimodal-looker"`, `run_in_background=false`) to summarize it.
-  4. In the `prompt`, provide the absolute path of the PDF, `storyline.md`, and `.agents/skills/relatedwork-finder/template.md`.
-  5. Explicitly instruct the sub-agent to: Use the `Read` tool on the PDF and `template.md`, and generate a highly detailed summary `.md` file in `relatedwork/papers/` strictly following the template. The summary MUST extract in-depth technical mechanisms, methodology, empirical results, and limitations, rather than merely stating its high-level relationship to `storyline.md`.
-  6. After the task completes, run `vibe --root . relatedwork register-summary --paper-id <paper-id> --summary-path relatedwork/papers/<paper-id>.md`.
-  7. **CRITICAL ACTION - IMMEDIATE WRITE & UPDATE**: To avoid hallucinations and data loss, you MUST immediately synthesize the key points from the newly generated `relatedwork/papers/<paper-id>.md`. Then, read the master `relatedwork/summary.md` document. **IMPORTANT**: Check if a summary for this specific paper already exists in `summary.md`. If it DOES exist, UPDATE/REPLACE the existing section. If it does NOT exist, APPEND it. (This rule applies whether you are processing a single requested paper or a full queue). The integrated content MUST be richly detailed—including the paper's core technical approaches, quantitative metrics, and exact limitations—structured professionally using level-2 (`##`) and level-6 (`######`) headings. Do NOT wait until all papers are summarized to update `summary.md`.
-  8. **ACTION**: Inform the user: "I have finished summarizing [Current Paper Title] and immediately saved its findings into relatedwork/summary.md."
-  9. Determine if there is a next paper in the queue. 
-  10. **STOP & ASK**: If another paper is next, ask "The next paper is [Next Paper Title]. Should I proceed to summarize it? I will ensure the context of the previous paper is removed before starting." (If it's the last paper or the ONLY paper in the queue, announce completion and move to Step 3).
-- Repeat this sequential process for all papers in your target queue.
+### Step 2: Run Summarize CLI [WAIT FOR CONFIRMATION]
+- Run the summarize CLI. For the full queue:
 
-### Step 3: Build Cross-Index [WAIT FOR CONFIRMATION]
-- After all paper summaries in the target queue are complete, build the cross-reference index.
-- Run `vibe --root . relatedwork build-index` to scan all `relatedwork/papers/*.md` summaries and update `.agents/cross_index.json`.
-- For more accurate tech point extraction, spawn a `task` agent to analyze each paper summary and extract key technical concepts.
-- Generate a coverage report by comparing against `storyline.md`.
-- **ACTION**: Present the coverage report to the user, showing:
+  ```bash
+  vibe --root . relatedwork summarize
+  ```
+
+  For a single paper (when the user specified one in Step 1):
+
+  ```bash
+  vibe --root . relatedwork summarize --paper-id <paper_id>
+  ```
+
+  Add `--force` if the user wants to re-summarize already-summarized papers. Other useful flags: `--qps 16` (default), `--concurrency 8` (default; worker threads), `--model <name>` (override `VIBEPAPER_MODEL`).
+- The CLI:
+  1. Extracts PDF text with `pypdf`
+  2. Sends `storyline.md` + the template + the PDF text to the configured LLM
+  3. Writes `relatedwork/papers/<paper_id>.md`
+  4. Calls `register-summary` automatically (updates `literature.json`)
+- Do NOT spawn subagents. Do NOT use any `multimodal-looker` agent type. Do NOT read PDFs yourself. The CLI handles parallelism, rate limiting, and oversized-PDF failures internally.
+- After the CLI finishes, parse its stdout. For each `[ok]` line: open the new `relatedwork/papers/<paper_id>.md` and synthesize its key points (technical mechanism, methodology, empirical results, limitations) into `relatedwork/summary.md` under a `## <paper_id>: <Title>` heading. If a section for that `paper_id` already exists in `summary.md`, REPLACE it; otherwise APPEND it.
+- For each `[fail]` line, leave the paper alone. Surface the error to the user.
+- **ACTION**: Tell the user "Summarized X papers via the CLI (Y succeeded, Z failed). I have updated `relatedwork/summary.md` with the new sections." List any failures.
+- **STOP**: Ask "Should I proceed to build the cross-index and generate the coverage report?"
+
+### Step 3: Build Cross-Index & Coverage Report [WAIT FOR CONFIRMATION]
+- Run `vibe --root . relatedwork build-index`. The CLI scans `relatedwork/papers/*.md`, updates `.agents/cross_index.json`, and emits a coverage report (covered points, gaps, ratio) against `storyline.md`.
+- Do NOT spawn task agents to "improve" the index in this skill — the CLI is authoritative. (If LLM-augmented technical-point extraction is added later it will be exposed as a `--use-llm` flag on the same CLI.)
+- **ACTION**: Present the coverage report verbatim:
   - Covered technical points (with paper references)
   - Gap areas (technical points in storyline with no literature coverage)
   - Overall coverage ratio
-- **STOP**: Ask "Here is the literature coverage report. Would you like to search for more papers to fill the gaps?"
+- **STOP**: Ask "Here is the literature coverage report. Would you like to go back and search for more papers to fill the gaps (relatedwork-finder), or finalize summary.md (Step 4)?"
 
 ### Step 4: Finalize Summary Document
-- Review the incrementally built `relatedwork/summary.md` and perform any final formatting or categorization needed.
-- Respond with "I have summarized the targeted papers and finalized relatedwork/summary.md."
-- Keep `relatedwork/literature.json` as the canonical metadata artifact.
-- Remove `relatedwork/search_cache.json` after final completion if it exists.
+- Read `relatedwork/summary.md` end-to-end and reorganize entries into thematic groups if the user requested it (e.g., by method family, by problem setting). Otherwise leave the order unchanged.
+- Keep `relatedwork/literature.json` as the canonical metadata artifact. Do NOT delete it.
+- If `relatedwork/search_cache.json` is no longer needed, ask the user before removing it.
+- Respond with "I have finalized `relatedwork/summary.md`."

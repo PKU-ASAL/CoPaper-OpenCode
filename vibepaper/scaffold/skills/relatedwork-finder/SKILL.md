@@ -5,7 +5,7 @@ description: Find the related work papers in the relatedwork folder based on sto
 
 # Related Work Finder Skill
 
-This skill automatically finds related work papers, records canonical metadata through the `vibe` CLI, downloads PDFs through the `vibe` CLI, and generates serialized multimodal summaries based on the research storyline or paper content.
+This skill automatically finds related-work papers. Every substantive step (keyword extraction, Semantic Scholar search, BibTeX sync, PDF download) is delegated to a `vibe` CLI subcommand, so the skill never calls MCP search tools or spawns subagents. The skill's job is to orchestrate the CLI calls and interact with the user.
 
 ## When to Use This Skill
 
@@ -15,9 +15,10 @@ This skill automatically finds related work papers, records canonical metadata t
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Required if present | Step 1 (start) | Primary source for keyword extraction, research questions, methods, and challenges |
-| `paper.md` | Fallback | Step 1 (if `storyline.md` missing) | Alternative source for keyword extraction when `storyline.md` is absent |
-| `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) |
+| `storyline.md` | Required if present | Step 1 (input to CLI) | Primary source for keyword extraction by `vibe relatedwork keywords` |
+| `paper.md` | Fallback | Step 1 (auto-fallback) | Used by the CLI when `storyline.md` is missing |
+| `relatedwork/queries.txt` | Read/write | Steps 1-2 | One query per line; written by `vibe relatedwork keywords`, consumed by `vibe relatedwork search --queries-file` |
+| `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) — written by `vibe relatedwork search` |
 | `relatedwork/paper_list.bib` | Required | Step 3 | BibTeX entries for formalizing the reference list |
 | `relatedwork/literature.json` | Required | Steps 2-6 (after import) | Canonical metadata catalog; read after `vibe relatedwork import` to track download status and summary paths |
 | `.agents/skills/relatedwork-finder/template.md` | Required | Step 5 | Template for PDF summary generation; passed to subagent |
@@ -26,18 +27,17 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
 
 ## Search & Caching Strategy
 
-1. **Stateful Search**: To avoid redundant API calls and information drift, you MUST cache the metadata of all found papers during Step 2.
-2. **Cache File**: Create `relatedwork/search_cache.json` to store:
-   - `paper_id` (preferred BibTeX key; if unavailable, create a stable slug)
-   - `title`, `authors`, `year`, `venue/journal`
-   - `bibtex` (fetched from source during Step 2)
-   - `arxiv_id` (if applicable)
-   - `pdf_url` (direct link to PDF or landing page)
-   - `source_queries` (the Scholar/arXiv query strings that found the paper)
-3. **Canonical Catalog**: After updating `relatedwork/search_cache.json`, you MUST import it into `relatedwork/literature.json` via `vibe --root . relatedwork import --input relatedwork/search_cache.json`. `relatedwork/literature.json` is the canonical metadata store used by BibTeX sync, downloads, and summary tracking.
-4. **arXiv Search**: Use `websearch_web_search_exa` with `includeDomains: ["arxiv.org"]` to find recent preprints.
-5. **Google Scholar Search**: MUST use `serper_google_search_scholar` (Google Scholar API via Serper MCP) to find published papers and citations.
-6. **BibTeX Accuracy**: Fetch the paper's metadata from the source (e.g., arXiv abstract page or Google Scholar snippet) IMMEDIATELY during the search phase. Do NOT wait for user confirmation to fetch metadata.
+1. **Single Backend (Semantic Scholar)**: All searches go through the `vibe relatedwork search` CLI, which queries the Semantic Scholar Graph API. S2's index covers arXiv preprints, major CS/AI venues (CVPR, NeurIPS, ICML, ACL, etc.), and most journals. Do NOT call `serper_google_search_scholar`, `websearch_web_search_exa`, or any other external search tool from this skill — the CLI is the single source of truth.
+2. **Stateful Cache**: The CLI writes `relatedwork/search_cache.json` (envelope: `{"papers": [...]}`) with one entry per deduplicated paper, including:
+   - `paper_id` (extracted from S2's BibTeX key, or generated as `<author><year><titletoken>`)
+   - `title`, `authors`, `year`, `venue`
+   - `bibtex` (sanitized from S2 `citationStyles.bibtex`)
+   - `arxiv_id` (from S2 `externalIds.ArXiv`)
+   - `pdf_url` (from `openAccessPdf.url`, falling back to `https://arxiv.org/pdf/<arxiv_id>.pdf`)
+   - `source_queries` (which CLI `--query` arguments returned this paper)
+   - `tldr` (S2 model-generated one-sentence summary, when present — useful for filtering)
+3. **API Key (optional but recommended)**: Set `SEMANTIC_SCHOLAR_API_KEY` in the environment before running this skill to lift the shared anonymous rate limit (~100 req / 5 min) up to 1 req/sec. The CLI auto-detects the env var; without it the CLI still works but may hit 429s on busy days (it retries with exponential backoff up to 4 attempts).
+4. **Canonical Catalog**: After `relatedwork/search_cache.json` is reviewed and trimmed by the user, you MUST import it into `relatedwork/literature.json` via `vibe --root . relatedwork import --input relatedwork/search_cache.json`. `relatedwork/literature.json` is the canonical metadata store used by BibTeX sync, downloads, and summary tracking.
 
 ## PDF Download
 
@@ -56,27 +56,37 @@ After invoking any tool, run a terminal command to append a structured JSON log 
 
 You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
 
-### Step 1: Parse Input & Extract Keywords [WAIT FOR CONFIRMATION]
-- Read `storyline.md` (or `paper.md`).
-- Extract 5-10 research keywords and search queries.
-- **ACTION**: Present the extracted keywords and queries to the user.
-- **STOP**: Ask "These are the keywords and search queries I extracted. Do you want to modify or add any before I start the search?"
+### Step 1: Extract Keywords [WAIT FOR CONFIRMATION]
+- Run `vibe --root . relatedwork keywords --count 8` (adjust `--count` if the storyline is unusually broad/narrow). The CLI reads `storyline.md` (falling back to `paper.md`), calls the configured LLM via `VIBEPAPER_MODEL`, and writes the queries one-per-line to `relatedwork/queries.txt`.
+- Do NOT extract keywords yourself in this context. Do NOT call any MCP search tool. The CLI is the single source of truth.
+- After the CLI finishes, `cat relatedwork/queries.txt` and present the list to the user.
+- **STOP**: Ask "These are the queries the CLI extracted. Do you want to edit `relatedwork/queries.txt` (add/remove/replace lines) before I run the search?"
+- If the user edits the file, re-read it before Step 2.
 
 ### Step 2: Search & Cache Metadata [WAIT FOR CONFIRMATION]
-- Perform searches on arXiv and Google Scholar.
-- Google Scholar searches MUST use `serper_google_search_scholar`.
-- For EVERY promising result, fetch its BibTeX, ArXiv ID, and PDF URL.
-- **CRITICAL**: You MUST also search for and explicitly extract the publication venue or journal (e.g., CVPR, NeurIPS, IEEE T-RO, or arXiv preprint) for each paper during the search.
-- **ACTION**: Save all metadata (including `venue/journal`) to `relatedwork/search_cache.json`.
-- **ACTION**: Immediately run `vibe --root . relatedwork import --input relatedwork/search_cache.json` so the canonical catalog in `relatedwork/literature.json` stays synchronized with the search cache.
-- **ACTION**: Present a numbered list of found papers (with authors, years, and venue) to the user.
-- **STOP**: Ask "Here is the list of papers I found. Which ones should I keep? (Metadata is already cached for all entries)."
+- Run the search CLI consuming the queries file from Step 1:
+
+  ```bash
+  vibe --root . relatedwork search \
+      --queries-file relatedwork/queries.txt \
+      --limit 20 \
+      --year 2022-2026
+  ```
+
+  **默认过滤(可覆盖)**:`--fields-of-study "Computer Science"` 默认就生效。要关掉:`--fields-of-study ""`(空串禁用学科过滤)。
+
+  PDF 可用性不做默认筛选 —— 默认保留所有有元数据的论文(无 OA PDF 的依然进 cache)。需要只看可下载的:加 `--open-access`。
+
+  其他常用 flag:`--limit N`(每条 query,max 100)、`--year 2020-2024`、`--venue "CVPR,NeurIPS"`(限定 venue;`arXiv.org` 也算 venue)。`--query "..."` 仍接受作为 `--queries-file` 的替代。
+- The CLI writes `relatedwork/search_cache.json` with deduplicated metadata (BibTeX, arXiv ID, PDF URL, venue, TLDR) — you do NOT need to fetch BibTeX, venue, or PDF URLs separately. Do NOT hand-edit the cache to "enrich" it; rerun the CLI with refined queries instead.
+- **ACTION**: Read `relatedwork/search_cache.json` and present a numbered list of papers to the user. Show `title`, `authors[0]+et al.`, `year`, `venue`, and `tldr` (if present) for each entry.
+- **STOP**: Ask "Here is the list of papers the CLI found. Which ones should I keep? (Metadata is already cached for all entries.)"
 
 ### Step 3: Formalize BibTeX List [WAIT FOR CONFIRMATION]
-- Read `relatedwork/search_cache.json` and `relatedwork/paper_list.bib`.
-- Filter entries based on user selection from Step 2 and rewrite `relatedwork/search_cache.json` if the keep-list changed.
-- If `paper_list.bib` contains papers missing from `relatedwork/literature.json`, you MUST use `serper_google_search_scholar` to enrich them into JSON metadata and then run `vibe --root . relatedwork import --input <that-json>`.
-- Run `vibe --root . relatedwork sync-bib` to write missing metadata-backed entries into `relatedwork/paper_list.bib` and to import any remaining bib-only entries into `relatedwork/literature.json`.
+- If the user dropped any entries, rewrite `relatedwork/search_cache.json` keeping only the selected papers (preserve the `{"papers": [...]}` envelope).
+- Run `vibe --root . relatedwork import --input relatedwork/search_cache.json` to merge the kept entries into `relatedwork/literature.json`.
+- If `paper_list.bib` already contains papers missing from `relatedwork/literature.json`, you MAY rerun `vibe --root . relatedwork search --query "<title>"` to enrich them, then re-import.
+- Run `vibe --root . relatedwork sync-bib` to write metadata-backed entries into `relatedwork/paper_list.bib` and to import any remaining bib-only entries into `relatedwork/literature.json`.
 - **ACTION**: Show the final BibTeX entries to the user.
 - **STOP**: Ask "I have formalized the BibTeX entries in paper_list.bib. Should I proceed to download PDFs and write summaries?"
 
