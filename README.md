@@ -296,27 +296,110 @@ vibe report --output report.md
 
 #### `vibe relatedwork` — 管理论文元数据、BibTeX 与 PDF
 
+literature 阶段的所有步骤都封装成 `vibe relatedwork *` 子命令。检索走 Semantic Scholar Graph API；关键词抽取与单篇摘要走任意 OpenAI 兼容的 LLM 端点（默认从 `.env` 读取配置）。
+
+##### 必需环境变量（写到项目根的 `.env`，启动时自动加载）
+
 ```bash
-# 查看元数据总表状态
-vibe relatedwork status
-vibe relatedwork status --json
+# Semantic Scholar
+S2_API_KEY="..."                          # 推荐配置；不配也能跑（共享匿名池易 429）
+S2_API_BASE="..."                         # 可选：走中转代理时填，未填走官方 https://api.semanticscholar.org/graph/v1
 
-# 将 serper/arXiv 搜索结果导入 canonical catalog
-vibe relatedwork import --input relatedwork/search_cache.json
-
-# 同步 literature.json 与 paper_list.bib
-vibe relatedwork sync-bib
-
-# 下载全部待下载 PDF，或重试失败项
-vibe relatedwork download
-vibe relatedwork download --retry-failed
-
-# 注册单篇论文摘要并重建交叉索引
-vibe relatedwork register-summary --paper-id song2025ceed --summary-path relatedwork/papers/song2025ceed.md
-vibe relatedwork build-index
+# LLM（keywords + summarize 需要）
+OPENAI_API_KEY="..."                      # 必填
+VIBEPAPER_MODEL="gpt-4o-mini"             # 必填，建议先用便宜模型 smoke
+OPENAI_BASE_URL="https://proxy/v1"        # 可选：走中转代理时填
 ```
 
-`relatedwork/literature.json` 是 canonical metadata catalog。它记录：论文题目、作者、发表 venue/journal、arXiv ID、BibTeX、PDF 下载链接、下载状态、PDF 路径、摘要路径等。`.agents/state.json` 只保留 literature phase 的聚合计数，如 `papers_found`、`papers_downloaded`、`download_failures`、`summaries_done`。
+> `.env` 已加入 `.gitignore`；密钥不会被提交。
+
+##### 端到端 7 步流水线
+
+```bash
+# Step 1 · LLM 从 storyline.md 抽 query → relatedwork/queries.txt
+vibe relatedwork keywords --count 6
+
+# Step 2 · Semantic Scholar 检索 → relatedwork/search_cache.json
+vibe relatedwork search --queries-file relatedwork/queries.txt --limit 5
+
+# Step 3 · 灌进 canonical catalog → relatedwork/literature.json
+vibe relatedwork import --input relatedwork/search_cache.json
+
+# Step 4 · 同步 BibTeX → relatedwork/paper_list.bib
+vibe relatedwork sync-bib
+
+# Step 5 · 下载 OA PDF → relatedwork/pdfs/<paper_id>.pdf
+vibe relatedwork download
+
+# Step 6 · LLM 单篇 summary → relatedwork/papers/<paper_id>.md
+vibe relatedwork summarize --concurrency 4
+
+# Step 7 · 交叉索引 + 覆盖报告 → .agents/cross_index.json
+vibe relatedwork build-index
+
+# 任意时刻看状态
+vibe relatedwork status
+```
+
+##### 每个子命令的常用 flag
+
+```bash
+# keywords —— 从 storyline.md / paper.md 抽搜索短语
+vibe relatedwork keywords --count 8 --model gpt-4o-mini --out relatedwork/queries.txt
+
+# search —— S2 检索 + BibTeX/arXiv/PDF URL/TLDR 自动归一化
+# 默认过滤(可覆盖):--fields-of-study "Computer Science" 默认开启,--open-access 默认关闭
+vibe relatedwork search --queries-file relatedwork/queries.txt \
+    --limit 20 --year 2022-2026 \
+    --venue "CVPR,NeurIPS"
+
+# 只要有 OA PDF 的论文(便于后续 download)
+vibe relatedwork search --queries-file relatedwork/queries.txt --open-access
+
+# 跨学科搜索(关掉默认的 CS 限定)
+vibe relatedwork search --queries-file relatedwork/queries.txt --fields-of-study ""
+
+# 也可不写 queries-file,直接传 query
+vibe relatedwork search --query "streaming vla" --query "robot policy"
+
+# import / sync-bib —— 元数据双向同步
+vibe relatedwork import --input relatedwork/search_cache.json
+vibe relatedwork sync-bib
+
+# download —— urllib + 3 次重试 + %PDF 头校验
+vibe relatedwork download
+vibe relatedwork download --retry-failed
+vibe relatedwork download --paper-id song2025ceed
+
+# summarize —— pypdf 抽文本 + LLM,内部 ThreadPool + 16 QPS token bucket
+vibe relatedwork summarize                       # 全部 downloaded 且无 summary 的
+vibe relatedwork summarize --paper-id <id>       # 只一篇
+vibe relatedwork summarize --force               # 重新做已有 summary
+vibe relatedwork summarize --concurrency 8 --qps 16 --max-pdf-bytes 52428800
+
+# build-index —— 解析 papers/*.md 生成交叉索引 + 覆盖报告
+vibe relatedwork build-index
+
+# register-summary —— 手动登记一篇外部生成的 summary(summarize CLI 已自动调,通常不需要手动)
+vibe relatedwork register-summary --paper-id <id> --summary-path relatedwork/papers/<id>.md
+
+# status —— 总表
+vibe relatedwork status
+vibe relatedwork status --json
+```
+
+##### 关键产物
+
+| 文件 | 写入者 | 内容 |
+|---|---|---|
+| `relatedwork/queries.txt` | `keywords` | 一行一条搜索短语;可手动编辑后再喂 search |
+| `relatedwork/search_cache.json` | `search` | S2 去重 + 归一化后的 paper 列表 |
+| `relatedwork/literature.json` | `import` / `download` / `summarize` 等 | **canonical metadata catalog**(题目、作者、venue、arXiv ID、BibTeX、PDF 路径、summary 路径、状态) |
+| `relatedwork/paper_list.bib` | `sync-bib` | 与 catalog 双向同步的 BibTeX |
+| `relatedwork/pdfs/<paper_id>.pdf` | `download` | OA PDF 原件 |
+| `relatedwork/papers/<paper_id>.md` | `summarize` | 单篇 markdown 总结(按 `.agents/skills/relatedwork-finder/template.md` 模板) |
+| `.agents/cross_index.json` | `build-index` | storyline 技术点 ↔ 论文 反向索引 + 覆盖率 |
+| `.agents/state.json` literature phase | 上述所有命令自动同步 | 聚合计数(`papers_found` / `papers_downloaded` / `download_failures` / `summaries_done` / `cross_index_built`) |
 
 #### `vibe diff` — 阶段间差异对比
 
@@ -483,9 +566,11 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 
 **触发**：`"find related work"`
 
-- 根据 `storyline.md` 生成关键词，调用 Serper MCP 检索相关文献
-- 下载 PDF 并启动独立的多模态上下文窗口逐篇阅读
-- 生成结构化摘要到 `relatedwork/papers/`，构建交叉索引
+- 编排 `vibe relatedwork keywords / search / import / sync-bib / download` 7 步流水线
+- 关键词抽取与 Semantic Scholar 检索都委派给 `vibe` CLI,**不再调用任何 MCP 搜索工具**
+- 与 `relatedwork-summarizer` 配合完成 PDF 下载 → 单篇 summary → 交叉索引
+
+详见 `vibe relatedwork` 章节。
 
 ### socratic-discussion — 苏格拉底式讨论
 
@@ -716,9 +801,15 @@ vibe init --name "My Research" --domain "software engineering"
 #    在 OpenCode 中触发："help me write storyline"
 #    或手动编辑 storyline.md
 
-# 4. 检索文献
-#    在 OpenCode 中触发："find related work"
-#    检查 relatedwork/papers/ 目录
+# 4. 检索文献(纯 CLI 流水线,需先在 .env 中配 OPENAI_API_KEY / VIBEPAPER_MODEL / S2_API_KEY)
+vibe relatedwork keywords --count 6
+vibe relatedwork search --queries-file relatedwork/queries.txt --limit 5
+vibe relatedwork import --input relatedwork/search_cache.json
+vibe relatedwork sync-bib
+vibe relatedwork download
+vibe relatedwork summarize --concurrency 4
+vibe relatedwork build-index
+#    也可以在 OpenCode 中触发 "find related work" 让 skill 编排上述命令
 
 # 5. 苏格拉底式讨论
 #    在 OpenCode 中触发："discuss my research"
