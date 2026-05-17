@@ -53,9 +53,11 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 | `paper.md` | **Required** | Phase 1 (initialization) and every rewrite iteration | Current paper content; scan for empty sections, assess state, write content |
 | `storyline.md` | Conditional | Phase 1 (if exists) | Research narrative for grounding content |
 | `relatedwork/summary.md` | Conditional | Phase 0-1 (if literature exists) | Context from related work for citations |
-| `.agents/state.json` | Tool gap / optional fallback | Phase 3 (checker loop) and Phase 6 (progress tracking) | Read existing checker or experiment context only when needed; the OpenCode plugin does not expose arbitrary checker/progress metadata writes |
+| Checker status | Conditional | Phase 3 (checker loop) | Use `vibepaper_checker_status` for read-only checker run status, severity counts, stale signals, and precheck evidence |
+| `.agents/state.json` | Tool gap / optional fallback | Phase 6 (progress tracking) | Read experiment context only when needed; the OpenCode plugin does not expose arbitrary progress metadata writes |
 
 When writing content, refer to the Paper Structure Reference above instead of reading `writingrules.md`.
+For checker status summaries, call `vibepaper_checker_status`; do not read `.agents/state.json` directly just to infer checker run status when the plugin tool is available.
 For phase-level workflow updates, use `vibepaper_workflow_set_phase` after restating the intended phase/status and waiting for explicit confirmation. The tool writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text. Do not hand-edit `.agents/state.json` for checker results, progress counters, or experiment metadata in plugin-based workflows.
 
 ## Work Loop
@@ -249,6 +251,8 @@ Aggregate feedback from all 7 checkers by severity:
 - **Major issues**: Should address
 - **Minor issues**: Good to address
 - **Data issues**: Check if `⚠️ [BOGUS]` markers need replacement
+
+After running the checker loop, call `vibepaper_checker_status` to inspect checker run status, severity counts, stale signals, and precheck evidence. Use the actual checker outputs for issue details; the status tool is a read-only summary and freshness check, not an issue-detail store.
 
 **Step 3.3: Filter Fixable Issues**
 

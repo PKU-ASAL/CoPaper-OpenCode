@@ -505,6 +505,78 @@ export interface PptExtractResult {
   errors: ImportExtractError[]
 }
 
+export type CheckerRunStatus = "not_run" | "clean" | "issues_found" | "stale" | "unknown"
+export type CheckerStatusErrorCode = "root-detection-failed" | "missing-state" | "invalid-state" | "missing-precheck-report" | "invalid-precheck-report" | "unsafe-path" | "read-failed"
+
+export interface CheckerStatusOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+}
+
+export interface CheckerStatusError {
+  code: CheckerStatusErrorCode
+  message: string
+  path?: string
+}
+
+export interface CheckerStatusRow {
+  id: string
+  status: CheckerRunStatus
+  updatedAt: string | null
+  stale: boolean
+  critical: number
+  major: number
+  minor: number
+  total: number
+  source: string | null
+  summary: string | null
+  warnings: string[]
+}
+
+export interface CheckerStatusPrecheckReport {
+  present: boolean
+  path: string
+  updatedAt: string | null
+  stale: boolean
+  critical: number
+  major: number
+  minor: number
+  warnings: string[]
+}
+
+export interface CheckerStatusSummary {
+  total: number
+  run: number
+  missing: number
+  stale: number
+  clean: number
+  issuesFound: number
+  unknown: number
+  critical: number
+  major: number
+  minor: number
+  precheckPresent: boolean
+}
+
+export interface CheckerStatusResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  statePath: string | null
+  paperUpdatedAt: string | null
+  checkers: CheckerStatusRow[]
+  summary: CheckerStatusSummary
+  precheckReport: CheckerStatusPrecheckReport
+  warnings: string[]
+  errors: CheckerStatusError[]
+}
+
 export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"
 
 export interface WorkflowError {

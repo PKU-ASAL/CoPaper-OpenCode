@@ -312,6 +312,7 @@ describe("OpenCode plugin", () => {
     expect(hooks.tool.vibepaper_storyline_structure_status).toBeDefined()
     expect(hooks.tool.vibepaper_pdf_extract).toBeDefined()
     expect(hooks.tool.vibepaper_ppt_extract).toBeDefined()
+    expect(hooks.tool.vibepaper_checker_status).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
@@ -441,6 +442,35 @@ describe("OpenCode plugin", () => {
       expect(pptOutput).toContain(runtimeProject.root)
       expect(existsSync(capturedProject.path("draft.pdf"))).toBe(false)
       expect(existsSync(capturedProject.path("slides.pptx"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("checker status tool reads from runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("paper.md", "# Runtime Paper\n###### Draft\nRuntime content.\n")
+      runtimeProject.write(".agents/state.json", `${JSON.stringify({
+        phases: {},
+        event_log_path: ".agents/events.jsonl",
+        checkers: {
+          "problem-checker": {
+            updated_at: "2026-05-01T10:00:00.000Z",
+            counts: { critical: 1, major: 0, minor: 0 },
+          },
+        },
+      }, null, 2)}\n`)
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_checker_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("problem-checker")
+      expect(output).toContain("critical")
+      expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()

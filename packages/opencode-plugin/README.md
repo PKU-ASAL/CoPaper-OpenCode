@@ -101,6 +101,10 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 <!-- description: Read-only import extraction tools -->
 `vibepaper_pdf_extract` 和 `vibepaper_ppt_extract` 只读取用户明确提供的项目内路径，不会自动扫描目录或猜测候选文件。PDF 工具提取文本、页数、source hash 和置信度；PPTX 工具提取 slide text、标题、可选 notes、source hash。二者都不写文件、不推进 phase、不记录 artifact readiness。
 
+###### checker 只读状态
+<!-- description: Read-only checker status tool -->
+`vibepaper_checker_status` 只读取 `.agents/state.json` 的 `checkers` 区域、`.agents/precheck_report.md` 和 `paper.md` 更新时间，汇总 7 个 checker 的运行状态、Critical/Major/Minor 计数、stale 信号和预检报告证据。该工具不运行 checker、不写状态、不推进 phase、不记录 artifact readiness。
+
 ## 初始化项目
 
 ###### 显式确认写入

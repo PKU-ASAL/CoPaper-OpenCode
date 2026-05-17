@@ -18,9 +18,9 @@ This skill provides comprehensive review of markdown content for computer scienc
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand paper content for all 7 checkers |
-| `.agents/state.json` | Tool gap | After each checker completes | Checker-result persistence is not currently exposed by the OpenCode plugin; do not edit state directly in plugin-based workflows |
+| Checker status | Optional | Step 1 and after checker execution | Use `vibepaper_checker_status` for read-only existing checker status, severity counts, stale signals, and precheck evidence |
 
-Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If checker-result persistence is needed, state that the current OpenCode plugin does not expose a dedicated checker-record tool; do not hand-edit `.agents/state.json`.
+Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If existing checker status is needed, call `vibepaper_checker_status` instead of reading `.agents/state.json` or `.agents/precheck_report.md` directly. If checker-result persistence is needed, state that the current OpenCode plugin does not expose a dedicated checker-record tool; do not hand-edit `.agents/state.json`.
 
 ## Review Workflow
 
@@ -54,7 +54,8 @@ This skill runs **seven specialized checkers** in sequence, each focusing on a d
 
 First, read the essential files:
 1. Read `paper.md` to understand the paper content
-2. Do NOT read additional context files directly here. Related-work context, cross-index context, and structure rules are handled indirectly by the individual checker sub-skills.
+2. Call `vibepaper_checker_status` to see whether prior checker results or precheck evidence exist and whether they are stale.
+3. Do NOT read additional context files directly here. Related-work context, cross-index context, and structure rules are handled indirectly by the individual checker sub-skills.
 
 ### Step 2: Run Problem Checker
 
@@ -385,7 +386,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 4. **AI-generated comments**: All comments are AI analysis, clearly marked to distinguish from human reviewer feedback
 5. **Reproducible review**: Run this skill multiple times as you fix issues to track progress
 6. **Author responsibility**: Authors should review all AI suggestions critically before implementing
-7. **Plugin tool boundary**: The current OpenCode plugin exposes workflow, artifact, dashboard, initialization, and log-query tools, but not checker-result persistence. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response unless a dedicated checker-record tool becomes available.
+7. **Plugin tool boundary**: Use `vibepaper_checker_status` for read-only checker status, severity counts, stale signals, and precheck evidence. The current OpenCode plugin still does not expose checker-result persistence. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response unless a dedicated checker-record tool becomes available.
 
 ## Usage Examples
 

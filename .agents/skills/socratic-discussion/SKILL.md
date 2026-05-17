@@ -58,7 +58,7 @@ Do not reorder the sequence unless the user explicitly asks to jump.
 |------|----------|-------------|---------|
 | `storyline.md` | **Required** | Step 1 (start) | Research narrative, insight, method outline |
 | `paper.md` | **Required** | Step 1 (start) | Current paper state and claim wording |
-| `.agents/state.json` | Optional | Step 2 (if checker-driven discussion) | Checker results only; use `vibepaper_workflow_status` for read-only workflow phase status, current phase, and next-step recommendation |
+| Checker status | Optional | Step 2 (if checker-driven discussion) | Use `vibepaper_checker_status` for read-only checker family status, severity counts, stale signals, and precheck evidence |
 | `relatedwork/papers/*.md` | Optional | Step 1 (as needed) | Prior-work summaries for contrast questions |
 | `.agents/cross_index.json` | Optional | Step 1 (as needed) | Paper-technique mappings for targeted questioning |
 | `.agents/discussion_log.json` | Optional | Step 3 (to find covered dimensions) | Prior discussion history |
@@ -77,10 +77,10 @@ Goal: understand the user's problem, insight, method, and evidence situation bef
 
 ### Step 2: Integrate Checker Results
 1. Call `vibepaper_workflow_status` if workflow phase status, current phase, phase table, or next-step recommendation is needed.
-2. Read `.agents/state.json` only for checker results because the current plugin does not expose checker issue details.
-3. Detect which of the 7 checker families have run.
-4. Extract unresolved issues, issue IDs, checker names, and descriptions.
-5. Map unresolved issues to dimensions using `checker_name` and issue meaning.
+2. Call `vibepaper_checker_status` to detect which of the 7 checker families have run, whether results are stale, and the Critical/Major/Minor counts.
+3. Use the tool output to prioritize checker families with stale or non-clean statuses.
+4. If detailed issue text is needed and is not present in the current conversation, ask the user to run or provide `markdown-review`; do not read `.agents/state.json` directly just to infer checker status.
+5. Map available unresolved issues to dimensions using `checker_name` and issue meaning.
 6. Mark those dimensions as priority dimensions.
 If checker results exist, explicitly tell the user that checker-flagged dimensions will be prioritized first.
 

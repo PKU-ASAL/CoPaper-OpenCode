@@ -3,6 +3,7 @@ import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-con
 import { setLatestVibePaperAgentRuntimeState } from "./agent-diagnostics"
 import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
+import { buildCheckerStatus, renderCheckerStatusOutput } from "./checker-status"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { buildPaperStructureStatus, renderPaperStructureStatusOutput } from "./paper-structure"
 import { buildPdfExtract, renderPdfExtractOutput } from "./pdf-extract"
@@ -103,6 +104,14 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(args, context) {
           const result = await buildPptExtract({ cwd: context.directory, worktree: context.worktree, path: args.path, includeNotes: args.includeNotes, maxBytes: args.maxBytes })
           return renderPptExtractOutput(result)
+        },
+      }),
+      vibepaper_checker_status: tool({
+        description: "Show read-only checker result status, severity counts, stale signals, and precheck report evidence. Does not run checkers or modify files.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildCheckerStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderCheckerStatusOutput(result)
         },
       }),
       vibepaper_artifact_record: tool({

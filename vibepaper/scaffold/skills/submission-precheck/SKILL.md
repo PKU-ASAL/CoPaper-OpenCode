@@ -23,7 +23,8 @@ This skill performs a comprehensive pre-submission check on `paper.md` before su
 | `writingrules.md` | **Required** | Step 1 (start) | Format constraints and structural rules; needed for Check 1 (Format) and Check 5 (Completeness) |
 | `relatedwork/paper_list.bib` | Conditional | Step 2 (Citation Check) | BibTeX references; needed for Check 2 (Citations) |
 | `fig/` | Conditional | Step 2 (Figure/Table Check) | Figure assets directory; needed for Check 3 (Figures/Tables) |
-| `.agents/state.json` | Conditional | Step 1 (start) | Project state including `latex_template` config; needed for Check 4 (Word Count) |
+| Checker status | Conditional | Step 4 and Step 6 | Use `vibepaper_checker_status` for read-only checker summary, stale signals, and precheck evidence |
+| `.agents/state.json` | Conditional | Step 1 (start) | Project state for fields not exposed by plugin tools, such as `latex_template` config for Check 4 |
 | `.agents/cross_index.json` | Conditional | Step 1 (start) | Cross-reference index; used for completeness verification |
 
 If some files do not exist (e.g., `paper_list.bib`, `.agents/cross_index.json`), note their absence and continue with available context. Do not block the workflow for missing optional files.
@@ -200,6 +201,7 @@ Invoke the `markdown-review` skill. Collect the comprehensive review report and 
 - Number of Major issues
 - Number of Minor issues
 - Overall assessment
+Then call `vibepaper_checker_status` to read any persisted checker summary, stale signal, and precheck evidence. Use this tool for status/freshness; do not read `.agents/state.json` directly just to infer checker status.
 
 ### Step 5: Generate Precheck Report
 
@@ -208,6 +210,7 @@ Compile all findings into `.agents/precheck_report.md` following the output form
 ### Step 6: Present Summary to User
 
 Display a concise summary of the precheck results. Highlight any FAIL items that block submission. Provide actionable recommendations.
+Call `vibepaper_checker_status` before presenting the final summary if you need to mention checker freshness or compare the precheck report against `paper.md`.
 
 ## Output Format
 
@@ -370,6 +373,7 @@ Based on the 7 checks above:
 - **NEVER** modify `paper.md`, `writingrules.md`, `paper_list.bib`, or any other source file
 - **NEVER** skip any of the 7 checks — all checks must be performed regardless of earlier results
 - **NEVER** fabricate checker results — always invoke the actual `data-checker` and `markdown-review` skills for Checks 6 and 7
+- **NEVER** read `.agents/state.json` directly just to summarize checker run status when `vibepaper_checker_status` is available
 - **NEVER** delete or overwrite an existing `.agents/precheck_report.md` without preserving its content — append a timestamp or version if needed
 
 ## Important Notes

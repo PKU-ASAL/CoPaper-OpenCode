@@ -34,7 +34,8 @@ This skill is an orchestrator, not a direct replacement for drafting or revision
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (structure status) | Primary target; inspect through `vibepaper_paper_structure_status` for Level 2-5 completion and Level 5 writing targets |
 | `storyline.md` | Conditional | When recommending writing order | Research narrative for dependency-aware section ordering |
-| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Workflow phase status via `vibepaper_workflow_set_phase`; checker/writing metadata only if a dedicated tool exists |
+| Checker status | Conditional | Step 6 and Step 7 | Use `vibepaper_checker_status` for read-only checker run status, stale signals, and severity counts |
+| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Workflow phase status via `vibepaper_workflow_set_phase`; arbitrary writing metadata only if a dedicated tool exists |
 | `.agents/cross_index.json` | Conditional | When routing to markdown-helper or mad-writer | Paper-technique mappings; pass to downstream skills for literature context |
 | `relatedwork/papers/*.md` | Conditional | When routing to markdown-helper or mad-writer | Individual literature summaries; pass to downstream skills, not read directly by orchestrator |
 | `fig/` | Conditional | When routing to markdown-helper or mad-writer | Available figures; pass to downstream skills for visual references |
@@ -172,22 +173,24 @@ Never skip this review stage.
 ### Step 6: Show seven-checker results and suggest revision path
 
 After review:
-1. show a compact seven-checker summary
-2. separate Critical, Major, and Minor issues
-3. explain which issues matter most for the finished section
-4. ask whether modifications are needed
-5. if yes, suggest `review-revise`
+1. call `vibepaper_checker_status` to read the current checker status, severity counts, stale signals, and precheck evidence
+2. show a compact seven-checker summary from the review output plus the tool status
+3. separate Critical, Major, and Minor issues
+4. explain which issues matter most for the finished section
+5. ask whether modifications are needed
+6. if yes, suggest `review-revise`
 
 Do not fabricate checker results.
-Use real review output or persisted state.
+Use real review output or `vibepaper_checker_status`; do not read `.agents/state.json` directly just to infer checker status when the plugin tool is available.
 
 ### Step 7: Run a final full review after all sections are complete
 
 When the scan shows no incomplete writing targets remain:
 1. announce that the framework is fully populated
 2. run one final full `markdown-review`
-3. present the final seven-checker summary
-4. suggest `review-revise` if unresolved issues remain
+3. call `vibepaper_checker_status` to verify status freshness and severity counts
+4. present the final seven-checker summary
+5. suggest `review-revise` if unresolved issues remain
 
 This final pass checks whole-paper consistency instead of only local section quality.
 

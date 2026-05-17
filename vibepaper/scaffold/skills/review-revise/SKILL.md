@@ -3,7 +3,7 @@ name: review-revise
 description: Conducts multi-round Review-Revise cycles based on 7-checker output to systematically improve paper quality. Each issue requires user confirmation before modification. Use this skill when the user wants to review and revise their paper.
 ---
 # Review-Revise Skill
-This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, checker issue persistence is a current tool gap: the OpenCode plugin does not expose a dedicated checker-result or issue-resolution tool.
+This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, read-only checker status is available through `vibepaper_checker_status`, but checker issue persistence and issue-resolution writes are still current tool gaps.
 It is the repair layer after diagnosis: the seven checkers identify issues, then this skill helps the user process them in a severity-first order, propose fixes one issue at a time, and apply changes only after explicit confirmation.
 Its purpose is not to auto-rewrite the paper.
 Its purpose is to convert checker output into careful, auditable, multi-round improvement while keeping the user in control of every modification.
@@ -40,7 +40,7 @@ Never process Minor issues ahead of unresolved Critical or Major issues unless t
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand current paper content |
-| `.agents/state.json` | Optional fallback | Step 1 (start) | Read only when existing checker results are already stored there; do not write checker state directly because the OpenCode plugin has no checker-record tool |
+| Checker status | Optional | Step 1 (start) | Call `vibepaper_checker_status` to inspect existing checker runs, severity counts, stale signals, and precheck evidence |
 | `storyline.md` | Optional | Step 5b (when revising narrative/claim alignment) | Research narrative for grounding revisions |
 | `.agents/cross_index.json` | Optional but preferred | Step 5b (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current issue |
 | `relatedwork/papers/*.md` | Optional | Step 5b (only the summaries identified through cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` or when the issue clearly depends on prior work |
@@ -50,9 +50,9 @@ If some files do not exist yet, continue with the available context instead of b
 ## Workflow
 ### Step 1: Read Paper and Checker State
 1. Read `paper.md`.
-2. If checker results were already persisted, read `.agents/state.json` as a fallback source.
-3. Locate the `checkers` field if present.
-4. Extract checker name, issue ID, severity, description, suggestion, status, and any checker-generated HTML comment text.
+2. Call `vibepaper_checker_status` to determine whether previous checker results exist and whether they are stale.
+3. Use the current `markdown-review` output as the authoritative source for issue details. The status tool gives summary and freshness, not full issue text.
+4. Extract checker name, issue ID, severity, description, suggestion, status, and any checker-generated HTML comment text from the fresh review output when available.
 5. Build a working list of unresolved issues.
 Goal: understand what the paper says now and what the seven checkers still consider problematic.
 If checker results are not available, do not fabricate them and do not create state entries manually.
@@ -62,7 +62,8 @@ If checker results do not exist yet, or the `checkers` field is missing or empty
 1. Invoke the `markdown-review` skill first.
 2. Run all seven checkers in the standard order.
 3. Use the returned checker report as the working issue queue.
-4. If a dedicated checker-record plugin tool becomes available, use it; otherwise tell the user that checker persistence is not supported by the current plugin.
+4. Call `vibepaper_checker_status` after the review to inspect status/freshness if checker summaries or precheck evidence were produced.
+5. If a dedicated checker-record plugin tool becomes available, use it; otherwise tell the user that checker persistence is not supported by the current plugin.
 Do not invent checker findings.
 This skill must be driven by actual checker output from state or from the immediately returned review report.
 
@@ -208,8 +209,10 @@ Required interaction pattern:
 This skill depends on actual checker output, either from a fresh `markdown-review` run or from already persisted checker data.
 Current OpenCode plugin tool coverage:
 - Supported: `vibepaper_workflow_status`, `vibepaper_workflow_log`, `vibepaper_workflow_set_phase`, `vibepaper_artifact_status`, `vibepaper_artifact_record`
-- Not supported: checker `record_run()`, `get_unresolved_issues()`, `mark_issue_resolved()`, review-revise history persistence
+- Supported for read-only checker summaries: `vibepaper_checker_status`
+- Not supported: checker `record_run()`, full `get_unresolved_issues()` with issue text, `mark_issue_resolved()`, review-revise history persistence
 When an unsupported operation is needed, state the tool gap instead of editing `.agents/state.json` manually.
+Use `vibepaper_checker_status` for read-only checker run status, severity counts, stale signals, and precheck evidence; do not read `.agents/state.json` directly just to infer checker status when the plugin tool is available.
 Use `vibepaper_artifact_status` for read-only artifact readiness, evidence, confidence, and recommendation; do not infer readiness manually when the plugin tool is available.
 Use `vibepaper_workflow_log` for read-only workflow event history queries; do not read `.agents/events.jsonl` directly when the plugin tool is available.
 If the user asks to record artifact readiness, route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_artifact_record`; do not directly edit artifact state or use prompt-only readiness text.

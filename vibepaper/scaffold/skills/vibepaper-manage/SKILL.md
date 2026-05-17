@@ -19,6 +19,7 @@ Use this skill when the user asks to:
 - mark a phase as `not_started`, `in_progress`, `complete`, or `skipped`
 - check artifact readiness
 - record artifact readiness after confirmation
+- check checker status, severity counts, stale signals, and precheck evidence
 - understand what to do next in the VibePaper workflow
 
 Typical triggers:
@@ -39,6 +40,7 @@ Typical triggers:
 | `paper.md` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
 | `relatedwork/` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
 | `.agents/cross_index.json` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
+| Checker status | Optional | Checker inspection | Access through `vibepaper_checker_status`; do not inspect `.agents/state.json` directly just to infer checker status |
 
 ## OpenCode Plugin Tools
 
@@ -53,6 +55,7 @@ Prefer these plugin tools whenever they are available:
 | Read workflow phase status and next step | `vibepaper_workflow_status` |
 | Read recent workflow events | `vibepaper_workflow_log` |
 | Update a workflow phase after confirmation | `vibepaper_workflow_set_phase` |
+| Read checker run status and stale signals | `vibepaper_checker_status` |
 
 Do not hand-edit:
 
@@ -72,7 +75,7 @@ The current OpenCode plugin does not yet expose tools for:
 - `relatedwork build-index`
 - `report`
 - Git-backed `commit`, `rollback`, or `diff`
-- arbitrary checker-result persistence
+- arbitrary checker-result persistence or issue-resolution writes
 - arbitrary metadata updates inside `.agents/state.json`
 
 When a requested action needs one of those missing capabilities, state that no plugin tool currently exists for it. Use a terminal command only if the user explicitly asks for a CLI fallback.
@@ -108,6 +111,8 @@ Supported filters:
 Use `vibepaper_artifact_status` for read-only inspection of artifact readiness, evidence, confidence, and recommendation. Do not manually infer readiness from files or `.agents/state.json` when this plugin tool is available.
 
 It inspects artifacts such as `storyline.md`, `paper.md`, `relatedwork/`, `.agents/skills/`, `.agents/cross_index.json`, and checker results.
+
+Use `vibepaper_checker_status` for read-only inspection of checker run status, Critical/Major/Minor counts, stale signals, and `.agents/precheck_report.md` evidence. This tool does not run checkers, write checker results, mark issues resolved, update workflow phases, or record artifact readiness.
 
 ## Phase Control
 
@@ -201,6 +206,7 @@ Use only plugin-supported record values:
 - **NEVER** update phases without explicit user confirmation.
 - **NEVER** use shell `vibe` commands when an equivalent plugin tool exists.
 - **NEVER** claim unsupported plugin capabilities exist.
+- **NEVER** read `.agents/state.json` directly just to infer checker status when `vibepaper_checker_status` is available.
 
 ## End Condition
 
