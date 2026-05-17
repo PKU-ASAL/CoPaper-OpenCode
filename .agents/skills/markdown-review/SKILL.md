@@ -20,7 +20,7 @@ This skill provides comprehensive review of markdown content for computer scienc
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand paper content for all 7 checkers |
 | Checker status | Optional | Step 1 and after checker execution | Use `vibepaper_checker_status` for read-only existing checker status, severity counts, stale signals, and precheck evidence |
 
-Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If existing checker status is needed, call `vibepaper_checker_status` instead of reading `.agents/state.json` or `.agents/precheck_report.md` directly. If checker-result persistence is needed, state that the current OpenCode plugin does not expose a dedicated checker-record tool; do not hand-edit `.agents/state.json`.
+Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If existing checker status is needed, call `vibepaper_checker_status` instead of reading `.agents/state.json` or `.agents/precheck_report.md` directly. If the user wants durable checker summaries, restate the checker, status, Critical/Major/Minor counts, summary, evidence, and reason, wait for confirmation, then route the record action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
 
 ## Review Workflow
 
@@ -144,6 +144,8 @@ First, read the essential files:
 ### Step 9: Generate Comprehensive Report
 
 After all checkers complete, generate a summary report aggregating all findings.
+
+If the user asks to persist checker results, do not edit `.agents/state.json` manually. For each confirmed checker summary, route to `@vibepaper-recorder` and call `vibepaper_checker_record` with actual checker output. This records run-level summary only; it does not mark individual issues resolved.
 
 ## Output Format
 
@@ -386,7 +388,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 4. **AI-generated comments**: All comments are AI analysis, clearly marked to distinguish from human reviewer feedback
 5. **Reproducible review**: Run this skill multiple times as you fix issues to track progress
 6. **Author responsibility**: Authors should review all AI suggestions critically before implementing
-7. **Plugin tool boundary**: Use `vibepaper_checker_status` for read-only checker status, severity counts, stale signals, and precheck evidence. The current OpenCode plugin still does not expose checker-result persistence. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response unless a dedicated checker-record tool becomes available.
+7. **Plugin tool boundary**: Use `vibepaper_checker_status` for read-only checker status, severity counts, stale signals, and precheck evidence. Use `vibepaper_checker_record` only after explicit user confirmation to persist actual checker summaries. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response even when a summary is recorded.
 
 ## Usage Examples
 

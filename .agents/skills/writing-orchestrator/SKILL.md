@@ -177,8 +177,9 @@ After review:
 2. show a compact seven-checker summary from the review output plus the tool status
 3. separate Critical, Major, and Minor issues
 4. explain which issues matter most for the finished section
-5. ask whether modifications are needed
-6. if yes, suggest `review-revise`
+5. if the user wants durable checker summaries, restate the checker record details and route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`
+6. ask whether modifications are needed
+7. if yes, suggest `review-revise`
 
 Do not fabricate checker results.
 Use real review output or `vibepaper_checker_status`; do not read `.agents/state.json` directly just to infer checker status when the plugin tool is available.
@@ -204,7 +205,7 @@ Use `vibepaper_workflow_set_phase`:
 
 Before calling the tool, restate the phase/status update and wait for explicit user confirmation. The `vibepaper_workflow_set_phase` call writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text.
 
-The current OpenCode plugin does not expose a dedicated tool for arbitrary writing metadata such as current mode, selected section path, completion snapshot, or checker run references. Do not manually edit `.agents/state.json` for those fields when using the plugin-based workflow; report the limitation instead.
+The current OpenCode plugin does not expose a dedicated tool for arbitrary writing metadata such as current mode, selected section path, completion snapshot, or review-revise history. It can record confirmed checker run summaries through `vibepaper_checker_record`. Do not manually edit `.agents/state.json` for unsupported fields when using the plugin-based workflow; report the limitation instead.
 
 ## Writing Order Recommendation
 

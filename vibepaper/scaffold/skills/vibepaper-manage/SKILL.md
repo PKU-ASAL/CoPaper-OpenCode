@@ -20,6 +20,7 @@ Use this skill when the user asks to:
 - check artifact readiness
 - record artifact readiness after confirmation
 - check checker status, severity counts, stale signals, and precheck evidence
+- record checker run summaries after confirmation
 - understand what to do next in the VibePaper workflow
 
 Typical triggers:
@@ -56,6 +57,7 @@ Prefer these plugin tools whenever they are available:
 | Read recent workflow events | `vibepaper_workflow_log` |
 | Update a workflow phase after confirmation | `vibepaper_workflow_set_phase` |
 | Read checker run status and stale signals | `vibepaper_checker_status` |
+| Record checker run summary after confirmation | `vibepaper_checker_record` |
 
 Do not hand-edit:
 
@@ -75,7 +77,7 @@ The current OpenCode plugin does not yet expose tools for:
 - `relatedwork build-index`
 - `report`
 - Git-backed `commit`, `rollback`, or `diff`
-- arbitrary checker-result persistence or issue-resolution writes
+- checker issue-resolution writes
 - arbitrary metadata updates inside `.agents/state.json`
 
 When a requested action needs one of those missing capabilities, state that no plugin tool currently exists for it. Use a terminal command only if the user explicitly asks for a CLI fallback.
@@ -113,6 +115,8 @@ Use `vibepaper_artifact_status` for read-only inspection of artifact readiness, 
 It inspects artifacts such as `storyline.md`, `paper.md`, `relatedwork/`, `.agents/skills/`, `.agents/cross_index.json`, and checker results.
 
 Use `vibepaper_checker_status` for read-only inspection of checker run status, Critical/Major/Minor counts, stale signals, and `.agents/precheck_report.md` evidence. This tool does not run checkers, write checker results, mark issues resolved, update workflow phases, or record artifact readiness.
+
+Use `vibepaper_checker_record` only after a checker has actually run and the user explicitly confirms the summary to persist. This tool writes the `checkers` area in `.agents/state.json` and appends a `record_checker_result` event to `.agents/events.jsonl`. It does not run checker skills, mark individual issues resolved, update workflow phases, or record artifact readiness.
 
 ## Phase Control
 
@@ -174,6 +178,28 @@ Use only plugin-supported record values:
 - `confidence`: `low`, `medium`, or `high`
 - `evidence`: one or more concrete evidence strings
 - `reason`: a non-empty human-readable reason
+
+## Checker Result Recording
+
+Use `vibepaper_checker_status` first when you need to inspect existing checker freshness or counts.
+
+When the user explicitly asks to record a checker result:
+
+1. Verify the result came from actual checker output, such as `markdown-review` or an individual checker skill.
+2. Restate checker, status, Critical/Major/Minor counts, summary, evidence, issue list if provided, and reason.
+3. Wait for explicit confirmation.
+4. Route the confirmed record action to `@vibepaper-recorder`.
+5. The recorder calls `vibepaper_checker_record`.
+
+Use only plugin-supported checker record values:
+
+- `checker`: `problem-checker`, `novelty-checker`, `technical-depth-checker`, `logic-checker`, `clarity-checker`, `evaluation-protocol-checker`, or `data-checker`
+- `status`: `clean`, `issues_found`, or `unknown`
+- `critical`, `major`, `minor`: non-negative integer issue counts
+- `summary`: a non-empty summary from actual checker output
+- `evidence`: one or more concrete evidence strings
+- `reason`: a non-empty human-readable reason
+- `issues`: optional normalized issue list; this is for recording only and does not mark issues resolved
 
 ## Recommended Automation Patterns
 

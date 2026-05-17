@@ -507,6 +507,12 @@ export interface PptExtractResult {
 
 export type CheckerRunStatus = "not_run" | "clean" | "issues_found" | "stale" | "unknown"
 export type CheckerStatusErrorCode = "root-detection-failed" | "missing-state" | "invalid-state" | "missing-precheck-report" | "invalid-precheck-report" | "unsafe-path" | "read-failed"
+export const CHECKER_RECORD_IDS = ["problem-checker", "novelty-checker", "technical-depth-checker", "logic-checker", "clarity-checker", "evaluation-protocol-checker", "data-checker"] as const
+export const CHECKER_RECORD_STATUSES = ["clean", "issues_found", "unknown"] as const
+export const CHECKER_ISSUE_SEVERITIES = ["Critical", "Major", "Minor"] as const
+export type CheckerRecordId = typeof CHECKER_RECORD_IDS[number]
+export type CheckerRecordStatus = typeof CHECKER_RECORD_STATUSES[number]
+export type CheckerIssueSeverity = typeof CHECKER_ISSUE_SEVERITIES[number]
 
 export interface CheckerStatusOptions {
   root?: string
@@ -575,6 +581,73 @@ export interface CheckerStatusResult {
   precheckReport: CheckerStatusPrecheckReport
   warnings: string[]
   errors: CheckerStatusError[]
+}
+
+export type CheckerRecordErrorCode = "root-detection-failed" | "agent-not-authorized" | "missing-state" | "invalid-state" | "invalid-checker" | "invalid-status" | "invalid-counts" | "missing-summary" | "missing-evidence" | "missing-reason" | "invalid-issues" | "write-failed" | "event-log-failed"
+
+export interface CheckerRecordIssue {
+  severity: CheckerIssueSeverity
+  message: string
+  location?: string
+  suggestion?: string
+  id?: string
+}
+
+export interface CheckerRecordData {
+  status: CheckerRecordStatus
+  updated_at: string
+  critical: number
+  major: number
+  minor: number
+  total: number
+  summary: string
+  evidence: string[]
+  issues: CheckerRecordIssue[]
+  provenance: {
+    source: "opencode"
+    operator: "user"
+    reason: string
+  }
+  [key: string]: unknown
+}
+
+export interface CheckerRecordError {
+  code: CheckerRecordErrorCode
+  message: string
+  path?: string
+}
+
+export interface CheckerRecordOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  agent?: string
+  checker: CheckerRecordId | string
+  status: CheckerRecordStatus | string
+  critical: number
+  major: number
+  minor: number
+  summary: string
+  evidence: string[]
+  reason: string
+  issues?: CheckerRecordIssue[]
+  now?: Date
+}
+
+export interface CheckerRecordResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  checker: CheckerRecordId | string | null
+  previousRecord: Record<string, unknown> | null
+  record: CheckerRecordData | null
+  eventAppended: boolean
+  warnings: string[]
+  errors: CheckerRecordError[]
 }
 
 export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"

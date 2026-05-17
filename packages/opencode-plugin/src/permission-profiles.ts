@@ -37,6 +37,7 @@ const READ_ONLY_PROFILE: OpenCodePermissionConfig = {
   vibepaper_workflow_log: "allow",
   vibepaper_init_apply: "deny",
   vibepaper_artifact_record: "deny",
+  vibepaper_checker_record: "deny",
   vibepaper_workflow_set_phase: "deny",
 }
 
@@ -53,6 +54,7 @@ const PERMISSION_PROFILES = {
   stateRecord: {
     ...READ_ONLY_PROFILE,
     vibepaper_artifact_record: "ask",
+    vibepaper_checker_record: "ask",
   },
 } satisfies Record<PermissionProfileName, OpenCodePermissionConfig>
 

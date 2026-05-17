@@ -3,7 +3,7 @@ name: review-revise
 description: Conducts multi-round Review-Revise cycles based on 7-checker output to systematically improve paper quality. Each issue requires user confirmation before modification. Use this skill when the user wants to review and revise their paper.
 ---
 # Review-Revise Skill
-This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, read-only checker status is available through `vibepaper_checker_status`, but checker issue persistence and issue-resolution writes are still current tool gaps.
+This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, read-only checker status is available through `vibepaper_checker_status`, and confirmed checker run summaries can be recorded through `vibepaper_checker_record`; full issue-resolution writes are still a tool gap.
 It is the repair layer after diagnosis: the seven checkers identify issues, then this skill helps the user process them in a severity-first order, propose fixes one issue at a time, and apply changes only after explicit confirmation.
 Its purpose is not to auto-rewrite the paper.
 Its purpose is to convert checker output into careful, auditable, multi-round improvement while keeping the user in control of every modification.
@@ -63,7 +63,7 @@ If checker results do not exist yet, or the `checkers` field is missing or empty
 2. Run all seven checkers in the standard order.
 3. Use the returned checker report as the working issue queue.
 4. Call `vibepaper_checker_status` after the review to inspect status/freshness if checker summaries or precheck evidence were produced.
-5. If a dedicated checker-record plugin tool becomes available, use it; otherwise tell the user that checker persistence is not supported by the current plugin.
+5. If the user wants durable checker summaries, restate the actual checker output summary and route the confirmed record action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
 Do not invent checker findings.
 This skill must be driven by actual checker output from state or from the immediately returned review report.
 
@@ -151,7 +151,7 @@ Do not silently merge user intent into the paper without another confirmation po
 After a confirmed edit is applied, mark the issue as resolved in the in-session working queue.
 Only mark an issue resolved after the corresponding paper change has actually been applied.
 Do not mark sibling issues as resolved automatically.
-Do not call `CheckerTracker.mark_issue_resolved()` or hand-edit `.agents/state.json` in plugin-based workflows; the current OpenCode plugin has no checker-resolution tool. If durable resolution tracking is required, explicitly report this tool gap to the user.
+Do not call `CheckerTracker.mark_issue_resolved()` or hand-edit `.agents/state.json` in plugin-based workflows; the current OpenCode plugin records checker run summaries but has no checker-resolution tool. If durable resolution tracking is required, explicitly report this tool gap to the user.
 
 ### Step 6: Re-Run Review After the Round
 After the selected issue set for the round is processed:
@@ -173,13 +173,13 @@ At the start of each round, state the round number clearly, for example: `Round 
 
 ### Step 8: Report Progress and Tool Gaps
 At the end of each round and at the end of the full workflow, report progress in the response.
-Recommended tracked fields, if a future dedicated checker/review tool exists, include:
+Recommended tracked fields, if a future dedicated review-revise history tool exists, include:
 - latest checker results
 - issue resolution status
 - current round number
 - stopped_by (`user_satisfied`, `max_rounds`, `no_critical_or_major`, `user_stopped`)
 - optional review-revise history summary
-Do not update `.agents/state.json` directly in plugin-based workflows. The current OpenCode plugin exposes `vibepaper_workflow_set_phase` for phase status and `vibepaper_artifact_record` for artifact readiness, but it does not expose checker issue persistence or review-revise history persistence.
+Do not update `.agents/state.json` directly in plugin-based workflows. The current OpenCode plugin exposes `vibepaper_workflow_set_phase` for phase status, `vibepaper_artifact_record` for artifact readiness, and `vibepaper_checker_record` for confirmed checker run summaries. It does not expose checker issue-resolution or review-revise history persistence.
 
 ## Safety Valves
 This skill must enforce all of the following:
@@ -210,9 +210,11 @@ This skill depends on actual checker output, either from a fresh `markdown-revie
 Current OpenCode plugin tool coverage:
 - Supported: `vibepaper_workflow_status`, `vibepaper_workflow_log`, `vibepaper_workflow_set_phase`, `vibepaper_artifact_status`, `vibepaper_artifact_record`
 - Supported for read-only checker summaries: `vibepaper_checker_status`
-- Not supported: checker `record_run()`, full `get_unresolved_issues()` with issue text, `mark_issue_resolved()`, review-revise history persistence
+- Supported for confirmed checker run summaries: `vibepaper_checker_record`
+- Not supported: full `get_unresolved_issues()` with issue text, `mark_issue_resolved()`, review-revise history persistence
 When an unsupported operation is needed, state the tool gap instead of editing `.agents/state.json` manually.
 Use `vibepaper_checker_status` for read-only checker run status, severity counts, stale signals, and precheck evidence; do not read `.agents/state.json` directly just to infer checker status when the plugin tool is available.
+If the user asks to record a checker result, route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`; do not directly edit checker state or use prompt-only persistence text.
 Use `vibepaper_artifact_status` for read-only artifact readiness, evidence, confidence, and recommendation; do not infer readiness manually when the plugin tool is available.
 Use `vibepaper_workflow_log` for read-only workflow event history queries; do not read `.agents/events.jsonl` directly when the plugin tool is available.
 If the user asks to record artifact readiness, route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_artifact_record`; do not directly edit artifact state or use prompt-only readiness text.

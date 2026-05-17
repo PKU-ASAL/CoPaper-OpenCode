@@ -105,6 +105,10 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 <!-- description: Read-only checker status tool -->
 `vibepaper_checker_status` 只读取 `.agents/state.json` 的 `checkers` 区域、`.agents/precheck_report.md` 和 `paper.md` 更新时间，汇总 7 个 checker 的运行状态、Critical/Major/Minor 计数、stale 信号和预检报告证据。该工具不运行 checker、不写状态、不推进 phase、不记录 artifact readiness。
 
+###### checker 结果记录
+<!-- description: Checker result recording tool -->
+当用户明确要求记录 checker 结果时，agent 必须先复述 checker、status、Critical/Major/Minor 计数、summary、evidence 和 reason，并等待确认后才由 `@vibepaper-recorder` 调用 `vibepaper_checker_record`。该工具写入 `.agents/state.json` 的 `checkers` 区域并追加 `.agents/events.jsonl`，不运行 checker、不标记单个 issue resolved、不推进 phase、不记录 artifact readiness。
+
 ## 初始化项目
 
 ###### 显式确认写入

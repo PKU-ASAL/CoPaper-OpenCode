@@ -58,6 +58,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 
 When writing content, refer to the Paper Structure Reference above instead of reading `writingrules.md`.
 For checker status summaries, call `vibepaper_checker_status`; do not read `.agents/state.json` directly just to infer checker run status when the plugin tool is available.
+If the user wants durable checker summaries after an actual checker run, restate checker, status, Critical/Major/Minor counts, summary, evidence, and reason; wait for explicit confirmation; then route to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
 For phase-level workflow updates, use `vibepaper_workflow_set_phase` after restating the intended phase/status and waiting for explicit confirmation. The tool writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text. Do not hand-edit `.agents/state.json` for checker results, progress counters, or experiment metadata in plugin-based workflows.
 
 ## Work Loop
@@ -252,7 +253,7 @@ Aggregate feedback from all 7 checkers by severity:
 - **Minor issues**: Good to address
 - **Data issues**: Check if `⚠️ [BOGUS]` markers need replacement
 
-After running the checker loop, call `vibepaper_checker_status` to inspect checker run status, severity counts, stale signals, and precheck evidence. Use the actual checker outputs for issue details; the status tool is a read-only summary and freshness check, not an issue-detail store.
+After running the checker loop, call `vibepaper_checker_status` to inspect checker run status, severity counts, stale signals, and precheck evidence. Use the actual checker outputs for issue details; the status tool is a read-only summary and freshness check, not an issue-detail store. If the user confirms recording a run summary, use `vibepaper_checker_record` through `@vibepaper-recorder`; do not write checker state by hand.
 
 **Step 3.3: Filter Fixable Issues**
 
@@ -519,7 +520,7 @@ To prevent infinite loops, the skill has these limits:
 
 ## Output Tracking
 
-The skill maintains an in-session progress log in the response. The current OpenCode plugin has no generic progress-log or checker-persistence tool, so do not write hidden progress data into `.agents/state.json` or `.agents/events.jsonl`.
+The skill maintains an in-session progress log in the response. The current OpenCode plugin can record confirmed checker run summaries through `vibepaper_checker_record`, but it has no generic progress-log tool. Do not write hidden progress data into `.agents/state.json` or `.agents/events.jsonl`.
 
 ```markdown
 <!-- MAD-WRITER LOG (Hidden)

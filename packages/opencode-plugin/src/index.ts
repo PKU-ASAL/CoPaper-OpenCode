@@ -3,6 +3,7 @@ import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-con
 import { setLatestVibePaperAgentRuntimeState } from "./agent-diagnostics"
 import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
+import { recordCheckerResult, renderCheckerRecordOutput } from "./checker-record"
 import { buildCheckerStatus, renderCheckerStatusOutput } from "./checker-status"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { buildPaperStructureStatus, renderPaperStructureStatusOutput } from "./paper-structure"
@@ -11,7 +12,7 @@ import { buildPptExtract, renderPptExtractOutput } from "./ppt-extract"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 import { buildStorylineStructureStatus, renderStorylineStructureStatusOutput } from "./storyline-structure"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
-import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
+import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, CHECKER_ISSUE_SEVERITIES, CHECKER_RECORD_IDS, CHECKER_RECORD_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
 
 const packageVersion = "0.1.0"
 
@@ -112,6 +113,30 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildCheckerStatus({ cwd: context.directory, worktree: context.worktree })
           return renderCheckerStatusOutput(result)
+        },
+      }),
+      vibepaper_checker_record: tool({
+        description: "Record a checker run summary after explicit user confirmation. Writes state.checkers and appends an event; does not resolve individual issues.",
+        args: {
+          checker: tool.schema.enum(CHECKER_RECORD_IDS).describe("Checker id to record"),
+          status: tool.schema.enum(CHECKER_RECORD_STATUSES).describe("Checker run status"),
+          critical: tool.schema.number().int().min(0).describe("Number of Critical issues"),
+          major: tool.schema.number().int().min(0).describe("Number of Major issues"),
+          minor: tool.schema.number().int().min(0).describe("Number of Minor issues"),
+          summary: tool.schema.string().describe("Short human-readable checker summary"),
+          evidence: tool.schema.array(tool.schema.string()).min(1).describe("Evidence supporting this checker record"),
+          reason: tool.schema.string().describe("Human-readable reason for recording this checker result"),
+          issues: tool.schema.array(tool.schema.object({
+            severity: tool.schema.enum(CHECKER_ISSUE_SEVERITIES),
+            message: tool.schema.string(),
+            location: tool.schema.string().optional(),
+            suggestion: tool.schema.string().optional(),
+            id: tool.schema.string().optional(),
+          })).optional().describe("Optional normalized issue list; this does not mark issues resolved"),
+        },
+        async execute(args, context) {
+          const result = await recordCheckerResult({ cwd: context.directory, worktree: context.worktree, agent: context.agent, checker: args.checker, status: args.status, critical: args.critical, major: args.major, minor: args.minor, summary: args.summary, evidence: args.evidence, reason: args.reason, issues: args.issues })
+          return renderCheckerRecordOutput(result)
         },
       }),
       vibepaper_artifact_record: tool({

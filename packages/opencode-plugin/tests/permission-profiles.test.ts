@@ -22,6 +22,7 @@ const SAFE_READ_TOOL_PERMISSIONS = [
 const WRITE_TOOL_PERMISSIONS = [
   "vibepaper_init_apply",
   "vibepaper_artifact_record",
+  "vibepaper_checker_record",
   "vibepaper_workflow_set_phase",
 ] as const
 
@@ -65,6 +66,7 @@ describe("permission profiles", () => {
       vibepaper_workflow_log: "allow",
       vibepaper_init_apply: "deny",
       vibepaper_artifact_record: "deny",
+      vibepaper_checker_record: "deny",
       vibepaper_workflow_set_phase: "deny",
     })
   })
@@ -120,13 +122,14 @@ describe("permission profiles", () => {
     expect(profile.bash).toBe("deny")
   })
 
-  test("stateRecord keeps generic edit denied and only asks for artifact records", () => {
+  test("stateRecord keeps generic edit denied and only asks for state records", () => {
     const profile = getPermissionProfile("stateRecord")
 
     expect(profile.edit).toBe("deny")
     expect(typeof profile.read).toBe("object")
     expect(profile.bash).toBe("deny")
     expect(profile.vibepaper_artifact_record).toBe("ask")
+    expect(profile.vibepaper_checker_record).toBe("ask")
     expect(profile.vibepaper_init_apply).toBe("deny")
     expect(profile.vibepaper_workflow_set_phase).toBe("deny")
   })

@@ -200,6 +200,14 @@ const zhCN = {
   "checkerStatus.minor": "Minor",
   "checkerStatus.warnings": "警告",
   "checkerStatus.none": "无",
+  "checkerRecord.title": "VibePaper 检查器结果记录",
+  "checkerRecord.success": "检查器结果已记录。",
+  "checkerRecord.failed": "检查器结果记录失败。",
+  "checkerRecord.checker": "检查器",
+  "checkerRecord.status": "状态",
+  "checkerRecord.counts": "问题计数",
+  "checkerRecord.warnings": "警告",
+  "checkerRecord.none": "无",
 } as const
 
 const enUS: Record<keyof typeof zhCN, string> = {
@@ -396,6 +404,14 @@ const enUS: Record<keyof typeof zhCN, string> = {
   "checkerStatus.minor": "Minor",
   "checkerStatus.warnings": "Warnings",
   "checkerStatus.none": "none",
+  "checkerRecord.title": "Checker Result Record",
+  "checkerRecord.success": "Checker result was recorded.",
+  "checkerRecord.failed": "Checker result recording failed.",
+  "checkerRecord.checker": "Checker",
+  "checkerRecord.status": "Status",
+  "checkerRecord.counts": "Issue counts",
+  "checkerRecord.warnings": "Warnings",
+  "checkerRecord.none": "none",
 }
 
 const messages: Record<Locale, Record<keyof typeof zhCN, string>> = {

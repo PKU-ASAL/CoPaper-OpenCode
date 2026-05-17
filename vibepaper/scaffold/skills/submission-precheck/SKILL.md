@@ -202,6 +202,7 @@ Invoke the `markdown-review` skill. Collect the comprehensive review report and 
 - Number of Minor issues
 - Overall assessment
 Then call `vibepaper_checker_status` to read any persisted checker summary, stale signal, and precheck evidence. Use this tool for status/freshness; do not read `.agents/state.json` directly just to infer checker status.
+If the user asks to persist the precheck checker summaries, restate checker, status, Critical/Major/Minor counts, summary, evidence, and reason for each actual checker result; wait for explicit confirmation; then route to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
 
 ### Step 5: Generate Precheck Report
 

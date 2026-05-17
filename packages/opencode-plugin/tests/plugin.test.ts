@@ -303,7 +303,7 @@ describe("OpenCode plugin", () => {
     }
   })
 
-  test("registers dashboard init apply artifact and workflow tools", async () => {
+  test("registers dashboard init apply artifact checker and workflow tools", async () => {
     const hooks = await buildHooks(process.cwd())
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
@@ -313,6 +313,7 @@ describe("OpenCode plugin", () => {
     expect(hooks.tool.vibepaper_pdf_extract).toBeDefined()
     expect(hooks.tool.vibepaper_ppt_extract).toBeDefined()
     expect(hooks.tool.vibepaper_checker_status).toBeDefined()
+    expect(hooks.tool.vibepaper_checker_record).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
@@ -511,6 +512,50 @@ describe("OpenCode plugin", () => {
 
       const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
+        toolContext(project.root, "vibepaper-writer"),
+      )
+
+      expect(output).toContain("agent-not-authorized")
+      expect(project.read(".agents/state.json")).toBe(beforeState)
+      expect(project.read(".agents/events.jsonl")).toBe("")
+    } finally {
+      project.cleanup()
+    }
+  })
+
+  test("checker record tool writes to runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
+      runtimeProject.write(".agents/events.jsonl", "")
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+        { checker: "logic-checker", status: "issues_found", critical: 0, major: 1, minor: 0, summary: "One logic issue remains.", evidence: ["markdown-review-output"], reason: "runtime root confirmed" },
+        toolContext(runtimeProject.root, "vibepaper-recorder"),
+      )
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("logic-checker")
+      expect(JSON.parse(runtimeProject.read(".agents/state.json")).checkers["logic-checker"].status).toBe("issues_found")
+      expect(runtimeProject.read(".agents/events.jsonl")).toContain("record_checker_result")
+      expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("checker record tool denies non-recorder agents without writing state", async () => {
+    const project = makeTempProject()
+    try {
+      project.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
+      project.write(".agents/events.jsonl", "")
+      const beforeState = project.read(".agents/state.json")
+      const hooks = await buildHooks(project.root)
+
+      const output = await (hooks.tool.vibepaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+        { checker: "logic-checker", status: "clean", critical: 0, major: 0, minor: 0, summary: "No logic issues.", evidence: ["markdown-review-output"], reason: "runtime root confirmed" },
         toolContext(project.root, "vibepaper-writer"),
       )
 
