@@ -13,6 +13,7 @@ describe("agent config builder", () => {
         "vibepaper-coordinator",
         "vibepaper-storyline",
         "vibepaper-writer",
+        "vibepaper-reviewer",
         "vibepaper-recorder",
       ])
       expect(result.injectedAgents["vibepaper-writer"]?.permission.edit).toEqual({ "*": "deny", "paper.md": "ask" })

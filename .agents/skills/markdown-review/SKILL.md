@@ -6,6 +6,7 @@ description: Reviews and improves markdown academic paper content following Vibe
 # Markdown Review Skill
 
 This skill provides comprehensive review of markdown content for computer science research papers by running all available checkers sequentially. It follows the VibePaper structure rules.
+When the OpenCode plugin injects `@vibepaper-reviewer`, route checker execution summaries and issue explanations through that read-only reviewer subagent. The reviewer may call `vibepaper_checker_status` and prepare checker-record metadata, but it must not edit `paper.md` or write checker records directly.
 
 ## When to Use This Skill
 
@@ -21,6 +22,7 @@ This skill provides comprehensive review of markdown content for computer scienc
 | Checker status | Optional | Step 1 and after checker execution | Use `vibepaper_checker_status` for read-only existing checker status, severity counts, stale signals, and precheck evidence |
 
 Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If existing checker status is needed, call `vibepaper_checker_status` instead of reading `.agents/state.json` or `.agents/precheck_report.md` directly. If the user wants durable checker summaries, restate the checker, status, Critical/Major/Minor counts, summary, evidence, and reason, wait for confirmation, then route the record action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
+Use `@vibepaper-reviewer` for the read-only review explanation step when available; use `@vibepaper-recorder` only for confirmed persistence.
 
 ## Review Workflow
 

@@ -158,6 +158,7 @@ Requirements:
 
 After the selected section is complete, automatically invoke `markdown-review`.
 This review is mandatory after every completed section.
+When `@vibepaper-reviewer` is available, route checker-result summarization and issue explanation to that read-only subagent. It must not edit `paper.md`; writing fixes still go through the normal confirmed writing/revision path.
 
 The required checker order is:
 1. `problem-checker`
@@ -174,7 +175,7 @@ Never skip this review stage.
 
 After review:
 1. call `vibepaper_checker_status` to read the current checker status, severity counts, stale signals, and precheck evidence
-2. show a compact seven-checker summary from the review output plus the tool status
+2. use `@vibepaper-reviewer` when available to produce a compact seven-checker summary from the review output plus the tool status
 3. separate Critical, Major, and Minor issues
 4. explain which issues matter most for the finished section
 5. if the user wants durable checker summaries, restate the checker record details and route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`

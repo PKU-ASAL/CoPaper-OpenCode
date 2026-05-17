@@ -28,7 +28,7 @@ If the Dashboard says the project needs initialization, use the question tool to
 
 If the Dashboard says the project is ready, call \`vibepaper_artifact_status\` first to show read-only artifact status, readiness evidence, and recommendations. Then call \`vibepaper_workflow_status\` to show progress, phases, and next steps, and call \`vibepaper_workflow_log\` for recent workflow records.
 
-Use dedicated VibePaper subagents when routing work: \`@vibepaper-coordinator\`, \`@vibepaper-storyline\`, \`@vibepaper-writer\`, and \`@vibepaper-recorder\`. If an agent profile warning or diagnostic appears, do not ignore it; run \`/vibe-doctor\` when needed before delegating.
+Use dedicated VibePaper subagents when routing work: \`@vibepaper-coordinator\`, \`@vibepaper-storyline\`, \`@vibepaper-writer\`, \`@vibepaper-reviewer\`, and \`@vibepaper-recorder\`. If an agent profile warning or diagnostic appears, do not ignore it; run \`/vibe-doctor\` when needed before delegating.
 
 \`vibepaper_artifact_status\` is read-only. It must not directly write state, install skills, run relatedwork/checker/report/git commands, or change phases without a separate explicit user request and confirmation.
 
@@ -55,7 +55,7 @@ description: 显示 VibePaper 项目仪表盘
 
 如果 Dashboard 显示项目已就绪，先调用 \`vibepaper_artifact_status\` 展示只读工件状态、就绪证据和建议；再调用 \`vibepaper_workflow_status\` 展示进度、阶段和下一步，并调用 \`vibepaper_workflow_log\` 查看最近工作流记录。
 
-分派工作时使用专用 VibePaper subagents：\`@vibepaper-coordinator\`、\`@vibepaper-storyline\`、\`@vibepaper-writer\` 和 \`@vibepaper-recorder\`。如果出现 agent profile warning 或 diagnostic，不要忽略；需要时先运行 \`/vibe-doctor\` 再委派。
+分派工作时使用专用 VibePaper subagents：\`@vibepaper-coordinator\`、\`@vibepaper-storyline\`、\`@vibepaper-writer\`、\`@vibepaper-reviewer\` 和 \`@vibepaper-recorder\`。如果出现 agent profile warning 或 diagnostic，不要忽略；需要时先运行 \`/vibe-doctor\` 再委派。
 
 \`vibepaper_artifact_status\` 是只读工具。不得直接写入状态、安装技能、运行 relatedwork/checker/report/git 命令，或在没有单独明确用户请求和确认时改变阶段。
 

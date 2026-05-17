@@ -136,6 +136,7 @@ describe("OpenCode plugin", () => {
         "vibepaper-coordinator",
         "vibepaper-storyline",
         "vibepaper-writer",
+        "vibepaper-reviewer",
         "vibepaper-recorder",
       ])
     } finally {
@@ -179,6 +180,7 @@ describe("OpenCode plugin", () => {
         "vibepaper-coordinator",
         "vibepaper-storyline",
         "vibepaper-writer",
+        "vibepaper-reviewer",
         "vibepaper-recorder",
       ])
       expect(getLatestVibePaperAgentRuntimeState(project.root).agents.every((agent) => agent.status !== "conflicted")).toBe(true)

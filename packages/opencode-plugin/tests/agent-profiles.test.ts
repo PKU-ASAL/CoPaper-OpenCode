@@ -12,11 +12,12 @@ describe("agent profiles", () => {
       "vibepaper-coordinator",
       "vibepaper-storyline",
       "vibepaper-writer",
+      "vibepaper-reviewer",
       "vibepaper-recorder",
     ])
   })
 
-  test("builds four enabled VibePaper subagent profiles", () => {
+  test("builds five enabled VibePaper subagent profiles", () => {
     const profiles = buildDefaultAgentProfiles()
 
     expect(Object.keys(profiles)).toEqual([...VIBEPAPER_AGENT_NAMES])
@@ -47,6 +48,10 @@ describe("agent profiles", () => {
     expect(getDefaultAgentProfile("vibepaper-writer")).toMatchObject({
       permissionProfile: "paperWrite",
       maxPermissionProfile: "paperWrite",
+    })
+    expect(getDefaultAgentProfile("vibepaper-reviewer")).toMatchObject({
+      permissionProfile: "readOnly",
+      maxPermissionProfile: "readOnly",
     })
     expect(getDefaultAgentProfile("vibepaper-recorder")).toMatchObject({
       permissionProfile: "stateRecord",
@@ -85,10 +90,22 @@ describe("agent profiles", () => {
     expect(prompt).toContain("Do not edit storyline.md")
   })
 
+  test("reviewer prompt keeps checker review read-only", () => {
+    const prompt = getDefaultAgentProfile("vibepaper-reviewer").prompt
+
+    expect(prompt).toContain("checker")
+    expect(prompt).toContain("Do not edit paper.md")
+    expect(prompt).toContain("Do not call state-writing tools")
+    expect(prompt).toContain("vibepaper_checker_status")
+    expect(prompt).toContain("@vibepaper-recorder")
+  })
+
   test("prompts avoid unsupported orchestration and external-operation claims", () => {
-    for (const profile of Object.values(buildDefaultAgentProfiles())) {
+    for (const profile of Object.values(buildDefaultAgentProfiles()).filter((profile) => profile.name !== "vibepaper-reviewer")) {
       expect(profile.prompt).not.toMatch(/automatic handoff|scheduler|web|network|shell|git|checker|report|provider|secret/i)
     }
+
+    expect(getDefaultAgentProfile("vibepaper-reviewer").prompt).not.toMatch(/automatic handoff|scheduler|web|network|shell|git|provider|secret/i)
   })
 
   test("identifies built-in VibePaper agent names", () => {

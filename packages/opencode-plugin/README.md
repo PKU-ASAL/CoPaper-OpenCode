@@ -34,6 +34,7 @@ Bun 需要 `-p`，因为包名 `@vibepaper/opencode` 和二进制名 `vibepaper-
 - `@vibepaper-coordinator`: read-only workflow routing and next-step recommendations; it does not write project files.
 - `@vibepaper-storyline`: confirmed edits to `storyline.md` only; it cannot edit other project files.
 - `@vibepaper-writer`: confirmed edits to `paper.md` only, following VibePaper writing rules.
+- `@vibepaper-reviewer`: read-only checker review, issue explanation, and checker-summary preparation; it does not edit `paper.md` or write state.
 - `@vibepaper-recorder`: confirmed readiness records through VibePaper state-write tools; it does not edit paper content.
 
 ###### Project Overrides

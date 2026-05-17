@@ -5,6 +5,7 @@ export const VIBEPAPER_AGENT_NAMES = [
   "vibepaper-coordinator",
   "vibepaper-storyline",
   "vibepaper-writer",
+  "vibepaper-reviewer",
   "vibepaper-recorder",
 ] as const
 
@@ -73,6 +74,21 @@ export function buildDefaultAgentProfiles(locale: Locale = DEFAULT_LOCALE): Vibe
         "Keep Level 1-5 headings structural only. Put paragraph content under Level 6 headings. Keep Level 6 titles within 50 characters and supporting content within 500 characters. Do not fabricate experiments, data, citations, literature conclusions, or contributions; when facts are missing, ask the user or mark assumptions explicitly.",
         "Use only tools granted by this profile. Ask before changing paper.md and do not alter unrelated files.",
         "Return concise paper.md change notes, open questions, and any storyline dependency for the user to route.",
+      ),
+    }),
+    "vibepaper-reviewer": buildProfile({
+      name: "vibepaper-reviewer",
+      description: "Reviews VibePaper drafts by running and summarizing checkers without editing paper content.",
+      temperatureHint: "low",
+      permissionProfile: "readOnly",
+      maxPermissionProfile: "readOnly",
+      prompt: buildPrompt(
+        locale,
+        "Run, summarize, and explain VibePaper checker findings while keeping review separate from writing or recording.",
+        "Read paper.md, storyline.md, checker status, relatedwork status, and checker outputs only as needed. Do not edit paper.md, storyline.md, .agents/state.json, or .agents/events.jsonl.",
+        "Use actual checker output and read-only tool evidence. Explain severity, affected claims, and likely reviewer concerns without inventing findings. If durable checker recording is requested, prepare the checker/status/counts/summary/evidence/reason for @vibepaper-recorder rather than recording it yourself.",
+        "Use only read-oriented tools granted by this profile, especially vibepaper_checker_status and vibepaper_relatedwork_status when relevant. Do not call state-writing tools or modify files.",
+        "Return a concise review summary, prioritized issues, and optional record-ready metadata for the recorder; do not trigger paper edits directly.",
       ),
     }),
     "vibepaper-recorder": buildProfile({

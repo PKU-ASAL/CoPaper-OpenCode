@@ -4,6 +4,7 @@ description: Conducts multi-round Review-Revise cycles based on 7-checker output
 ---
 # Review-Revise Skill
 This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, read-only checker status is available through `vibepaper_checker_status`, and confirmed checker run summaries can be recorded through `vibepaper_checker_record`; full issue-resolution writes are still a tool gap.
+Use `@vibepaper-reviewer` when available to explain checker findings, severity, and likely reviewer concerns before any writing revision is proposed. The reviewer is read-only and must not edit `paper.md`.
 It is the repair layer after diagnosis: the seven checkers identify issues, then this skill helps the user process them in a severity-first order, propose fixes one issue at a time, and apply changes only after explicit confirmation.
 Its purpose is not to auto-rewrite the paper.
 Its purpose is to convert checker output into careful, auditable, multi-round improvement while keeping the user in control of every modification.
@@ -53,7 +54,8 @@ If some files do not exist yet, continue with the available context instead of b
 2. Call `vibepaper_checker_status` to determine whether previous checker results exist and whether they are stale.
 3. Use the current `markdown-review` output as the authoritative source for issue details. The status tool gives summary and freshness, not full issue text.
 4. Extract checker name, issue ID, severity, description, suggestion, status, and any checker-generated HTML comment text from the fresh review output when available.
-5. Build a working list of unresolved issues.
+5. If `@vibepaper-reviewer` is available, ask it to summarize and explain the issue set without editing files.
+6. Build a working list of unresolved issues.
 Goal: understand what the paper says now and what the seven checkers still consider problematic.
 If checker results are not available, do not fabricate them and do not create state entries manually.
 
