@@ -5,7 +5,7 @@ description: Find the related work papers in the relatedwork folder based on sto
 
 # Related Work Finder Skill
 
-This skill automatically finds related work papers, records canonical metadata through the `vibe` CLI, downloads PDFs through the `vibe` CLI, and generates serialized multimodal summaries based on the research storyline or paper content.
+This skill automatically finds related work papers, prepares canonical metadata, and generates serialized multimodal summaries based on the research storyline or paper content. The current OpenCode plugin does not expose related-work import, sync, download, or summary-registration tools; when those managed operations are needed, report the tool gap and ask before using any CLI fallback.
 
 ## When to Use This Skill
 
@@ -19,7 +19,7 @@ This skill automatically finds related work papers, records canonical metadata t
 | `paper.md` | Fallback | Step 1 (if `storyline.md` missing) | Alternative source for keyword extraction when `storyline.md` is absent |
 | `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) |
 | `relatedwork/paper_list.bib` | Required | Step 3 | BibTeX entries for formalizing the reference list |
-| `relatedwork/literature.json` | Required | Steps 2-6 (after import) | Canonical metadata catalog; read after `vibe relatedwork import` to track download status and summary paths |
+| `relatedwork/literature.json` | Required after managed import | Steps 2-6 (after import) | Canonical metadata catalog; the current OpenCode plugin has no relatedwork import tool, so ask before using any CLI fallback |
 | `.agents/skills/relatedwork-finder/template.md` | Required | Step 5 | Template for PDF summary generation; passed to subagent |
 
 Do NOT read `writingrules.md` — this skill does not need paper structure rules.
@@ -34,7 +34,7 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
    - `arxiv_id` (if applicable)
    - `pdf_url` (direct link to PDF or landing page)
    - `source_queries` (the Scholar/arXiv query strings that found the paper)
-3. **Canonical Catalog**: After updating `relatedwork/search_cache.json`, you MUST import it into `relatedwork/literature.json` via `vibe --root . relatedwork import --input relatedwork/search_cache.json`. `relatedwork/literature.json` is the canonical metadata store used by BibTeX sync, downloads, and summary tracking.
+3. **Canonical Catalog**: After updating `relatedwork/search_cache.json`, the catalog must be imported into `relatedwork/literature.json`. The current OpenCode plugin does not expose `relatedwork import`; do not invent a plugin tool. Ask the user before using any CLI fallback.
 4. **arXiv Search**: Use `websearch_web_search_exa` with `includeDomains: ["arxiv.org"]` to find recent preprints.
 5. **Google Scholar Search**: MUST use `serper_google_search_scholar` (Google Scholar API via Serper MCP) to find published papers and citations.
 6. **BibTeX Accuracy**: Fetch the paper's metadata from the source (e.g., arXiv abstract page or Google Scholar snippet) IMMEDIATELY during the search phase. Do NOT wait for user confirmation to fetch metadata.
@@ -47,10 +47,8 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
 
 ## Action Logging
 
-You MUST log your tools usage (such as file reads, MCP tool calls, file modifications) during the execution of this skill.
-After invoking any tool, run a terminal command to append a structured JSON log to `.agents/toolevents.jsonl`.
-**Example Action Logging Command:**
-`echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/toolevents.jsonl`
+Use OpenCode plugin tools for workflow/artifact events when available. The current plugin does not expose a generic tool-call event logger or relatedwork event writer; do not append logs manually in plugin-based workflows.
+If the user asks to inspect workflow event history, call `vibepaper_workflow_log` for read-only querying of `.agents/events.jsonl` instead of reading the file directly.
 
 ## Instructions (STRICT INTERACTIVE WORKFLOW)
 
@@ -68,21 +66,18 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 - For EVERY promising result, fetch its BibTeX, ArXiv ID, and PDF URL.
 - **CRITICAL**: You MUST also search for and explicitly extract the publication venue or journal (e.g., CVPR, NeurIPS, IEEE T-RO, or arXiv preprint) for each paper during the search.
 - **ACTION**: Save all metadata (including `venue/journal`) to `relatedwork/search_cache.json`.
-- **ACTION**: Immediately run `vibe --root . relatedwork import --input relatedwork/search_cache.json` so the canonical catalog in `relatedwork/literature.json` stays synchronized with the search cache.
+- **ACTION**: Tell the user that `relatedwork import` is required to synchronize `relatedwork/literature.json`, but the current OpenCode plugin has no equivalent tool. Ask before using any CLI fallback.
 - **ACTION**: Present a numbered list of found papers (with authors, years, and venue) to the user.
 - **STOP**: Ask "Here is the list of papers I found. Which ones should I keep? (Metadata is already cached for all entries)."
 
 ### Step 3: Formalize BibTeX List [WAIT FOR CONFIRMATION]
 - Read `relatedwork/search_cache.json` and `relatedwork/paper_list.bib`.
 - Filter entries based on user selection from Step 2 and rewrite `relatedwork/search_cache.json` if the keep-list changed.
-- If `paper_list.bib` contains papers missing from `relatedwork/literature.json`, you MUST use `serper_google_search_scholar` to enrich them into JSON metadata and then run `vibe --root . relatedwork import --input <that-json>`.
-- Run `vibe --root . relatedwork sync-bib` to write missing metadata-backed entries into `relatedwork/paper_list.bib` and to import any remaining bib-only entries into `relatedwork/literature.json`.
+- If `paper_list.bib` contains papers missing from `relatedwork/literature.json`, use `serper_google_search_scholar` to enrich them into JSON metadata. Then report that the current OpenCode plugin has no `relatedwork import` or `relatedwork sync-bib` tool and ask before using any CLI fallback.
 - **ACTION**: Show the final BibTeX entries to the user.
 - **STOP**: Ask "I have formalized the BibTeX entries in paper_list.bib. Should I proceed to download PDFs and write summaries?"
 
 ### Step 4: Download PDFs [WAIT FOR CONFIRMATION]
-- Download PDFs only through the command `vibe --root . relatedwork download`.
-- Do NOT hand-write download results into JSON; let the CLI update `relatedwork/literature.json`.
-- If the user wants to retry failed downloads later, use `vibe --root . relatedwork download --retry-failed`.
+- PDF download status must be recorded by a managed relatedwork operation. The current OpenCode plugin has no `relatedwork download` or retry tool; do not hand-write download results into JSON. Ask before using any CLI fallback.
 - **ACTION**: Present the status of downloaded PDFs to the user.
 - **STOP AND TERMINATE**: This skill's responsibility strictly ENDS HERE. You MUST STOP execution. Ask the user: "I have finished finding the related work and downloading the PDFs. Would you like to continue and switch to the `relatedwork-summarizer` skill to generate summaries now?"

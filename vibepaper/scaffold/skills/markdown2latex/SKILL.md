@@ -101,13 +101,7 @@ Before converting, check if a template is configured:
    - Use the template's bibliography style (e.g., `\bibliographystyle{ACM-Reference-Format}`)
    - Respect page limits by adjusting content density if needed
 
-4. **Record Template**: After successful configuration, update `.agents/state.json`:
-   ```json
-   {
-     "latex_template": "path/to/template.tex",
-     "target_venue": "ICSE 2026"
-   }
-   ```
+4. **Record Template**: The current OpenCode plugin does not expose a dedicated tool for recording `latex_template` or `target_venue` metadata. Do not manually edit `.agents/state.json` when using the plugin-based workflow; report the selected template in the final response and ask the user to record it through a future metadata tool when available.
 
 ### Supported Template Formats
 

@@ -22,10 +22,8 @@ This skill generates serialized multimodal summaries for downloaded PDFs, builds
 
 ## Action Logging
 
-You MUST log your tools usage (such as file reads, MCP tool calls, file modifications) during the execution of this skill.
-After invoking any tool, run a terminal command to append a structured JSON log to `.agents/events.jsonl`.
-**Example Action Logging Command:**
-`echo '{"timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "operator": "Agent", "action": "tool_call", "result": "success", "tool_name": "read_file", "target": "path/to/file"}' >> .agents/events.jsonl`
+Use OpenCode plugin tools for workflow/artifact events when available. The current plugin does not expose a generic tool-call event logger or relatedwork summary-registration tool; do not append logs manually in plugin-based workflows.
+If the user asks to inspect workflow event history, call `vibepaper_workflow_log` for read-only querying of `.agents/events.jsonl` instead of reading the file directly.
 
 ## Instructions (STRICT INTERACTIVE WORKFLOW)
 
@@ -52,7 +50,7 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
   3. Once confirmed, spawn a `task` agent using the multimodal agent type (`subagent_type="multimodal-looker"`, `run_in_background=false`) to summarize it.
   4. In the `prompt`, provide the absolute path of the PDF, `storyline.md`, and `.agents/skills/relatedwork-finder/template.md`.
   5. Explicitly instruct the sub-agent to: Use the `Read` tool on the PDF and `template.md`, and generate a highly detailed summary `.md` file in `relatedwork/papers/` strictly following the template. The summary MUST extract in-depth technical mechanisms, methodology, empirical results, and limitations, rather than merely stating its high-level relationship to `storyline.md`.
-  6. After the task completes, run `vibe --root . relatedwork register-summary --paper-id <paper-id> --summary-path relatedwork/papers/<paper-id>.md`.
+  6. After the task completes, report that `relatedwork register-summary` is required to update canonical metadata, but the current OpenCode plugin has no equivalent tool. Ask before using any CLI fallback.
   7. **CRITICAL ACTION - IMMEDIATE WRITE & UPDATE**: To avoid hallucinations and data loss, you MUST immediately synthesize the key points from the newly generated `relatedwork/papers/<paper-id>.md`. Then, read the master `relatedwork/summary.md` document. **IMPORTANT**: Check if a summary for this specific paper already exists in `summary.md`. If it DOES exist, UPDATE/REPLACE the existing section. If it does NOT exist, APPEND it. (This rule applies whether you are processing a single requested paper or a full queue). The integrated content MUST be richly detailed—including the paper's core technical approaches, quantitative metrics, and exact limitations—structured professionally using level-2 (`##`) and level-6 (`######`) headings. Do NOT wait until all papers are summarized to update `summary.md`.
   8. **ACTION**: Inform the user: "I have finished summarizing [Current Paper Title] and immediately saved its findings into relatedwork/summary.md."
   9. Determine if there is a next paper in the queue. 
@@ -61,7 +59,7 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 
 ### Step 3: Build Cross-Index [WAIT FOR CONFIRMATION]
 - After all paper summaries in the target queue are complete, build the cross-reference index.
-- Run `vibe --root . relatedwork build-index` to scan all `relatedwork/papers/*.md` summaries and update `.agents/cross_index.json`.
+- Report that `relatedwork build-index` is required to scan all `relatedwork/papers/*.md` summaries and update `.agents/cross_index.json`, but the current OpenCode plugin has no equivalent tool. Ask before using any CLI fallback.
 - For more accurate tech point extraction, spawn a `task` agent to analyze each paper summary and extract key technical concepts.
 - Generate a coverage report by comparing against `storyline.md`.
 - **ACTION**: Present the coverage report to the user, showing:

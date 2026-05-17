@@ -3,7 +3,7 @@ name: review-revise
 description: Conducts multi-round Review-Revise cycles based on 7-checker output to systematically improve paper quality. Each issue requires user confirmation before modification. Use this skill when the user wants to review and revise their paper.
 ---
 # Review-Revise Skill
-This skill runs a controlled Review-Revise loop over checker findings stored in `.agents/state.json`.
+This skill runs a controlled Review-Revise loop over checker findings. In plugin-based workflows, checker issue persistence is a current tool gap: the OpenCode plugin does not expose a dedicated checker-result or issue-resolution tool.
 It is the repair layer after diagnosis: the seven checkers identify issues, then this skill helps the user process them in a severity-first order, propose fixes one issue at a time, and apply changes only after explicit confirmation.
 Its purpose is not to auto-rewrite the paper.
 Its purpose is to convert checker output into careful, auditable, multi-round improvement while keeping the user in control of every modification.
@@ -40,7 +40,7 @@ Never process Minor issues ahead of unresolved Critical or Major issues unless t
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand current paper content |
-| `.agents/state.json` | **Required** | Step 1 (start) | Checker results and issue tracking; read `checkers` field for unresolved issues |
+| `.agents/state.json` | Optional fallback | Step 1 (start) | Read only when existing checker results are already stored there; do not write checker state directly because the OpenCode plugin has no checker-record tool |
 | `storyline.md` | Optional | Step 5b (when revising narrative/claim alignment) | Research narrative for grounding revisions |
 | `.agents/cross_index.json` | Optional but preferred | Step 5b (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current issue |
 | `relatedwork/papers/*.md` | Optional | Step 5b (only the summaries identified through cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` or when the issue clearly depends on prior work |
@@ -50,23 +50,24 @@ If some files do not exist yet, continue with the available context instead of b
 ## Workflow
 ### Step 1: Read Paper and Checker State
 1. Read `paper.md`.
-2. Read `.agents/state.json`.
-3. Locate the `checkers` field managed by CheckerTracker.
+2. If checker results were already persisted, read `.agents/state.json` as a fallback source.
+3. Locate the `checkers` field if present.
 4. Extract checker name, issue ID, severity, description, suggestion, status, and any checker-generated HTML comment text.
 5. Build a working list of unresolved issues.
 Goal: understand what the paper says now and what the seven checkers still consider problematic.
+If checker results are not available, do not fabricate them and do not create state entries manually.
 
 ### Step 2: Run Review First If Needed
 If checker results do not exist yet, or the `checkers` field is missing or empty:
 1. Invoke the `markdown-review` skill first.
 2. Run all seven checkers in the standard order.
-3. Wait for `markdown-review` to persist results.
-4. Re-read `.agents/state.json`.
+3. Use the returned checker report as the working issue queue.
+4. If a dedicated checker-record plugin tool becomes available, use it; otherwise tell the user that checker persistence is not supported by the current plugin.
 Do not invent checker findings.
-This skill must be driven by actual checker output from state.
+This skill must be driven by actual checker output from state or from the immediately returned review report.
 
 ### Step 3: Aggregate and Sort Issues
-1. Aggregate unresolved checker issues from `.agents/state.json` into one review queue.
+1. Aggregate unresolved checker issues from the actual checker output into one review queue.
 2. Exclude already resolved issues unless the user explicitly asks to revisit them.
 3. Normalize severity labels if needed so they map to `Critical`, `Major`, or `Minor`.
 4. Sort the queue in this order:
@@ -117,7 +118,7 @@ Use `task(category="writing")` to generate a revision suggestion.
 The subagent should:
 - read `paper.md`
 - read `storyline.md` when useful
-- read the issue details from `.agents/state.json`
+- read the issue details from the current checker queue or, if available, the existing `checkers` field in `.agents/state.json`
 - read `.agents/cross_index.json` FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current issue, then read ONLY those specific summaries — do NOT read all files under `relatedwork/papers/` indiscriminately
 - focus on exactly one issue at a time
 - propose a concrete revision for the relevant paper section
@@ -146,15 +147,16 @@ If the user asks for a modified suggestion first, revise the suggestion and ask 
 Do not silently merge user intent into the paper without another confirmation point.
 
 #### Step 5e: Mark the Issue as Resolved
-After a confirmed edit is applied, call `CheckerTracker.mark_issue_resolved()` for that issue.
+After a confirmed edit is applied, mark the issue as resolved in the in-session working queue.
 Only mark an issue resolved after the corresponding paper change has actually been applied.
 Do not mark sibling issues as resolved automatically.
+Do not call `CheckerTracker.mark_issue_resolved()` or hand-edit `.agents/state.json` in plugin-based workflows; the current OpenCode plugin has no checker-resolution tool. If durable resolution tracking is required, explicitly report this tool gap to the user.
 
 ### Step 6: Re-Run Review After the Round
 After the selected issue set for the round is processed:
 1. Save all accepted changes.
 2. Invoke `markdown-review` again to re-run all seven checkers.
-3. Read the updated `.agents/state.json`.
+3. Use the new checker report as the updated issue source.
 4. Detect newly introduced issues, still-unresolved issues, and issues that disappeared.
 5. Build a fresh severity-sorted queue for the next round.
 This re-check is mandatory.
@@ -168,16 +170,15 @@ Repeat the Review-Revise loop until one of these conditions holds:
 If only Minor issues remain, tell the user that the paper has reached the polish stage and ask whether they want to continue.
 At the start of each round, state the round number clearly, for example: `Round 3 of 5`.
 
-### Step 8: Update `.agents/state.json`
-At the end of each round and at the end of the full workflow, update `.agents/state.json`.
-Recommended tracked fields include:
+### Step 8: Report Progress and Tool Gaps
+At the end of each round and at the end of the full workflow, report progress in the response.
+Recommended tracked fields, if a future dedicated checker/review tool exists, include:
 - latest checker results
 - issue resolution status
 - current round number
 - stopped_by (`user_satisfied`, `max_rounds`, `no_critical_or_major`, `user_stopped`)
 - optional review-revise history summary
-Preserve existing state data where possible.
-Do not destroy prior checker records.
+Do not update `.agents/state.json` directly in plugin-based workflows. The current OpenCode plugin exposes `vibepaper_workflow_set_phase` for phase status and `vibepaper_artifact_record` for artifact readiness, but it does not expose checker issue persistence or review-revise history persistence.
 
 ## Safety Valves
 This skill must enforce all of the following:
@@ -204,21 +205,24 @@ Required interaction pattern:
 4. apply only after confirmation
 
 ## Checker Integration Notes
-This skill depends on CheckerTracker-managed state.
-The expected integration points are:
-- `record_run()`
-- `get_unresolved_issues()`
-- `mark_issue_resolved()`
-If implementation details differ, preserve the same logical workflow: read unresolved issues from state, process them one at a time, and write back resolution status after accepted edits.
+This skill depends on actual checker output, either from a fresh `markdown-review` run or from already persisted checker data.
+Current OpenCode plugin tool coverage:
+- Supported: `vibepaper_workflow_status`, `vibepaper_workflow_log`, `vibepaper_workflow_set_phase`, `vibepaper_artifact_status`, `vibepaper_artifact_record`
+- Not supported: checker `record_run()`, `get_unresolved_issues()`, `mark_issue_resolved()`, review-revise history persistence
+When an unsupported operation is needed, state the tool gap instead of editing `.agents/state.json` manually.
+Use `vibepaper_artifact_status` for read-only artifact readiness, evidence, confidence, and recommendation; do not infer readiness manually when the plugin tool is available.
+Use `vibepaper_workflow_log` for read-only workflow event history queries; do not read `.agents/events.jsonl` directly when the plugin tool is available.
+If the user asks to record artifact readiness, route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_artifact_record`; do not directly edit artifact state or use prompt-only readiness text.
 
 ## Must NOT Do
 - **NEVER** auto-apply modifications
 - **NEVER** exceed 5 rounds
 - **NEVER** modify checker skill files
 - **NEVER** skip user confirmation
-- **NEVER** fabricate checker results instead of reading `.agents/state.json`
+- **NEVER** fabricate checker results instead of using actual checker output
 - **NEVER** mark an issue resolved before the paper change is actually applied
 - **NEVER** rewrite large parts of `paper.md` when handling one localized issue
+- **NEVER** hand-edit `.agents/state.json` for checker persistence or issue resolution in plugin-based workflows
 
 ## End Condition Summary
 When the workflow stops, summarize:

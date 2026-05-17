@@ -18,9 +18,9 @@ This skill provides comprehensive review of markdown content for computer scienc
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand paper content for all 7 checkers |
-| `.agents/state.json` | Write target | After each checker completes | Persist checker results via CheckerTracker; this skill writes but does not read checker state for content |
+| `.agents/state.json` | Tool gap | After each checker completes | Checker-result persistence is not currently exposed by the OpenCode plugin; do not edit state directly in plugin-based workflows |
 
-Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly and writes checker results to `.agents/state.json`.
+Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If checker-result persistence is needed, state that the current OpenCode plugin does not expose a dedicated checker-record tool; do not hand-edit `.agents/state.json`.
 
 ## Review Workflow
 
@@ -385,6 +385,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 4. **AI-generated comments**: All comments are AI analysis, clearly marked to distinguish from human reviewer feedback
 5. **Reproducible review**: Run this skill multiple times as you fix issues to track progress
 6. **Author responsibility**: Authors should review all AI suggestions critically before implementing
+7. **Plugin tool boundary**: The current OpenCode plugin exposes workflow, artifact, dashboard, initialization, and log-query tools, but not checker-result persistence. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response unless a dedicated checker-record tool becomes available.
 
 ## Usage Examples
 

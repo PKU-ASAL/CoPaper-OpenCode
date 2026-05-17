@@ -19,7 +19,7 @@ This skill evaluates whether the problem addressed by a research paper is clearl
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target — read problem-related sections |
-| `.agents/state.json` | Write-only | Step 9 (end) | Persist checker results |
+| `.agents/state.json` | Tool gap | Step 9 (end) | Checker-result persistence is not currently exposed by the OpenCode plugin; do not edit state directly in plugin-based workflows |
 
 Do NOT read `writingrules.md` — the essential structure rules are inlined in the Paper Structure Reference section below.
 

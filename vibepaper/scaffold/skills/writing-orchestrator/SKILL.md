@@ -34,7 +34,7 @@ This skill is an orchestrator, not a direct replacement for drafting or revision
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (scan completion status) | Primary target; scan Level 2-5 headings for empty/filled sections |
 | `storyline.md` | Conditional | When recommending writing order | Research narrative for dependency-aware section ordering |
-| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Current phase status, checker results, writing progress |
+| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Workflow phase status via `vibepaper_workflow_set_phase`; checker/writing metadata only if a dedicated tool exists |
 | `.agents/cross_index.json` | Conditional | When routing to markdown-helper or mad-writer | Paper-technique mappings; pass to downstream skills for literature context |
 | `relatedwork/papers/*.md` | Conditional | When routing to markdown-helper or mad-writer | Individual literature summaries; pass to downstream skills, not read directly by orchestrator |
 | `fig/` | Conditional | When routing to markdown-helper or mad-writer | Available figures; pass to downstream skills for visual references |
@@ -188,20 +188,17 @@ When the scan shows no incomplete writing targets remain:
 
 This final pass checks whole-paper consistency instead of only local section quality.
 
-### Step 8: Update `.agents/state.json` with writing progress
+### Step 8: Update workflow phase with plugin tools
 
-At the end of each cycle, update `.agents/state.json`.
+At the end of each cycle, update workflow phase status through the OpenCode plugin tool when appropriate.
 
-Track at least:
-- current mode (`fine` or `fast`)
-- selected section path
-- latest completion snapshot
-- complete / partial / incomplete counts
-- latest seven-checker run reference or summary
-- whether final full review has been run
+Use `vibepaper_workflow_set_phase`:
+- after accepted writing edits, set `phase: "writing"` and `status: "in_progress"`
+- after all writing targets and the final full review are complete, set `phase: "writing"` and `status: "complete"`
 
-If `.agents/state.json` does not exist yet, create the needed structure carefully.
-Preserve unrelated fields when updating.
+Before calling the tool, restate the phase/status update and wait for explicit user confirmation. The `vibepaper_workflow_set_phase` call writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text.
+
+The current OpenCode plugin does not expose a dedicated tool for arbitrary writing metadata such as current mode, selected section path, completion snapshot, or checker run references. Do not manually edit `.agents/state.json` for those fields when using the plugin-based workflow; report the limitation instead.
 
 ## Writing Order Recommendation
 
@@ -236,7 +233,7 @@ Use this comparison when the user is choosing a mode.
 
 Mode guidance: Fine Mode is best for fluid paragraph-by-paragraph arguments; Strict Mode is essential for rigorous, RAG-heavy writing where hallucination must be zero; Fast Mode is better for large baseline sections where structural bulk drafting is acceptable.
 
-The interaction loop must remain section-by-section: scan, summarize, recommend, let the user pick a section and mode, invoke the downstream skill, run `markdown-review`, report results, update `.agents/state.json`, and return to the overview. Do not silently expand into full-paper auto-writing.
+The interaction loop must remain section-by-section: scan, summarize, recommend, let the user pick a section and mode, invoke the downstream skill, run `markdown-review`, report results, update workflow phase through `vibepaper_workflow_set_phase` when appropriate, and return to the overview. Do not silently expand into full-paper auto-writing.
 
 ## Must NOT Do
 
@@ -246,7 +243,7 @@ The interaction loop must remain section-by-section: scan, summarize, recommend,
 - **NEVER** modify Level 2-5 framework headings during orchestration
 - **NEVER** fabricate completion state without reading `paper.md`
 - **NEVER** fabricate checker results instead of invoking or reading `markdown-review`
-- **NEVER** destroy unrelated fields in `.agents/state.json`
+- **NEVER** manually edit `.agents/state.json` for workflow phase updates when `vibepaper_workflow_set_phase` is available
 
 ## End Condition
 

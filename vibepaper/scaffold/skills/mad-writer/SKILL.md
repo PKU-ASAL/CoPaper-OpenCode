@@ -53,9 +53,10 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 | `paper.md` | **Required** | Phase 1 (initialization) and every rewrite iteration | Current paper content; scan for empty sections, assess state, write content |
 | `storyline.md` | Conditional | Phase 1 (if exists) | Research narrative for grounding content |
 | `relatedwork/summary.md` | Conditional | Phase 0-1 (if literature exists) | Context from related work for citations |
-| `.agents/state.json` | Read/write | Phase 3 (checker loop) and Phase 6 (progress tracking) | Checker results, experiment status, progress counters |
+| `.agents/state.json` | Tool gap / optional fallback | Phase 3 (checker loop) and Phase 6 (progress tracking) | Read existing checker or experiment context only when needed; the OpenCode plugin does not expose arbitrary checker/progress metadata writes |
 
 When writing content, refer to the Paper Structure Reference above instead of reading `writingrules.md`.
+For phase-level workflow updates, use `vibepaper_workflow_set_phase` after restating the intended phase/status and waiting for explicit confirmation. The tool writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text. Do not hand-edit `.agents/state.json` for checker results, progress counters, or experiment metadata in plugin-based workflows.
 
 ## Work Loop
 
@@ -514,7 +515,7 @@ To prevent infinite loops, the skill has these limits:
 
 ## Output Tracking
 
-The skill maintains a progress log:
+The skill maintains an in-session progress log in the response. The current OpenCode plugin has no generic progress-log or checker-persistence tool, so do not write hidden progress data into `.agents/state.json` or `.agents/events.jsonl`.
 
 ```markdown
 <!-- MAD-WRITER LOG (Hidden)

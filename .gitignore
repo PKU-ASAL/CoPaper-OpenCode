@@ -20,3 +20,7 @@ target/
 /packages/opencode-plugin/node_modules/
 /packages/opencode-plugin/dist/
 /packages/opencode-plugin/*.tgz
+node_modules/
+.opencode
+bun.lock
+package.json

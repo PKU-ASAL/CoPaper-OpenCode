@@ -35,7 +35,7 @@ The paper follows VibePaper structure. Key rules for this skill:
 |------|----------|-------------|---------|
 | `paper.md` | Conditional | Step 1 and Step 8 | Target framework; if missing, initialize project first |
 | `*.pdf` | **Required** | Step 2 | Source draft content |
-| `.agents/state.json` | Optional | Step 9 | Update writing phase status |
+| `.agents/state.json` | Optional | Step 9 | Updated only through `vibepaper_workflow_set_phase` |
 | `fig/` | Optional | Step 5 | Keep references to figure files mentioned in PDF |
 
 Preferred source example:
@@ -165,16 +165,19 @@ Then validate:
 1. `<project-dir>/.agents/skills/` exists and is non-empty
 2. `<project-dir>/paper.md` exists
 
-If either check fails:
+If `paper.md` is missing:
 
 1. Ask for:
    - project `name`
    - project `domain`
-2. Run initialization first:
-```bash
-vibe --root <project-dir> init --name "<name>" --domain "<domain>"
-```
-3. Then apply the accepted converted content into initialized `paper.md`.
+2. Restate the project directory, project `name`, and project `domain`.
+3. Wait for explicit user confirmation.
+4. Call `vibepaper_init_apply` with `name` and `domain`; the tool initializes OpenCode-managed VibePaper core files and refuses conflicts.
+5. Then apply the accepted converted content into initialized `paper.md`.
+
+Do not manually create `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, `.agents/state.json`, or `.agents/events.jsonl` when `vibepaper_init_apply` is available.
+
+If only `.agents/skills/` is missing or incomplete, report that the current OpenCode plugin initialization writes core project files only and does not install the skill library. Do not claim `vibepaper_init_apply` can repair missing skills. Continue only if `paper.md` exists and the current skill instructions are available in the active agent context.
 
 ### Step 9: Update workflow status
 
@@ -182,13 +185,9 @@ After accepted edits:
 - If at least one writing section is filled, set `writing` phase to `in_progress`.
 - If all intended conversion sections are materially filled, set `writing` phase to `complete`.
 
-Prefer CLI updates:
-```bash
-vibe --root <project-dir> set-phase writing --status in_progress
-vibe --root <project-dir> set-phase writing --status complete
-```
+Use `vibepaper_workflow_set_phase` for this update. Before calling it, restate the target phase and status and wait for explicit user confirmation. The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
 
-If CLI is unavailable, update `.agents/state.json` carefully and preserve unrelated fields.
+Do not run `vibe set-phase` and do not manually edit `.agents/state.json` when the OpenCode plugin tool is available.
 
 ## Output Requirements
 

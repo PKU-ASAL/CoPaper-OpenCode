@@ -20,7 +20,7 @@ This skill guides users through constructing their research storyline in `storyl
 |------|----------|-------------|---------|
 | `storyline.md` | **Required** | Step 1 (start) | Primary target file; scan for empty/filled sections, read for context |
 | `paper.md` | Conditional | Reverse-extraction mode only | Source for reverse-extracting storyline content when `storyline.md` is sparse |
-| `.agents/state.json` | Write-only | Step 5 (after applying edits) | Update `phases.storyline.status` to `in_progress` or `complete`; no read needed for content |
+| `.agents/state.json` | Tool-managed | Step 5 (after applying edits) | Update storyline phase through `vibepaper_workflow_set_phase`; do not edit the file directly |
 
 Do NOT read `writingrules.md` — this skill works with the existing `storyline.md` structure directly.
 
@@ -62,10 +62,12 @@ A section is considered **filled** if it contains substantive content beyond TOD
 
 ## State Management
 
-This skill updates `.agents/state.json` to track progress:
-- When the first section is filled: set `phases.storyline.status` to `"in_progress"`
-- When all sections are filled: set `phases.storyline.status` to `"complete"`
-- There is currently no dedicated `vibe` CLI command for these storyline progress transitions; in automation, use `StateManager.set_phase_status("storyline", status)` directly and preserve the rest of the state structure.
+This skill updates workflow progress through the OpenCode plugin tool:
+- When the first section is filled: call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "in_progress"`.
+- When all sections are filled: call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "complete"`.
+- Before calling the tool, restate the phase/status update and wait for explicit user confirmation.
+- The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
+- Do not call `vibe set-phase`, use `StateManager.set_phase_status`, or manually edit `.agents/state.json` when the plugin tool is available.
 
 ## Reverse Extraction Mode (`paper.md` → `storyline.md`)
 
@@ -139,9 +141,11 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 ### Step 5: Apply or Iterate
 
 - If **Accept**: The Orchestrator uses the `Edit` tool to replace the section content in `storyline.md` under the correct `#####` header. Then:
-  1. Update `.agents/state.json`: set `phases.storyline.status` to `"in_progress"` if not already.
-  2. Re-scan `storyline.md` to check if all sections are now filled. If so, set `phases.storyline.status` to `"complete"`.
-  3. Ask the user: *"Section **[Section Title]** has been filled. Would you like to continue with the next empty section?"* If yes, loop back to Step 2 with the next empty section.
+  1. Re-scan `storyline.md` to check whether all sections are now filled.
+  2. Restate the intended workflow update and wait for user confirmation.
+  3. Call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "in_progress"` if any section is filled, or `status: "complete"` if all sections are filled.
+  4. Treat the tool output as the audit record because it writes state and appends the workflow event.
+  5. Ask the user: *"Section **[Section Title]** has been filled. Would you like to continue with the next empty section?"* If yes, loop back to Step 2 with the next empty section.
 - If **Modify/Rewrite**: Launch the subagent again (use `session_id` to continue its context), passing the user's feedback. Repeat Step 4.
 
 ## Crucial Anti-Patterns
