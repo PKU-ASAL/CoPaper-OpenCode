@@ -28,8 +28,8 @@ Typical triggers:
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Conditional | Step 1 and Step 7 | Target template and section structure; if missing, initialize project first |
-| `*.pptx` | **Required** | Step 2 | Source research content |
+| `storyline.md` | Conditional | Step 1 and Step 7 | Target template and section structure; inspect through `vibepaper_storyline_structure_status` if present |
+| `*.pptx` | **Required** | Step 2 | Source research content; extract through `vibepaper_ppt_extract` |
 | `.agents/state.json` | Optional | Step 8 | Updated only through `vibepaper_workflow_set_phase` |
 | `relatedwork/` | Optional | Step 4 | Cross-check paper names/citations if needed |
 
@@ -58,21 +58,18 @@ Path safety rule:
 
 ## Extraction Strategy
 
-Use this fallback order:
+Call `vibepaper_ppt_extract` for source extraction when the OpenCode plugin tool is available.
 
-1. Prefer `python-pptx` for structured extraction.
-2. If unavailable, use ZIP/XML fallback:
-   - unzip `.pptx`
-   - read `ppt/slides/slide*.xml`
-   - extract visible text by slide order
-3. Keep slide index references for traceability.
+This tool is read-only and requires an explicit `.pptx` path. It does not scan directories, guess source files, write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
-For each slide, capture:
+Use the tool output to capture:
 - slide number
 - title text (if any)
 - bullet/body text
-- figure/table captions written as text
-- speaker notes only if explicitly requested
+- source hash for traceability
+- speaker notes only if explicitly requested through the tool argument
+
+Do not replace `vibepaper_ppt_extract` with prompt-only extraction instructions, shell unzip commands, `python-pptx`, or directory scans when the plugin tool is available.
 
 ## Mapping Rules (Slide -> Storyline)
 
@@ -107,15 +104,16 @@ If one slide supports multiple sections, split its points conservatively.
 
 ### Step 2: Extract slide text
 
-1. Extract all slide text in order.
-2. Build an intermediate note like:
+1. Call `vibepaper_ppt_extract` with the explicit user-provided `.pptx` path.
+2. Use the returned slides in order.
+3. Build an intermediate note like:
    - `Slide 03: [Title]`
    - bullets...
-3. Keep extraction artifacts concise and traceable.
+4. Keep extraction artifacts concise and traceable.
 
 ### Step 3: Build section evidence map
 
-1. Scan all `#####` sections in `storyline.md`.
+1. Call `vibepaper_storyline_structure_status` to list all `#####` sections in `storyline.md`.
 2. For each section, attach supporting slide snippets.
 3. Mark section status:
    - `grounded`: sufficient slide evidence

@@ -5,7 +5,10 @@ import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
 import { buildPaperStructureStatus, renderPaperStructureStatusOutput } from "./paper-structure"
+import { buildPdfExtract, renderPdfExtractOutput } from "./pdf-extract"
+import { buildPptExtract, renderPptExtractOutput } from "./ppt-extract"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
+import { buildStorylineStructureStatus, renderStorylineStructureStatusOutput } from "./storyline-structure"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
 import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
 
@@ -69,6 +72,37 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildPaperStructureStatus({ cwd: context.directory, worktree: context.worktree })
           return renderPaperStructureStatusOutput(result)
+        },
+      }),
+      vibepaper_storyline_structure_status: tool({
+        description: "Show read-only storyline.md section readiness, next storyline target, and TODO coverage. Does not modify files.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildStorylineStructureStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderStorylineStructureStatusOutput(result)
+        },
+      }),
+      vibepaper_pdf_extract: tool({
+        description: "Extract text from a user-specified PDF inside the project. Read-only; does not scan for files or modify project state.",
+        args: {
+          path: tool.schema.string().describe("Explicit relative or in-project absolute path to the PDF file"),
+          maxBytes: tool.schema.number().int().min(1).optional().describe("Optional maximum PDF size in bytes"),
+        },
+        async execute(args, context) {
+          const result = await buildPdfExtract({ cwd: context.directory, worktree: context.worktree, path: args.path, maxBytes: args.maxBytes })
+          return renderPdfExtractOutput(result)
+        },
+      }),
+      vibepaper_ppt_extract: tool({
+        description: "Extract slide text from a user-specified PPTX inside the project. Read-only; does not scan for files or modify project state.",
+        args: {
+          path: tool.schema.string().describe("Explicit relative or in-project absolute path to the PPTX file"),
+          includeNotes: tool.schema.boolean().optional().describe("Whether to include speaker notes when notes XML is present"),
+          maxBytes: tool.schema.number().int().min(1).optional().describe("Optional maximum PPTX size in bytes"),
+        },
+        async execute(args, context) {
+          const result = await buildPptExtract({ cwd: context.directory, worktree: context.worktree, path: args.path, includeNotes: args.includeNotes, maxBytes: args.maxBytes })
+          return renderPptExtractOutput(result)
         },
       }),
       vibepaper_artifact_record: tool({

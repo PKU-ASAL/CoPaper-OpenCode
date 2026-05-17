@@ -394,6 +394,117 @@ export interface PaperStructureResult {
   errors: PaperStructureError[]
 }
 
+export type StorylineStructureStatus = "filled" | "partial" | "empty"
+export type StorylineStructureErrorCode = "root-detection-failed" | "missing-storyline" | "invalid-storyline" | "unsafe-path" | "read-failed"
+
+export interface StorylineStructureOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+}
+
+export interface StorylineStructureSection {
+  line: number
+  title: string
+  status: StorylineStructureStatus
+  substantiveLines: number
+  todoLines: number
+}
+
+export interface StorylineStructureSummary {
+  total: number
+  filled: number
+  partial: number
+  empty: number
+}
+
+export interface StorylineStructureError {
+  code: StorylineStructureErrorCode
+  message: string
+  path?: string
+}
+
+export interface StorylineStructureResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  path: string | null
+  sections: StorylineStructureSection[]
+  nextSection: StorylineStructureSection | null
+  summary: StorylineStructureSummary
+  updatedAt: string | null
+  warnings: string[]
+  errors: StorylineStructureError[]
+}
+
+export type ImportExtractErrorCode = "root-detection-failed" | "missing-path" | "missing-file" | "invalid-file" | "unsafe-path" | "unsupported-format" | "file-too-large" | "read-failed"
+
+export interface ImportExtractOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  path: string
+  maxBytes?: number
+  includeNotes?: boolean
+}
+
+export interface ImportExtractError {
+  code: ImportExtractErrorCode
+  message: string
+  path?: string
+}
+
+export interface PdfExtractResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  path: string | null
+  bytes: number
+  sourceHash: string | null
+  pageCount: number
+  characters: number
+  confidence: ArtifactConfidence
+  text: string
+  updatedAt: string | null
+  warnings: string[]
+  errors: ImportExtractError[]
+}
+
+export interface PptExtractSlide {
+  slide: number
+  title: string
+  text: string
+  notes?: string
+}
+
+export interface PptExtractResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  path: string | null
+  bytes: number
+  sourceHash: string | null
+  slideCount: number
+  characters: number
+  slides: PptExtractSlide[]
+  updatedAt: string | null
+  warnings: string[]
+  errors: ImportExtractError[]
+}
+
 export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"
 
 export interface WorkflowError {

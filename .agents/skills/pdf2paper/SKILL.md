@@ -33,8 +33,8 @@ The paper follows VibePaper structure. Key rules for this skill:
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | Conditional | Step 1 and Step 8 | Target framework; if missing, initialize project first |
-| `*.pdf` | **Required** | Step 2 | Source draft content |
+| `paper.md` | Conditional | Step 1 and Step 8 | Target framework; inspect through `vibepaper_paper_structure_status` if present |
+| `*.pdf` | **Required** | Step 2 | Source draft content; extract through `vibepaper_pdf_extract` |
 | `.agents/state.json` | Optional | Step 9 | Updated only through `vibepaper_workflow_set_phase` |
 | `fig/` | Optional | Step 5 | Keep references to figure files mentioned in PDF |
 
@@ -66,16 +66,18 @@ Path safety rule:
 
 ## Extraction Strategy
 
-Use this fallback order:
+Call `vibepaper_pdf_extract` for source extraction when the OpenCode plugin tool is available.
 
-1. Prefer `pdftotext` or equivalent text extraction.
-2. If extraction quality is poor, use OCR fallback.
-3. Keep page numbers for traceability.
+This tool is read-only and requires an explicit `.pdf` path. It does not scan directories, guess source files, write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
-For each extracted chunk, capture:
+Use the tool output to capture:
 - page range
-- candidate section meaning (intro/method/experiments/etc.)
-- key claims, numbers, and citations
+- extracted text
+- page count
+- extraction confidence
+- source hash for traceability
+
+If the tool reports low confidence or no text operators, disclose that limitation to the user. Do not replace `vibepaper_pdf_extract` with prompt-only extraction instructions, shell `pdftotext`, OCR, or directory scans when the plugin tool is available.
 
 ## Mapping Rules (PDF -> paper.md)
 
@@ -108,18 +110,19 @@ If one PDF paragraph supports multiple destinations, split conservatively and ke
 
 ### Step 2: Extract PDF content
 
-1. Extract text in reading order.
-2. Build an intermediate traceable note with page indices.
-3. Mark extraction confidence:
+1. Call `vibepaper_pdf_extract` with the explicit user-provided `.pdf` path.
+2. Use the returned text, page count, confidence, warnings, and source hash.
+3. Build an intermediate traceable note with available page information.
+4. Mark extraction confidence:
    - `high`: direct text extraction
    - `medium`: mixed quality
    - `low`: OCR-heavy and error-prone
 
 ### Step 3: Scan target framework
 
-1. Read `paper.md` structure (`#` to `#####`) and descriptions.
+1. Call `vibepaper_paper_structure_status` to inspect `paper.md` structure and Level 5 writing targets.
 2. Use the embedded Paper Structure Reference above for structure constraints.
-3. Build a target section map for insertion planning.
+3. Build a target section map for insertion planning from the tool's `headings`, `level5Targets`, and `violations`.
 
 ### Step 4: Build section evidence map
 

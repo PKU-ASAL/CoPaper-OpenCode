@@ -91,6 +91,16 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 <!-- description: Read-only paper structure status tool -->
 `vibepaper_paper_structure_status` 只读取 `paper.md`，解析 Level 2-5 结构标题、Level 5 写作目标、Level 6 子段落覆盖情况、推荐的下一个未完成 Level 5 section，以及结构问题。该工具不写文件、不推进 phase、不记录 artifact readiness。
 
+###### storyline.md 只读结构扫描
+<!-- description: Read-only storyline structure status tool -->
+`vibepaper_storyline_structure_status` 只读取 `storyline.md`，解析 `#####` 故事线章节、filled/partial/empty 状态、TODO 覆盖和下一个待补章节。该工具不写文件、不推进 phase、不记录 artifact readiness。
+
+## 导入提取
+
+###### 显式路径提取
+<!-- description: Read-only import extraction tools -->
+`vibepaper_pdf_extract` 和 `vibepaper_ppt_extract` 只读取用户明确提供的项目内路径，不会自动扫描目录或猜测候选文件。PDF 工具提取文本、页数、source hash 和置信度；PPTX 工具提取 slide text、标题、可选 notes、source hash。二者都不写文件、不推进 phase、不记录 artifact readiness。
+
 ## 初始化项目
 
 ###### 显式确认写入

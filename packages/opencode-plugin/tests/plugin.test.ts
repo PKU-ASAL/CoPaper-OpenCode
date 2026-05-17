@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { ToolContext } from "@opencode-ai/plugin"
-import { existsSync } from "node:fs"
+import { existsSync, writeFileSync } from "node:fs"
 import type { VibePaperAgentRuntimeState } from "../src/agent-config"
 import { agentRuntimeToDoctorChecks, getLatestVibePaperAgentRuntimeState, setLatestVibePaperAgentRuntimeState } from "../src/agent-diagnostics"
 import { applyInitPlan, planInit } from "../src/installer"
@@ -59,6 +59,68 @@ function workflowState() {
     current_phase: "custom_phase",
     event_log_path: ".agents/events.jsonl",
   }
+}
+
+function makeTinyPptx(): Buffer {
+  return makeZip({
+    "ppt/slides/slide1.xml": `<p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><a:t>Runtime Slide</a:t><a:t>Bullet one</a:t></p:spTree></p:cSld></p:sld>`,
+  })
+}
+
+function makeZip(files: Record<string, string>): Buffer {
+  const localParts: Buffer[] = []
+  const centralParts: Buffer[] = []
+  let offset = 0
+
+  for (const [name, content] of Object.entries(files)) {
+    const nameBytes = Buffer.from(name, "utf8")
+    const data = Buffer.from(content, "utf8")
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt16LE(0, 6)
+    local.writeUInt16LE(0, 8)
+    local.writeUInt32LE(0, 10)
+    local.writeUInt32LE(0, 14)
+    local.writeUInt32LE(data.length, 18)
+    local.writeUInt32LE(data.length, 22)
+    local.writeUInt16LE(nameBytes.length, 26)
+    local.writeUInt16LE(0, 28)
+    localParts.push(local, nameBytes, data)
+
+    const central = Buffer.alloc(46)
+    central.writeUInt32LE(0x02014b50, 0)
+    central.writeUInt16LE(20, 4)
+    central.writeUInt16LE(20, 6)
+    central.writeUInt16LE(0, 8)
+    central.writeUInt16LE(0, 10)
+    central.writeUInt32LE(0, 12)
+    central.writeUInt32LE(0, 16)
+    central.writeUInt32LE(data.length, 20)
+    central.writeUInt32LE(data.length, 24)
+    central.writeUInt16LE(nameBytes.length, 28)
+    central.writeUInt16LE(0, 30)
+    central.writeUInt16LE(0, 32)
+    central.writeUInt16LE(0, 34)
+    central.writeUInt16LE(0, 36)
+    central.writeUInt32LE(0, 38)
+    central.writeUInt32LE(offset, 42)
+    centralParts.push(central, nameBytes)
+    offset += local.length + nameBytes.length + data.length
+  }
+
+  const centralDirectory = Buffer.concat(centralParts)
+  const eocd = Buffer.alloc(22)
+  eocd.writeUInt32LE(0x06054b50, 0)
+  eocd.writeUInt16LE(0, 4)
+  eocd.writeUInt16LE(0, 6)
+  eocd.writeUInt16LE(Object.keys(files).length, 8)
+  eocd.writeUInt16LE(Object.keys(files).length, 10)
+  eocd.writeUInt32LE(centralDirectory.length, 12)
+  eocd.writeUInt32LE(offset, 16)
+  eocd.writeUInt16LE(0, 20)
+
+  return Buffer.concat([...localParts, centralDirectory, eocd])
 }
 
 describe("OpenCode plugin", () => {
@@ -247,6 +309,9 @@ describe("OpenCode plugin", () => {
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_status).toBeDefined()
     expect(hooks.tool.vibepaper_paper_structure_status).toBeDefined()
+    expect(hooks.tool.vibepaper_storyline_structure_status).toBeDefined()
+    expect(hooks.tool.vibepaper_pdf_extract).toBeDefined()
+    expect(hooks.tool.vibepaper_ppt_extract).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
@@ -335,6 +400,47 @@ describe("OpenCode plugin", () => {
       expect(output).toContain("Problem")
       expect(output).not.toContain(capturedProject.root)
       expect(existsSync(capturedProject.path("paper.md"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("storyline structure tool reads from runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("storyline.md", "# Storyline\n##### 问题描述\nConcrete problem.\n##### Insights\nTODO\n")
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_storyline_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("Insights")
+      expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path("storyline.md"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("extract tools read explicit runtime-root files", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("draft.pdf", "%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n2 0 obj\n<< /Length 28 >>\nstream\nBT (Runtime PDF text) Tj ET\nendstream\nendobj\n%%EOF\n")
+      writeFileSync(runtimeProject.path("slides.pptx"), makeTinyPptx())
+      const hooks = await buildHooks(capturedProject.root)
+
+      const pdfOutput = await (hooks.tool.vibepaper_pdf_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "draft.pdf" }, toolContext(runtimeProject.root))
+      const pptOutput = await (hooks.tool.vibepaper_ppt_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "slides.pptx" }, toolContext(runtimeProject.root))
+
+      expect(pdfOutput).toContain("Runtime PDF text")
+      expect(pdfOutput).toContain(runtimeProject.root)
+      expect(pptOutput).toContain("Runtime Slide")
+      expect(pptOutput).toContain(runtimeProject.root)
+      expect(existsSync(capturedProject.path("draft.pdf"))).toBe(false)
+      expect(existsSync(capturedProject.path("slides.pptx"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()
