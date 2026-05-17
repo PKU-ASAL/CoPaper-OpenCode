@@ -246,6 +246,7 @@ describe("OpenCode plugin", () => {
     expect(hooks.tool.vibepaper_dashboard).toBeDefined()
     expect(hooks.tool.vibepaper_init_apply).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_status).toBeDefined()
+    expect(hooks.tool.vibepaper_paper_structure_status).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
@@ -316,6 +317,24 @@ describe("OpenCode plugin", () => {
       expect(output).toContain("storyline")
       expect(output).not.toContain(capturedProject.root)
       expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("paper structure tool reads from runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("paper.md", "# Runtime Paper\n## Intro\n##### Problem\n###### Runtime context\nA short paragraph.\n")
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_paper_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("Problem")
+      expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path("paper.md"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()

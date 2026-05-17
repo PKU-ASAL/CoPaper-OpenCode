@@ -27,3 +27,5 @@ node_modules/
 .opencode
 bun.lock
 package.json
+.pytest_cache/
+plan.md

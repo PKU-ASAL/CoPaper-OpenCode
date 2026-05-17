@@ -10,6 +10,7 @@ import {
 const SAFE_READ_TOOL_PERMISSIONS = [
   "vibepaper_dashboard",
   "vibepaper_artifact_status",
+  "vibepaper_paper_structure_status",
   "vibepaper_workflow_status",
   "vibepaper_workflow_log",
 ] as const
@@ -51,6 +52,7 @@ describe("permission profiles", () => {
       skill: "deny",
       vibepaper_dashboard: "allow",
       vibepaper_artifact_status: "allow",
+      vibepaper_paper_structure_status: "allow",
       vibepaper_workflow_status: "allow",
       vibepaper_workflow_log: "allow",
       vibepaper_init_apply: "deny",

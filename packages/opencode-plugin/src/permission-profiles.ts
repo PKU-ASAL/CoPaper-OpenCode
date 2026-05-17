@@ -28,6 +28,7 @@ const READ_ONLY_PROFILE: OpenCodePermissionConfig = {
   skill: "deny",
   vibepaper_dashboard: "allow",
   vibepaper_artifact_status: "allow",
+  vibepaper_paper_structure_status: "allow",
   vibepaper_workflow_status: "allow",
   vibepaper_workflow_log: "allow",
   vibepaper_init_apply: "deny",

@@ -32,7 +32,7 @@ This skill is an orchestrator, not a direct replacement for drafting or revision
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | Step 1 (scan completion status) | Primary target; scan Level 2-5 headings for empty/filled sections |
+| `paper.md` | **Required** | Step 1 (structure status) | Primary target; inspect through `vibepaper_paper_structure_status` for Level 2-5 completion and Level 5 writing targets |
 | `storyline.md` | Conditional | When recommending writing order | Research narrative for dependency-aware section ordering |
 | `.agents/state.json` | Conditional | Step 8 (progress tracking) | Workflow phase status via `vibepaper_workflow_set_phase`; checker/writing metadata only if a dedicated tool exists |
 | `.agents/cross_index.json` | Conditional | When routing to markdown-helper or mad-writer | Paper-technique mappings; pass to downstream skills for literature context |
@@ -45,11 +45,15 @@ If some sources are missing, continue with available context and state what is m
 
 ## Completion Scan Rules
 
-The orchestrator must scan `paper.md` from top to bottom and inspect every Level 2 to Level 5 heading.
+The orchestrator must call `vibepaper_paper_structure_status` to inspect `paper.md` completion instead of manually scanning headings when the plugin tool is available.
 
-Use the core rule below:
-- **Complete**: the node has at least one Level 6 child
-- **Incomplete**: the node has no Level 6 child
+This tool is read-only. It does not write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+
+Use the tool output as the source of truth:
+- `headings`: Level 2-5 structure with `complete`, `partial`, or `incomplete` status
+- `level5Targets`: primary operational writing targets
+- `nextTarget`: first incomplete Level 5 writing target
+- `violations`: structural problems such as body text under Level 2-5 headings or Level 6 length violations
 
 Reporting refinement:
 - Use **partial** for parent nodes whose descendants are mixed.
@@ -58,13 +62,12 @@ Reporting refinement:
 
 ## Workflow
 
-### Step 1: Read `paper.md` and scan all Level 2-5 sections
+### Step 1: Call `vibepaper_paper_structure_status`
 
-1. Read `paper.md`.
-2. Identify every Level 2, Level 3, Level 4, and Level 5 heading.
-3. For each node, detect whether Level 6 children exist beneath it.
-4. Mark each node as `complete`, `incomplete`, or `partial`.
-5. If `paper.md` does not exist, stop and tell the user the framework file is required first.
+1. Call `vibepaper_paper_structure_status`.
+2. Use the returned `headings`, `level5Targets`, `nextTarget`, `summary`, and `violations`.
+3. If the tool reports missing or invalid `paper.md`, stop and tell the user the framework file is required first.
+4. Do not reproduce this scan manually, shell out to parse markdown, or infer completion from ad hoc file reads when the plugin tool is available.
 
 ### Step 2: Display structure overview and progress summary
 

@@ -27,7 +27,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | State 0 (outline), State 1 (scan), State 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
+| `paper.md` | **Required** | State 0 (outline), State 1 (structure status), State 2 (subagent prompt) | Primary writing target; call `vibepaper_paper_structure_status` to identify empty Level 5 sections, then read targeted context as needed |
 | `storyline.md` | **Required** | State 0 (outline) and State 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
 | `.agents/cross_index.json` | Optional but preferred | State 1 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
 | `relatedwork/papers/*.md` | Optional | State 1 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
@@ -53,7 +53,7 @@ You must explicitly announce your current state to the user in every message (e.
 4. **STOP AND WAIT**. Once approved, continue to State 1.
 
 ### State 1: Context & Literature Gathering (READ)
-1. Scan `paper.md` from top to bottom to locate the **FIRST Level 5 node (#####) or deeper that has NO Level 6 child nodes**.
+1. Call `vibepaper_paper_structure_status` to locate the next incomplete Level 5 writing target. Use the tool's `nextTarget`, `level5Targets`, `summary`, and `violations` instead of manually scanning `paper.md`.
 2. **Retrieve RAG Data:**
    - Search `.agents/cross_index.json` first to identify papers relevant to this section's technical points.
    - Read snippets from `relatedwork/summary.md`.
@@ -62,6 +62,8 @@ You must explicitly announce your current state to the user in every message (e.
 3. **Output Fact Sheet:** Generate a strictly formatted "**Fact & Citation Sheet**" containing the core claims to be written and their exact citation tags (e.g., `[@author2024]`).
 4. **Announce and Ask**: Show the target section and Fact Sheet to the user. Ask: *"Target section: **[Level 5 Title]**. Shall I launch the writing subagent using this Fact Sheet?"*
 5. **STOP AND WAIT** for confirmation. Don't proceed.
+
+`vibepaper_paper_structure_status` is read-only. It does not write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases. Do not replace it with prompt-only heading scans, shell parsing, or manual completion inference when the plugin tool is available.
 
 ### State 2: Fresh Subagent Drafting (WRITE)
 1. Once confirmed, launch an independent subagent (`runSubagent` or `task`). **CRITICAL: Ensure it operates in a fresh context.** Do not pass your entire chat history.

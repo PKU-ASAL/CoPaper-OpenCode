@@ -329,6 +329,71 @@ export interface ProjectState {
   checkers: Record<string, never>
 }
 
+export type PaperStructureStatus = "complete" | "partial" | "incomplete"
+export type PaperStructureViolationSeverity = "error" | "warning"
+export type PaperStructureViolationType = "body-under-structural-heading" | "heading-level-skip" | "level6-title-too-long" | "level6-body-too-long"
+export type PaperStructureErrorCode = "root-detection-failed" | "missing-paper" | "invalid-paper" | "unsafe-path" | "read-failed"
+
+export interface PaperStructureOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+}
+
+export interface PaperStructureHeading {
+  line: number
+  level: number
+  title: string
+  status: PaperStructureStatus
+  level6Children: number
+  descendantLevel5: number
+}
+
+export interface PaperStructureViolation {
+  type: PaperStructureViolationType
+  severity: PaperStructureViolationSeverity
+  line: number
+  message: string
+  heading?: string
+}
+
+export interface PaperStructureSummary {
+  total: number
+  level5Total: number
+  complete: number
+  partial: number
+  incomplete: number
+  level5Complete: number
+  level5Incomplete: number
+  violationCount: number
+}
+
+export interface PaperStructureError {
+  code: PaperStructureErrorCode
+  message: string
+  path?: string
+}
+
+export interface PaperStructureResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  path: string | null
+  headings: PaperStructureHeading[]
+  level5Targets: PaperStructureHeading[]
+  nextTarget: PaperStructureHeading | null
+  summary: PaperStructureSummary
+  violations: PaperStructureViolation[]
+  updatedAt: string | null
+  warnings: string[]
+  errors: PaperStructureError[]
+}
+
 export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"
 
 export interface WorkflowError {

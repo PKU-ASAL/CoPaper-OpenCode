@@ -4,6 +4,7 @@ import { setLatestVibePaperAgentRuntimeState } from "./agent-diagnostics"
 import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { buildDashboardResult, renderDashboardOutput } from "./dashboard"
+import { buildPaperStructureStatus, renderPaperStructureStatusOutput } from "./paper-structure"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
 import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
@@ -60,6 +61,14 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildArtifactStatus({ cwd: context.directory, worktree: context.worktree })
           return renderArtifactStatusOutput(result)
+        },
+      }),
+      vibepaper_paper_structure_status: tool({
+        description: "Show read-only paper.md structure completion, Level 5 writing targets, next target, and structural issues. Does not modify files.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildPaperStructureStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderPaperStructureStatusOutput(result)
         },
       }),
       vibepaper_artifact_record: tool({

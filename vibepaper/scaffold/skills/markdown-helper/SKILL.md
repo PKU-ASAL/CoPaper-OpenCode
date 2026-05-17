@@ -27,7 +27,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | State 0 (outline), State 1 (scan), State 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
+| `paper.md` | **Required** | State 0 (outline), State 1 (structure status), State 2 (subagent prompt) | Primary writing target; call `vibepaper_paper_structure_status` to identify empty Level 5 sections, then read targeted context as needed |
 | `storyline.md` | **Required** | State 0 (outline) and State 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
 | `.agents/cross_index.json` | Optional but preferred | State 1 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
 | `relatedwork/papers/*.md` | Optional | State 1 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
@@ -52,11 +52,14 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 6. **STOP AND WAIT** for user confirmation. Once the user approves the outline, proceed to draft paragraphs one by one.
 
 ### Step 2: Scan & Propose Paragraph (WAIT FOR USER)
-1. Read `paper.md` from top to bottom.
-2. Locate the **FIRST Level 5 node (#####) or deeper that has NO Level 6 child nodes yet**.
-3. Extract its `description` metadata (and reference its approved Level 6 title from Step 1).
-4. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph based on our approved outline?"*
-5. **STOP AND WAIT** for user confirmation. Do not proceed.
+1. Call `vibepaper_paper_structure_status` instead of manually scanning `paper.md`.
+2. Use the tool's `nextTarget` as the next Level 5 section to draft. If `nextTarget` is `null`, report that no incomplete Level 5 writing target remains.
+3. Use the tool's `violations` to warn the user about structural issues before drafting.
+4. Read only the targeted region of `paper.md` if you need its `description` metadata or local context for the selected section.
+5. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph based on our approved outline?"*
+6. **STOP AND WAIT** for user confirmation. Do not proceed.
+
+`vibepaper_paper_structure_status` is read-only. It does not write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases. Do not replace it with prompt-only heading scans, shell parsing, or manual completion inference when the plugin tool is available.
 
 ### Step 3: Delegate to Subagent
 1. Once confirmed, use the `task` or `runSubagent` tool to launch an independent subagent for writing (`category="writing"`, `run_in_background=false`).

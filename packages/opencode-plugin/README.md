@@ -85,6 +85,12 @@ Dashboard 工具本身只读取项目并展示初始化预览，不写入项目�
 <!-- description: Artifact readiness write behavior -->
 当用户明确要求记录工件就绪度时，agent 必须先复述 artifact、status、confidence 和 reason，并等待确认后才调用 `vibepaper_artifact_record`。该工具只写 `.agents/state.json` 的 `artifacts` 区域并追加 `.agents/events.jsonl`，不推进 phase，不运行 checker、relatedwork、report、skills 或 git。
 
+## 论文结构
+
+###### paper.md 只读结构扫描
+<!-- description: Read-only paper structure status tool -->
+`vibepaper_paper_structure_status` 只读取 `paper.md`，解析 Level 2-5 结构标题、Level 5 写作目标、Level 6 子段落覆盖情况、推荐的下一个未完成 Level 5 section，以及结构问题。该工具不写文件、不推进 phase、不记录 artifact readiness。
+
 ## 初始化项目
 
 ###### 显式确认写入
