@@ -34,7 +34,7 @@ The paper follows VibePaper structure. Key rules for this skill:
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | Conditional | Step 1 and Step 8 | Target framework; inspect through `vibepaper_paper_structure_status` if present |
-| `*.pdf` | **Required** | Step 2 | Source draft content; extract through `vibepaper_pdf_extract` |
+| `*.pdf` | **Required** | Step 2 | Source draft content; extract and validate through `vibepaper_pdf_extract` |
 | `.agents/state.json` | Optional | Step 9 | Updated only through `vibepaper_workflow_set_phase` |
 | `fig/` | Optional | Step 5 | Keep references to figure files mentioned in PDF |
 
@@ -61,14 +61,14 @@ Path safety rule:
 
 ## Supported Formats
 
-- Text-based `pdf`: supported
-- Scanned/image-only `pdf`: supported with OCR fallback, but must explicitly mark low-confidence extraction
+- Text-based `pdf`: supported through `vibepaper_pdf_extract`
+- Scanned/image-only `pdf`: not OCRed by this skill; if `vibepaper_pdf_extract` reports low confidence or little/no text, stop and ask the user for a text-based PDF or extracted text
 
 ## Extraction Strategy
 
 Call `vibepaper_pdf_extract` for source extraction when the OpenCode plugin tool is available.
 
-This tool is read-only and requires an explicit `.pdf` path. It does not scan directories, guess source files, write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+This tool is read-only and requires an explicit `.pdf` path. It validates path safety, file existence, supported extension, file size, and readable text operators. It does not scan directories, guess source files, write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
 Use the tool output to capture:
 - page range
@@ -77,7 +77,7 @@ Use the tool output to capture:
 - extraction confidence
 - source hash for traceability
 
-If the tool reports low confidence or no text operators, disclose that limitation to the user. Do not replace `vibepaper_pdf_extract` with prompt-only extraction instructions, shell `pdftotext`, OCR, or directory scans when the plugin tool is available.
+If the tool reports low confidence or no text operators, disclose that limitation to the user and ask for a better source. Do not replace `vibepaper_pdf_extract` with prompt-only extraction instructions, shell existence checks, shell `pdftotext`, OCR, or directory scans when the plugin tool is available.
 
 ## Mapping Rules (PDF -> paper.md)
 
@@ -102,27 +102,29 @@ If one PDF paragraph supports multiple destinations, split conservatively and ke
    - `请提供要转换的 PDF 文件路径（例如：target/example_project/draft.pdf）。`
 3. Do not scan the filesystem for PDF candidates when the path is missing.
 4. Wait for user-provided absolute or relative path.
-5. Confirm source `.pdf` exists.
-6. If missing, stop and report exact missing path.
-7. Check whether `paper.md` exists:
+5. Do not run a separate shell/file existence check for the `.pdf`; `vibepaper_pdf_extract` performs this validation in Step 2.
+6. Check whether `paper.md` exists through `vibepaper_paper_structure_status` in Step 3:
    - if yes, continue normal mapping and in-place update flow
    - if no, continue conversion in draft mode and initialize project at Step 8 before final write
 
 ### Step 2: Extract PDF content
 
 1. Call `vibepaper_pdf_extract` with the explicit user-provided `.pdf` path.
-2. Use the returned text, page count, confidence, warnings, and source hash.
-3. Build an intermediate traceable note with available page information.
-4. Mark extraction confidence:
+2. If the tool returns an error, stop and report the error; do not retry by scanning directories, running `pdftotext`, or doing OCR.
+3. Use the returned text, page count, confidence, warnings, and source hash.
+4. Build an intermediate traceable note with available page information.
+5. Mark extraction confidence:
    - `high`: direct text extraction
    - `medium`: mixed quality
-   - `low`: OCR-heavy and error-prone
+   - `low`: too little reliable text; ask the user for a text-based PDF or extracted text before continuing
 
 ### Step 3: Scan target framework
 
 1. Call `vibepaper_paper_structure_status` to inspect `paper.md` structure and Level 5 writing targets.
-2. Use the embedded Paper Structure Reference above for structure constraints.
-3. Build a target section map for insertion planning from the tool's `headings`, `level5Targets`, and `violations`.
+2. If the tool reports missing `paper.md`, keep accepted conversion content in draft mode and initialize project at Step 8 before final write.
+3. If the tool reports an unsafe path or unreadable file, stop and report the tool error.
+4. Use the embedded Paper Structure Reference above for structure constraints.
+5. Build a target section map for insertion planning from the tool's `headings`, `level5Targets`, and `violations`.
 
 ### Step 4: Build section evidence map
 
@@ -216,7 +218,7 @@ Each inserted paragraph should be:
 - **NEVER** invent experiment numbers, datasets, or baselines
 - **NEVER** modify Level 1-5 structure in `paper.md`
 - **NEVER** rewrite the full paper in one blind pass
-- **NEVER** hide low-confidence OCR extraction; disclose it
+- **NEVER** pretend OCR was performed by this skill; disclose low-confidence or missing text from `vibepaper_pdf_extract`
 - **NEVER** treat this as autonomous writing without user confirmation
 
 ## Recommended Default Invocation

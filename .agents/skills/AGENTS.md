@@ -45,7 +45,7 @@ These skills are bundled into initialized projects by `vibe init`.
 - **Workflow Status Queries**: For read-only workflow phase status, current phase, phase table, and next-step recommendation, call `vibepaper_workflow_status`. Do not read `.agents/state.json` directly for phase state when the plugin tool is available.
 - **Paper Structure Queries**: For read-only `paper.md` Level 2-5 completion, Level 5 writing targets, next writing target, and structural issues, call `vibepaper_paper_structure_status`. Do not reimplement this as prompt-only heading scans or shell parsing when the plugin tool is available.
 - **Storyline Structure Queries**: For read-only `storyline.md` `#####` section readiness, TODO coverage, and next storyline target, call `vibepaper_storyline_structure_status`. Do not reimplement this as prompt-only section scans when the plugin tool is available.
-- **Import Extraction**: For user-specified PDF and PPTX imports, call `vibepaper_pdf_extract` or `vibepaper_ppt_extract`. These tools are read-only and require an explicit path; do not scan directories, glob for candidates, or guess source files.
+- **Import Extraction**: For user-specified PDF and PPTX imports, call `vibepaper_pdf_extract` or `vibepaper_ppt_extract`. These tools are read-only and require an explicit user-provided absolute or relative path; do not run separate shell existence checks, scan directories, glob for candidates, or guess source files.
 - **Phase Updates**: After explicit user confirmation, call `vibepaper_workflow_set_phase`; the tool writes `.agents/state.json` and appends `.agents/events.jsonl`. Do not describe this as a prompt-only action.
 - **Workflow Log Queries**: For read-only inspection of `.agents/events.jsonl`, call `vibepaper_workflow_log` with optional `lastN`, `phase`, and `operator` filters. Do not read the event log file directly when the plugin tool is available.
 - **Artifact Readiness Queries**: For read-only artifact readiness, evidence, confidence, and recommendation, call `vibepaper_artifact_status`. Do not manually infer readiness from files or `.agents/state.json` when the plugin tool is available.
@@ -60,7 +60,7 @@ These skills are bundled into initialized projects by `vibe init`.
 - Do not bypass `writingrules.md` constraints in any skill logic.
 - Do not modify Level 1-5 headers during automated content insertion.
 - Do not generate final paper content without user-provided insights or data.
-- Do not use absolute paths; always use relative paths from the workspace root.
+- Do not invent absolute paths. Only use absolute paths when the user explicitly provided them or a plugin tool contract accepts them.
 - Do not duplicate core structural rules already defined in the root `AGENTS.md`.
 - Do not document nonexistent plugin tools or outdated CLI-only workflows.
 - Do not tell agents to edit `.agents/state.json` directly when an OpenCode plugin tool supports the workflow update.

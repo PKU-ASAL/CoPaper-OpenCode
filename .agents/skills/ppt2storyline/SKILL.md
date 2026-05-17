@@ -28,7 +28,7 @@ Typical triggers:
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Conditional | Step 1 and Step 7 | Target template and section structure; inspect through `vibepaper_storyline_structure_status` if present |
+| `storyline.md` | Conditional | Step 1, Step 3, and Step 7 | Target template and section structure; inspect through `vibepaper_storyline_structure_status` |
 | `*.pptx` | **Required** | Step 2 | Source research content; extract through `vibepaper_ppt_extract` |
 | `.agents/state.json` | Optional | Step 8 | Updated only through `vibepaper_workflow_set_phase` |
 | `relatedwork/` | Optional | Step 4 | Cross-check paper names/citations if needed |
@@ -60,7 +60,7 @@ Path safety rule:
 
 Call `vibepaper_ppt_extract` for source extraction when the OpenCode plugin tool is available.
 
-This tool is read-only and requires an explicit `.pptx` path. It does not scan directories, guess source files, write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+This tool is read-only and requires an explicit `.pptx` path. It validates path safety, file existence, supported extension, file size, and readable slide content. It does not scan directories, guess source files, write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
 Use the tool output to capture:
 - slide number
@@ -69,7 +69,9 @@ Use the tool output to capture:
 - source hash for traceability
 - speaker notes only if explicitly requested through the tool argument
 
-Do not replace `vibepaper_ppt_extract` with prompt-only extraction instructions, shell unzip commands, `python-pptx`, or directory scans when the plugin tool is available.
+Do not replace `vibepaper_ppt_extract` with prompt-only extraction instructions, shell existence checks, shell unzip commands, `python-pptx`, or directory scans when the plugin tool is available.
+
+For target structure, call `vibepaper_storyline_structure_status`. This tool is read-only and reports whether `storyline.md` is present, safe, and structurally fillable. Do not manually infer storyline section readiness from prompt-only scans when the plugin tool is available.
 
 ## Mapping Rules (Slide -> Storyline)
 
@@ -96,26 +98,28 @@ If one slide supports multiple sections, split its points conservatively.
    - `请提供要转换的 PPTX 文件路径（例如：target/example_project/research_slides.pptx）。`
 3. Do not scan the filesystem for PPT/PPTX candidates when the path is missing.
 4. Wait for user-provided absolute or relative path.
-5. Confirm source `.pptx` exists.
-6. If missing, stop and report exact missing path.
-7. Check whether `storyline.md` exists:
-   - if yes, continue normal mapping and in-place update flow
-   - if no, continue conversion in draft mode and initialize project at Step 7 before final write
+5. Do not run a separate shell/file existence check for the `.pptx`; `vibepaper_ppt_extract` performs this validation in Step 2.
+6. Call `vibepaper_storyline_structure_status` to check whether `storyline.md` exists and is structurally safe:
+   - if the tool succeeds, continue normal mapping and in-place update flow
+   - if the tool reports missing `storyline.md`, continue conversion in draft mode and initialize project at Step 7 before final write
+   - if the tool reports an unsafe path or unreadable file, stop and report the tool error
 
 ### Step 2: Extract slide text
 
 1. Call `vibepaper_ppt_extract` with the explicit user-provided `.pptx` path.
-2. Use the returned slides in order.
-3. Build an intermediate note like:
+2. If the tool returns an error, stop and report the error; do not retry by scanning directories or using shell/Python extraction.
+3. Use the returned slides in order.
+4. Build an intermediate note like:
    - `Slide 03: [Title]`
    - bullets...
-4. Keep extraction artifacts concise and traceable.
+5. Keep extraction artifacts concise and traceable.
 
 ### Step 3: Build section evidence map
 
-1. Call `vibepaper_storyline_structure_status` to list all `#####` sections in `storyline.md`.
-2. For each section, attach supporting slide snippets.
-3. Mark section status:
+1. Use the `vibepaper_storyline_structure_status` result from Step 1, or call it again if `storyline.md` was initialized or changed.
+2. Use the returned `sections`, `nextSection`, and `summary`; do not manually scan `storyline.md` to decide section readiness.
+3. For each section, attach supporting slide snippets.
+4. Mark section status:
    - `grounded`: sufficient slide evidence
    - `partial`: some evidence
    - `missing`: no evidence

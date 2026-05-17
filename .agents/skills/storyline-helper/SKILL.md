@@ -53,7 +53,7 @@ Do NOT read `writingrules.md` — this skill works with the existing `storyline.
 
 ## Section Detection Logic
 
-Use `vibepaper_storyline_structure_status` for section readiness whenever the plugin tool is available. The tool is read-only: it does not write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+Use `vibepaper_storyline_structure_status` for section readiness whenever the plugin tool is available. The tool is read-only and validates that `storyline.md` is present, safe, and structurally readable. It does not write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
 The tool classifies sections using this logic:
 
@@ -64,7 +64,7 @@ A section is considered **empty** if, after its `#####` header line, the content
 
 A section is considered **filled** if it contains substantive content beyond TODO placeholders and instructional text.
 
-Do not replace `vibepaper_storyline_structure_status` with prompt-only section scans, shell parsing, or manual completion inference when the plugin tool is available.
+Do not replace `vibepaper_storyline_structure_status` with prompt-only section scans, shell existence checks, shell parsing, or manual completion inference when the plugin tool is available.
 
 ## State Management
 
@@ -103,16 +103,17 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 ### Step 1: Scan & Present (WAIT FOR USER)
 
 1. Call `vibepaper_storyline_structure_status`.
-2. Use the returned `sections`, `nextSection`, and `summary` to identify empty, partial, and filled storyline sections.
-3. Compile a list of empty or partial sections with their section numbers and titles.
-4. **Present to the user**: Show the list of empty sections and ask which one they want to work on next. Example:
+2. If the tool reports missing, unsafe, or unreadable `storyline.md`, stop and report the tool error instead of manually scanning files.
+3. Use the returned `sections`, `nextSection`, and `summary` to identify empty, partial, and filled storyline sections.
+4. Compile a list of empty or partial sections with their section numbers and titles.
+5. **Present to the user**: Show the list of empty sections and ask which one they want to work on next. Example:
    > "I found the following empty sections in your storyline:
    > 1. 问题描述
    > 2. 问题重要性
    > 5. 解决问题的现有相关方法
    > ...
    > Which section would you like to work on? You can also say 'next' to start from the first empty section."
-5. **STOP AND WAIT** for user selection. Do not proceed.
+6. **STOP AND WAIT** for user selection. Do not proceed.
 
 ### Step 2: Show Section Guidance & Collect Input (WAIT FOR USER)
 
