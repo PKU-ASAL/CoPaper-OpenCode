@@ -650,6 +650,79 @@ export interface CheckerRecordResult {
   errors: CheckerRecordError[]
 }
 
+export type RelatedworkStatusErrorCode = "root-detection-failed" | "unsafe-path" | "invalid-catalog" | "read-failed"
+
+export interface RelatedworkStatusOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+}
+
+export interface RelatedworkStatusFile {
+  path: string
+  present: boolean
+  kind: "file" | "directory"
+  updatedAt: string | null
+  bytes: number | null
+  warnings: string[]
+}
+
+export interface RelatedworkStatusCounts {
+  papersFound: number
+  papersDownloaded: number
+  downloadFailures: number
+  summariesDone: number
+  bibEntries: number
+  pdfFiles: number
+  summaryFiles: number
+  crossIndexBuilt: boolean
+}
+
+export interface RelatedworkStatusPaper {
+  paperId: string
+  title: string | null
+  year: number | null
+  venue: string | null
+  downloadStatus: string
+  pdfPath: string | null
+  pdfExists: boolean
+  summaryPath: string | null
+  summaryExists: boolean
+  warnings: string[]
+}
+
+export interface RelatedworkStatusError {
+  code: RelatedworkStatusErrorCode
+  message: string
+  path?: string
+}
+
+export interface RelatedworkStatusResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  readonly: true
+  ok: boolean
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  files: {
+    relatedworkDir: RelatedworkStatusFile
+    catalog: RelatedworkStatusFile
+    bib: RelatedworkStatusFile
+    pdfDir: RelatedworkStatusFile
+    papersDir: RelatedworkStatusFile
+    searchCache: RelatedworkStatusFile
+    queries: RelatedworkStatusFile
+    summary: RelatedworkStatusFile
+    crossIndex: RelatedworkStatusFile
+  }
+  counts: RelatedworkStatusCounts
+  papers: RelatedworkStatusPaper[]
+  warnings: string[]
+  errors: RelatedworkStatusError[]
+}
+
 export type WorkflowErrorCode = "missing-state" | "invalid-state" | "invalid-phase" | "invalid-status" | "missing-reason" | "root-detection-failed" | "write-failed" | "event-log-failed"
 
 export interface WorkflowError {

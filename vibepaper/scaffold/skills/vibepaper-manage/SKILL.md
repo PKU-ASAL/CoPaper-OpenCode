@@ -42,6 +42,7 @@ Typical triggers:
 | `relatedwork/` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
 | `.agents/cross_index.json` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
 | Checker status | Optional | Checker inspection | Access through `vibepaper_checker_status`; do not inspect `.agents/state.json` directly just to infer checker status |
+| Relatedwork status | Optional | Literature workflow inspection | Access through `vibepaper_relatedwork_status`; do not run CLI status or read `literature.json` directly just to summarize progress |
 
 ## OpenCode Plugin Tools
 
@@ -58,6 +59,7 @@ Prefer these plugin tools whenever they are available:
 | Update a workflow phase after confirmation | `vibepaper_workflow_set_phase` |
 | Read checker run status and stale signals | `vibepaper_checker_status` |
 | Record checker run summary after confirmation | `vibepaper_checker_record` |
+| Read relatedwork catalog, PDF, summary, BibTeX, and cross-index status | `vibepaper_relatedwork_status` |
 
 Do not hand-edit:
 
@@ -70,11 +72,11 @@ The plugin tools are the supported automation surface for the workflow state the
 
 The current OpenCode plugin does not yet expose tools for:
 
-- `relatedwork import`
-- `relatedwork sync-bib`
-- `relatedwork download`
-- `relatedwork register-summary`
-- `relatedwork build-index`
+- write-capable `relatedwork import`
+- write-capable `relatedwork sync-bib`
+- write-capable `relatedwork download`
+- write-capable `relatedwork register-summary`
+- write-capable `relatedwork build-index`
 - `report`
 - Git-backed `commit`, `rollback`, or `diff`
 - checker issue-resolution writes
@@ -117,6 +119,8 @@ It inspects artifacts such as `storyline.md`, `paper.md`, `relatedwork/`, `.agen
 Use `vibepaper_checker_status` for read-only inspection of checker run status, Critical/Major/Minor counts, stale signals, and `.agents/precheck_report.md` evidence. This tool does not run checkers, write checker results, mark issues resolved, update workflow phases, or record artifact readiness.
 
 Use `vibepaper_checker_record` only after a checker has actually run and the user explicitly confirms the summary to persist. This tool writes the `checkers` area in `.agents/state.json` and appends a `record_checker_result` event to `.agents/events.jsonl`. It does not run checker skills, mark individual issues resolved, update workflow phases, or record artifact readiness.
+
+Use `vibepaper_relatedwork_status` for read-only inspection of relatedwork catalog, BibTeX, PDF files, paper summaries, search cache, queries, aggregate summary, and `.agents/cross_index.json`. This tool does not run `relatedwork search`, `import`, `sync-bib`, `download`, `summarize`, `register-summary`, or `build-index`; it also does not write `.agents/state.json` or append events.
 
 ## Phase Control
 

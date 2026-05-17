@@ -313,6 +313,7 @@ describe("OpenCode plugin", () => {
     expect(hooks.tool.vibepaper_pdf_extract).toBeDefined()
     expect(hooks.tool.vibepaper_ppt_extract).toBeDefined()
     expect(hooks.tool.vibepaper_checker_status).toBeDefined()
+    expect(hooks.tool.vibepaper_relatedwork_status).toBeDefined()
     expect(hooks.tool.vibepaper_checker_record).toBeDefined()
     expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
     expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
@@ -472,6 +473,37 @@ describe("OpenCode plugin", () => {
       expect(output).toContain("critical")
       expect(output).not.toContain(capturedProject.root)
       expect(existsSync(capturedProject.path(".agents/state.json"))).toBe(false)
+    } finally {
+      capturedProject.cleanup()
+      runtimeProject.cleanup()
+    }
+  })
+
+  test("relatedwork status tool reads from runtime context root", async () => {
+    const capturedProject = makeTempProject()
+    const runtimeProject = makeTempProject()
+    try {
+      runtimeProject.write("relatedwork/literature.json", `${JSON.stringify({
+        papers: {
+          runtime2026paper: {
+            paper_id: "runtime2026paper",
+            title: "Runtime Related Work",
+            download_status: "downloaded",
+            pdf_path: "relatedwork/pdfs/runtime2026paper.pdf",
+            summary_path: "relatedwork/papers/runtime2026paper.md",
+          },
+        },
+      }, null, 2)}\n`)
+      runtimeProject.write("relatedwork/pdfs/runtime2026paper.pdf", "%PDF-1.4\n")
+      runtimeProject.write("relatedwork/papers/runtime2026paper.md", "# Runtime Related Work\n")
+      const hooks = await buildHooks(capturedProject.root)
+      const output = await (hooks.tool.vibepaper_relatedwork_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+
+      expect(output).toContain(runtimeProject.root)
+      expect(output).toContain("runtime2026paper")
+      expect(output).toContain("papers=1")
+      expect(output).not.toContain(capturedProject.root)
+      expect(existsSync(capturedProject.path("relatedwork/literature.json"))).toBe(false)
     } finally {
       capturedProject.cleanup()
       runtimeProject.cleanup()

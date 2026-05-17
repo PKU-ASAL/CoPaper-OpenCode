@@ -15,6 +15,7 @@ const SAFE_READ_TOOL_PERMISSIONS = [
   "vibepaper_pdf_extract",
   "vibepaper_ppt_extract",
   "vibepaper_checker_status",
+  "vibepaper_relatedwork_status",
   "vibepaper_workflow_status",
   "vibepaper_workflow_log",
 ] as const
@@ -62,6 +63,7 @@ describe("permission profiles", () => {
       vibepaper_pdf_extract: "allow",
       vibepaper_ppt_extract: "allow",
       vibepaper_checker_status: "allow",
+      vibepaper_relatedwork_status: "allow",
       vibepaper_workflow_status: "allow",
       vibepaper_workflow_log: "allow",
       vibepaper_init_apply: "deny",

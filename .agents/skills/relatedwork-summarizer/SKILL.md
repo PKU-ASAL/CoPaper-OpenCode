@@ -16,7 +16,8 @@ This skill orchestrates per-paper summarization for downloaded PDFs by calling t
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `relatedwork/literature.json` | Required | Steps 1, 4 | Catalog used to know which papers are `downloaded` and which already have `summary_exists=true` |
+| Relatedwork status | Required | Steps 1, 2, 4 | Call `vibepaper_relatedwork_status` for read-only catalog, download, summary, BibTeX, and cross-index state |
+| `relatedwork/literature.json` | Required | Steps 1, 4 | Canonical catalog used by the CLI; inspect queue state through `vibepaper_relatedwork_status` when available |
 | `storyline.md` | Required | Steps 2, 3 | Passed to the CLI as context for the "relation to our work" section, and used by the coverage report |
 | `.agents/skills/relatedwork-finder/template.md` | Required | Step 2 | Summary template; passed to the CLI |
 | `relatedwork/papers/<paper_id>.md` | Read/write | Steps 2-3 | Per-paper summary files written by the CLI |
@@ -45,10 +46,10 @@ After invoking any tool, append a structured JSON log to `.agents/events.jsonl`.
 You MUST follow this step-by-step interactive workflow. **STOP and wait for user confirmation after each step marked with [WAIT FOR CONFIRMATION].**
 
 ### Step 1: Target Scope Parsing [WAIT FOR CONFIRMATION]
-- Read `relatedwork/literature.json`.
+- Call `vibepaper_relatedwork_status` first. This tool is read-only and reports which papers are downloaded and which already have summaries; do not replace it with prompt-only status text or manual state inspection.
 - Check if the user requested a specific paper (by title or `paper_id`):
-  - If yes: verify the paper exists in `literature.json` and its `download_status` is `downloaded`. If not, REFUSE the request and explain why. The target queue contains ONLY this paper.
-  - If no: the target queue contains every paper with `download_status=downloaded` AND `summary_exists=false`.
+  - If yes: verify the paper exists in the tool output and its `downloadStatus` is `downloaded` with `pdfExists=true`. If not, REFUSE the request and explain why. The target queue contains ONLY this paper.
+  - If no: the target queue contains every paper with `downloadStatus=downloaded`, `pdfExists=true`, and `summaryExists=false`.
 - **ACTION**: Present the target queue (paper_id + title for each entry) to the user. Note the count.
 - **STOP**: Ask "I will summarize these N papers. Should I proceed?" If the user wants to force-redo papers that already have summaries, they should answer yes and tell you to use `--force`.
 
@@ -74,6 +75,7 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 - Do NOT spawn subagents. Do NOT use any `multimodal-looker` agent type. Do NOT read PDFs yourself. The CLI handles parallelism, rate limiting, and oversized-PDF failures internally.
 - After the CLI finishes, parse its stdout. For each `[ok]` line: open the new `relatedwork/papers/<paper_id>.md` and synthesize its key points (technical mechanism, methodology, empirical results, limitations) into `relatedwork/summary.md` under a `## <paper_id>: <Title>` heading. If a section for that `paper_id` already exists in `summary.md`, REPLACE it; otherwise APPEND it.
 - For each `[fail]` line, leave the paper alone. Surface the error to the user.
+- Call `vibepaper_relatedwork_status` again to verify summary counts after the CLI updates `literature.json`.
 - **ACTION**: Tell the user "Summarized X papers via the CLI (Y succeeded, Z failed). I have updated `relatedwork/summary.md` with the new sections." List any failures.
 - **STOP**: Ask "Should I proceed to build the cross-index and generate the coverage report?"
 
@@ -89,5 +91,6 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 ### Step 4: Finalize Summary Document
 - Read `relatedwork/summary.md` end-to-end and reorganize entries into thematic groups if the user requested it (e.g., by method family, by problem setting). Otherwise leave the order unchanged.
 - Keep `relatedwork/literature.json` as the canonical metadata artifact. Do NOT delete it.
+- Call `vibepaper_relatedwork_status` before the final response if you need to report final literature, summary, BibTeX, or cross-index counts.
 - If `relatedwork/search_cache.json` is no longer needed, ask the user before removing it.
 - Respond with "I have finalized `relatedwork/summary.md`."

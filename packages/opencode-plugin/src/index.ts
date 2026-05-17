@@ -10,6 +10,7 @@ import { buildPaperStructureStatus, renderPaperStructureStatusOutput } from "./p
 import { buildPdfExtract, renderPdfExtractOutput } from "./pdf-extract"
 import { buildPptExtract, renderPptExtractOutput } from "./ppt-extract"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
+import { buildRelatedworkStatus, renderRelatedworkStatusOutput } from "./relatedwork-status"
 import { buildStorylineStructureStatus, renderStorylineStructureStatusOutput } from "./storyline-structure"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
 import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, CHECKER_ISSUE_SEVERITIES, CHECKER_RECORD_IDS, CHECKER_RECORD_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
@@ -113,6 +114,14 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildCheckerStatus({ cwd: context.directory, worktree: context.worktree })
           return renderCheckerStatusOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_status: tool({
+        description: "Show read-only related-work catalog, BibTeX, PDF, summary, and cross-index status. Does not run search, import, download, summarize, build-index, or modify files.",
+        args: {},
+        async execute(_args, context) {
+          const result = await buildRelatedworkStatus({ cwd: context.directory, worktree: context.worktree })
+          return renderRelatedworkStatusOutput(result)
         },
       }),
       vibepaper_checker_record: tool({

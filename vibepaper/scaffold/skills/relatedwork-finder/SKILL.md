@@ -20,7 +20,8 @@ This skill automatically finds related-work papers. Every substantive step (keyw
 | `relatedwork/queries.txt` | Read/write | Steps 1-2 | One query per line; written by `vibe relatedwork keywords`, consumed by `vibe relatedwork search --queries-file` |
 | `relatedwork/search_cache.json` | Read/write | Steps 2-3 | Cache for search metadata (paper_id, title, authors, year, venue, bibtex, arxiv_id, pdf_url, source_queries) — written by `vibe relatedwork search` |
 | `relatedwork/paper_list.bib` | Required | Step 3 | BibTeX entries for formalizing the reference list |
-| `relatedwork/literature.json` | Required after managed import | Steps 2-6 (after import) | Canonical metadata catalog; the current OpenCode plugin has no relatedwork import tool, so ask before using any CLI fallback |
+| Relatedwork status | Optional | Steps 3-4 | Call `vibepaper_relatedwork_status` for read-only catalog, BibTeX, PDF, summary, and cross-index counts |
+| `relatedwork/literature.json` | Required after managed import | Steps 2-6 (after import) | Canonical metadata catalog; inspect progress through `vibepaper_relatedwork_status` when the plugin tool is available |
 | `.agents/skills/relatedwork-finder/template.md` | Required | Step 5 | Template for PDF summary generation; passed to subagent |
 
 Do NOT read `writingrules.md` — this skill does not need paper structure rules.
@@ -85,10 +86,12 @@ You MUST follow this step-by-step interactive workflow. **STOP and wait for user
 - Run `vibe --root . relatedwork import --input relatedwork/search_cache.json` to merge the kept entries into `relatedwork/literature.json`.
 - If `paper_list.bib` already contains papers missing from `relatedwork/literature.json`, you MAY rerun `vibe --root . relatedwork search --query "<title>"` to enrich them, then re-import.
 - Run `vibe --root . relatedwork sync-bib` to write metadata-backed entries into `relatedwork/paper_list.bib` and to import any remaining bib-only entries into `relatedwork/literature.json`.
-- **ACTION**: Show the final BibTeX entries to the user.
+- Call `vibepaper_relatedwork_status` to inspect catalog and BibTeX counts. This tool is read-only; do not replace it with prompt-only status text or a manual `.agents/state.json` update.
+- **ACTION**: Show the final BibTeX entries and the relatedwork status summary to the user.
 - **STOP**: Ask "I have formalized the BibTeX entries in paper_list.bib. Should I proceed to download PDFs and write summaries?"
 
 ### Step 4: Download PDFs [WAIT FOR CONFIRMATION]
 - PDF download status must be recorded by a managed relatedwork operation. The current OpenCode plugin has no `relatedwork download` or retry tool; do not hand-write download results into JSON. Ask before using any CLI fallback.
-- **ACTION**: Present the status of downloaded PDFs to the user.
+- After the download command finishes, call `vibepaper_relatedwork_status` to inspect PDF download status, failures, and summary readiness. This tool is read-only and must not be used to fake download success.
+- **ACTION**: Present the status of downloaded PDFs to the user from the tool output.
 - **STOP AND TERMINATE**: This skill's responsibility strictly ENDS HERE. You MUST STOP execution. Ask the user: "I have finished finding the related work and downloading the PDFs. Would you like to continue and switch to the `relatedwork-summarizer` skill to generate summaries now?"

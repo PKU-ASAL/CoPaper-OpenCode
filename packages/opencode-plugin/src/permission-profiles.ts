@@ -33,6 +33,7 @@ const READ_ONLY_PROFILE: OpenCodePermissionConfig = {
   vibepaper_pdf_extract: "allow",
   vibepaper_ppt_extract: "allow",
   vibepaper_checker_status: "allow",
+  vibepaper_relatedwork_status: "allow",
   vibepaper_workflow_status: "allow",
   vibepaper_workflow_log: "allow",
   vibepaper_init_apply: "deny",
