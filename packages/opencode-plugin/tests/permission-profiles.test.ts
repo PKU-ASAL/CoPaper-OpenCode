@@ -27,10 +27,22 @@ const WRITE_TOOL_PERMISSIONS = [
   "vibepaper_workflow_set_phase",
 ] as const
 
+const RELATEDWORK_WRITE_TOOL_PERMISSIONS = [
+  "vibepaper_relatedwork_search",
+  "vibepaper_relatedwork_import",
+  "vibepaper_relatedwork_sync_bib",
+  "vibepaper_relatedwork_download",
+  "vibepaper_relatedwork_summarize",
+  "vibepaper_relatedwork_register_summary",
+  "vibepaper_relatedwork_build_index",
+  "vibepaper_relatedwork_clean",
+] as const
+
 describe("permission profiles", () => {
   test("exports profile names in v1 order", () => {
-    expect(PERMISSION_PROFILE_NAMES).toEqual(["readOnly", "storylineWrite", "paperWrite", "stateRecord"])
+    expect(PERMISSION_PROFILE_NAMES).toEqual(["readOnly", "storylineWrite", "paperWrite", "stateRecord", "literatureWrite"])
     expect(isPermissionProfileName("readOnly")).toBe(true)
+    expect(isPermissionProfileName("literatureWrite")).toBe(true)
     expect(isPermissionProfileName("unknown")).toBe(false)
   })
 
@@ -64,6 +76,15 @@ describe("permission profiles", () => {
       vibepaper_ppt_extract: "allow",
       vibepaper_checker_status: "allow",
       vibepaper_relatedwork_status: "allow",
+      vibepaper_relatedwork_keywords: "deny",
+      vibepaper_relatedwork_search: "deny",
+      vibepaper_relatedwork_import: "deny",
+      vibepaper_relatedwork_sync_bib: "deny",
+      vibepaper_relatedwork_download: "deny",
+      vibepaper_relatedwork_summarize: "deny",
+      vibepaper_relatedwork_register_summary: "deny",
+      vibepaper_relatedwork_build_index: "deny",
+      vibepaper_relatedwork_clean: "deny",
       vibepaper_workflow_status: "allow",
       vibepaper_workflow_log: "allow",
       vibepaper_init_apply: "deny",
@@ -71,6 +92,31 @@ describe("permission profiles", () => {
       vibepaper_checker_record: "deny",
       vibepaper_workflow_set_phase: "deny",
     })
+  })
+
+  test("literatureWrite gates relatedwork write tools behind ask and keeps inspection allowed", () => {
+    const profile = getPermissionProfile("literatureWrite")
+
+    expect(profile.bash).toBe("deny")
+    expect(profile.edit).toBe("deny")
+    expect(profile.vibepaper_relatedwork_status).toBe("allow")
+    expect(profile.vibepaper_relatedwork_keywords).toBe("allow")
+    for (const permissionName of RELATEDWORK_WRITE_TOOL_PERMISSIONS) {
+      expect(profile[permissionName]).toBe("ask")
+    }
+    expect(profile.vibepaper_init_apply).toBe("deny")
+    expect(profile.vibepaper_workflow_set_phase).toBe("deny")
+    expect(profile.vibepaper_artifact_record).toBe("deny")
+  })
+
+  test("non-literature profiles continue to deny relatedwork write tools", () => {
+    for (const profileName of ["readOnly", "storylineWrite", "paperWrite", "stateRecord"] as const) {
+      const profile = getPermissionProfile(profileName)
+      for (const permissionName of RELATEDWORK_WRITE_TOOL_PERMISSIONS) {
+        expect(profile[permissionName]).toBe("deny")
+      }
+      expect(profile.vibepaper_relatedwork_keywords).toBe("deny")
+    }
   })
 
   test("read permission preserves OpenCode secret-file denials", () => {

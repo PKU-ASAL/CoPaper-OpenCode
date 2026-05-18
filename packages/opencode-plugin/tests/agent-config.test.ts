@@ -15,6 +15,7 @@ describe("agent config builder", () => {
         "vibepaper-writer",
         "vibepaper-reviewer",
         "vibepaper-recorder",
+        "vibepaper-literature",
       ])
       expect(result.injectedAgents["vibepaper-writer"]?.permission.edit).toEqual({ "*": "deny", "paper.md": "ask" })
       expect(result.runtime.agents.map((agent) => agent.name)).toEqual(Object.keys(result.injectedAgents))

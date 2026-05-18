@@ -7,6 +7,7 @@ export const VIBEPAPER_AGENT_NAMES = [
   "vibepaper-writer",
   "vibepaper-reviewer",
   "vibepaper-recorder",
+  "vibepaper-literature",
 ] as const
 
 export type VibePaperAgentName = (typeof VIBEPAPER_AGENT_NAMES)[number]
@@ -104,6 +105,21 @@ export function buildDefaultAgentProfiles(locale: Locale = DEFAULT_LOCALE): Vibe
         "Record only explicit readiness facts, preserve artifact boundaries, and avoid rewriting project content.",
         "Use only tools granted by this profile. Do not alter narrative or paper artifacts.",
         "Return the recorded artifact, status, confidence, and any warnings for the user to decide the next step.",
+      ),
+    }),
+    "vibepaper-literature": buildProfile({
+      name: "vibepaper-literature",
+      description: "Drives the VibePaper literature workflow via the dedicated relatedwork tools.",
+      temperatureHint: "low",
+      permissionProfile: "literatureWrite",
+      maxPermissionProfile: "literatureWrite",
+      prompt: buildPrompt(
+        locale,
+        "Drive the VibePaper relatedwork / literature phase using the vibepaper_relatedwork_* tools granted by this profile.",
+        "Read storyline.md, paper.md, relatedwork/literature.json, relatedwork/paper_list.bib, relatedwork/papers/*.md, and .agents/cross_index.json only as needed. Do not edit storyline.md or paper.md.",
+        "Always call vibepaper_relatedwork_status before and after every write tool. Restate full arguments and wait for explicit user confirmation before calling search, import, sync_bib, download, summarize, register_summary, build_index, or clean. Never auto-advance the literature phase; only call vibepaper_workflow_set_phase after explicit user confirmation.",
+        "Use only the vibepaper_relatedwork_* tools and read-oriented status tools granted by this profile. Do not invoke unrelated VibePaper tools or arbitrary subprocesses.",
+        "Return the refreshed relatedwork status, phase patch diff, and any vibe-cli-unavailable / vibe-nonzero-exit / bridge-timeout errors verbatim; on vibe-cli-unavailable instruct the user to install the VibePaper Python package and rerun /vibe-doctor.",
       ),
     }),
   }

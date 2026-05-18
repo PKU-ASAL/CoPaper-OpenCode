@@ -1,6 +1,8 @@
-import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, VIBE_DOCTOR_COMMAND, type Locale } from "./types"
+import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, VIBE_DOCTOR_COMMAND, VIBE_RELATEDWORK_COMMAND, type Locale } from "./types"
 
-export type CommandName = typeof VIBE_COMMAND | typeof VIBE_DOCTOR_COMMAND
+export type CommandName = typeof VIBE_COMMAND | typeof VIBE_DOCTOR_COMMAND | typeof VIBE_RELATEDWORK_COMMAND
+
+export const MANAGED_COMMAND_NAMES: readonly CommandName[] = [VIBE_COMMAND, VIBE_DOCTOR_COMMAND, VIBE_RELATEDWORK_COMMAND]
 
 export function commandMarker(command: CommandName): string {
   return `<!-- VibePaper managed: ${PACKAGE_NAME}; command=${command}; schemaVersion=${SCHEMA_VERSION} -->`
@@ -12,6 +14,7 @@ export function hasManagedMarker(content: string, command: CommandName): boolean
 
 export function renderCommandTemplate(command: CommandName, locale: Locale = DEFAULT_LOCALE): string {
   if (command === VIBE_COMMAND) return renderVibeCommand(locale)
+  if (command === VIBE_RELATEDWORK_COMMAND) return renderVibeRelatedworkCommand(locale)
   return renderVibeDoctorCommand(locale)
 }
 
@@ -28,7 +31,9 @@ If the Dashboard says the project needs initialization, use the question tool to
 
 If the Dashboard says the project is ready, call \`vibepaper_artifact_status\` first to show read-only artifact status, readiness evidence, and recommendations. Then call \`vibepaper_workflow_status\` to show progress, phases, and next steps, and call \`vibepaper_workflow_log\` for recent workflow records.
 
-Use dedicated VibePaper subagents when routing work: \`@vibepaper-coordinator\`, \`@vibepaper-storyline\`, \`@vibepaper-writer\`, \`@vibepaper-reviewer\`, and \`@vibepaper-recorder\`. If an agent profile warning or diagnostic appears, do not ignore it; run \`/vibe-doctor\` when needed before delegating.
+If the user asks to find related work, drive a related-work step (search, import, download, summarize, register-summary, build-index, sync-bib, clean), or work the literature phase, route them to the dedicated \`/vibe-relatedwork\` slash command rather than running related-work tools from this template.
+
+Use dedicated VibePaper subagents when routing work: \`@vibepaper-coordinator\`, \`@vibepaper-storyline\`, \`@vibepaper-writer\`, \`@vibepaper-reviewer\`, \`@vibepaper-recorder\`, and \`@vibepaper-literature\`. If an agent profile warning or diagnostic appears, do not ignore it; run \`/vibe-doctor\` when needed before delegating.
 
 \`vibepaper_artifact_status\` is read-only. It must not directly write state, install skills, run relatedwork/checker/report/git commands, or change phases without a separate explicit user request and confirmation.
 
@@ -55,7 +60,9 @@ description: 显示 VibePaper 项目仪表盘
 
 如果 Dashboard 显示项目已就绪，先调用 \`vibepaper_artifact_status\` 展示只读工件状态、就绪证据和建议；再调用 \`vibepaper_workflow_status\` 展示进度、阶段和下一步，并调用 \`vibepaper_workflow_log\` 查看最近工作流记录。
 
-分派工作时使用专用 VibePaper subagents：\`@vibepaper-coordinator\`、\`@vibepaper-storyline\`、\`@vibepaper-writer\`、\`@vibepaper-reviewer\` 和 \`@vibepaper-recorder\`。如果出现 agent profile warning 或 diagnostic，不要忽略；需要时先运行 \`/vibe-doctor\` 再委派。
+如果用户表达「找相关工作 / 跑 relatedwork / 检索文献 / 下载 PDF / 写摘要 / 注册摘要 / 建跨文献索引 / 同步 BibTeX / 清理文献条目」等意图，或想推进 literature 阶段，请引导用户使用专用的 \`/vibe-relatedwork\` 斜杠命令，不要在本模板中直接调用 relatedwork 工具。
+
+分派工作时使用专用 VibePaper subagents：\`@vibepaper-coordinator\`、\`@vibepaper-storyline\`、\`@vibepaper-writer\`、\`@vibepaper-reviewer\`、\`@vibepaper-recorder\` 和 \`@vibepaper-literature\`。如果出现 agent profile warning 或 diagnostic，不要忽略；需要时先运行 \`/vibe-doctor\` 再委派。
 
 \`vibepaper_artifact_status\` 是只读工具。不得直接写入状态、安装技能、运行 relatedwork/checker/report/git 命令，或在没有单独明确用户请求和确认时改变阶段。
 
@@ -106,5 +113,49 @@ description: 诊断 VibePaper OpenCode 插件安装
 输出包含 agent profile diagnostics，用于检查 VibePaper subagent 注入、同名冲突和 permission profile 警告。
 
 不要解读或修改诊断输出。
+`
+}
+
+function renderVibeRelatedworkCommand(locale: Locale): string {
+  if (locale === "en-US") {
+    return `${commandMarker(VIBE_RELATEDWORK_COMMAND)}
+---
+description: Drive the VibePaper relatedwork (literature) workflow
+---
+
+You are the VibePaper relatedwork orchestrator. Every step of related-work work goes through dedicated \`vibepaper_relatedwork_*\` tools backed by the Python CLI; do not shell out to \`vibe relatedwork ...\` from this template, and do not fabricate catalog, BibTeX, PDF, or summary data.
+
+When invoked, follow this orchestration:
+1. First call \`vibepaper_relatedwork_status\` to show the current catalog, BibTeX, PDF, summary, and cross-index state. Show its rendered markdown body in your reply.
+2. Use the user's intent to pick the next tool. Read-only tools (no confirmation required): \`vibepaper_relatedwork_status\`, \`vibepaper_relatedwork_keywords\`. Write tools (must restate every argument and wait for explicit user confirmation before calling): \`vibepaper_relatedwork_search\`, \`vibepaper_relatedwork_import\`, \`vibepaper_relatedwork_sync_bib\`, \`vibepaper_relatedwork_download\`, \`vibepaper_relatedwork_summarize\`, \`vibepaper_relatedwork_register_summary\`, \`vibepaper_relatedwork_build_index\`, \`vibepaper_relatedwork_clean\`.
+3. The typical full path is: \`keywords\` (extract keywords from storyline) → \`search\` (S2 / arXiv) → \`import\` (search cache into literature.json) → \`sync_bib\` (paper_list.bib parity) → \`download\` (PDFs) → \`summarize\` (LLM PDF summaries) → \`register_summary\` (register per paper) → \`build_index\` (cross_index.json). Run each step only after confirming with the user, and call \`vibepaper_relatedwork_status\` again after every write tool to surface the refreshed table.
+4. Each relatedwork tool refreshes \`.agents/state.json.phases.literature\` counters (papers_found, papers_downloaded, download_failures, summaries_done, cross_index_built) and appends a \`relatedwork.<subcommand>\` event to \`.agents/events.jsonl\`. Surface these patch diffs to the user.
+5. When the user is satisfied that papers are imported, downloaded, summarized, and the cross-index is built, restate the proposed phase change and, only after explicit confirmation, call \`vibepaper_workflow_set_phase\` with \`phase=literature\` and \`status=complete\`. Never auto-advance.
+6. If a tool returns \`vibe-cli-unavailable\`, tell the user to install the Python package (\`uv pip install -e .\` from the project root) and rerun \`/vibe-doctor\`. If it returns \`bridge-timeout\` or \`vibe-nonzero-exit\`, surface the stderr verbatim and stop; do not retry blindly.
+
+Delegate complex steps to \`@vibepaper-literature\` when an agent profile is healthy. If an agent profile warning or diagnostic appears, run \`/vibe-doctor\` before delegating.
+
+Do not invent relatedwork results. Only use information returned by the relatedwork tools.
+`
+  }
+
+  return `${commandMarker(VIBE_RELATEDWORK_COMMAND)}
+---
+description: 驱动 VibePaper 相关工作（文献）工作流
+---
+
+你是 VibePaper 相关工作（relatedwork / literature 阶段）的编排者。所有相关工作步骤都必须通过专用的 \`vibepaper_relatedwork_*\` 工具完成，这些工具内部已经包装 Python CLI；不要在本模板中通过 \`bash\` 工具直接调用 \`vibe relatedwork ...\`，也不要凭空生成文献目录、BibTeX、PDF 或摘要内容。
+
+被调用时按下列编排执行：
+1. 先调用 \`vibepaper_relatedwork_status\` 展示当前 catalog、BibTeX、PDF、summary 和 cross-index 状态，并在回复中显示其渲染后的 markdown。
+2. 根据用户意图选择下一步工具。只读工具（无需确认）：\`vibepaper_relatedwork_status\`、\`vibepaper_relatedwork_keywords\`。写盘工具（必须复述完整参数，等待用户明确确认后才可调用）：\`vibepaper_relatedwork_search\`、\`vibepaper_relatedwork_import\`、\`vibepaper_relatedwork_sync_bib\`、\`vibepaper_relatedwork_download\`、\`vibepaper_relatedwork_summarize\`、\`vibepaper_relatedwork_register_summary\`、\`vibepaper_relatedwork_build_index\`、\`vibepaper_relatedwork_clean\`。
+3. 典型完整路径：\`keywords\`（从 storyline 抽取关键词）→ \`search\`（S2 / arXiv 检索）→ \`import\`（把搜索缓存导入 literature.json）→ \`sync_bib\`（与 paper_list.bib 对齐）→ \`download\`（拉 PDF）→ \`summarize\`（LLM 生成 PDF 摘要）→ \`register_summary\`（注册每篇摘要）→ \`build_index\`（生成 cross_index.json）。每步都需用户确认后再执行；每个写盘工具跑完后必须再次调用 \`vibepaper_relatedwork_status\` 刷新表格。
+4. 每个 relatedwork 工具会刷新 \`.agents/state.json.phases.literature\` 的计数（papers_found、papers_downloaded、download_failures、summaries_done、cross_index_built），并向 \`.agents/events.jsonl\` 追加一条 \`relatedwork.<子命令>\` 事件。请向用户展示这些字段的前后差异。
+5. 当用户确认论文已导入、PDF 已下载、摘要已注册、cross-index 已生成，复述拟切换的阶段状态，仅在用户明确确认后调用 \`vibepaper_workflow_set_phase\`（\`phase=literature\`、\`status=complete\`）。不得自动推进。
+6. 如果工具返回 \`vibe-cli-unavailable\`，提示用户在项目根运行 \`uv pip install -e .\` 安装 Python 包，并再次运行 \`/vibe-doctor\`。如果返回 \`bridge-timeout\` 或 \`vibe-nonzero-exit\`，原样展示 stderr 并停止，不得盲目重试。
+
+健康 agent profile 下，把复杂步骤委派给 \`@vibepaper-literature\`。如果出现 agent profile warning 或 diagnostic，先运行 \`/vibe-doctor\` 再委派。
+
+不要编造 relatedwork 结果。只能使用 relatedwork 工具实际返回的信息。
 `
 }

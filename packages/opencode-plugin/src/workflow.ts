@@ -3,7 +3,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path"
 import { assertInsideRoot, writeFileAtomic } from "./fs-utils"
 import { resolveLocale, t } from "./i18n"
 import { detectRoot } from "./root"
-import { SCHEMA_VERSION, WORKFLOW_PHASE_STATUSES, type Locale, type WorkflowError, type WorkflowEvent, type WorkflowLogQueryOptions, type WorkflowLogResult, type WorkflowMetadataSummary, type WorkflowPhaseRow, type WorkflowPhaseStatus, type WorkflowRecommendation, type WorkflowSetPhaseOptions, type WorkflowSetPhaseResult, type WorkflowStateDocument, type WorkflowStatusResult, type WorkflowSummary } from "./types"
+import { SCHEMA_VERSION, WORKFLOW_PHASE_STATUSES, type Locale, type PhasePatchError, type PhasePatchOptions, type PhasePatchResult, type WorkflowError, type WorkflowEvent, type WorkflowLogQueryOptions, type WorkflowLogResult, type WorkflowMetadataSummary, type WorkflowPhaseRow, type WorkflowPhaseStatus, type WorkflowRecommendation, type WorkflowSetPhaseOptions, type WorkflowSetPhaseResult, type WorkflowStateDocument, type WorkflowStatusResult, type WorkflowSummary } from "./types"
 
 export interface WorkflowReadOptions {
   root?: string
@@ -277,6 +277,149 @@ export async function setWorkflowPhase(options: WorkflowSetPhaseOptions): Promis
     currentPhase: nextCurrentPhase,
     eventAppended: true,
   })
+}
+
+export function patchPhaseMetadata(options: PhasePatchOptions): PhasePatchResult {
+  const phaseId = options.phase
+  const stateResult = readWorkflowState(options.root)
+  if (!stateResult.ok) {
+    return makePhasePatchResult({
+      ok: false,
+      phase: phaseId,
+      errors: [phasePatchError(stateResult.error)],
+    })
+  }
+  const state = stateResult.state
+  const phaseState = ownWorkflowPhase(state.phases, phaseId)
+  if (phaseState === null) {
+    return makePhasePatchResult({
+      ok: false,
+      phase: phaseId,
+      errors: [{ code: "invalid-phase", message: `Unknown workflow phase: ${phaseId}` }],
+    })
+  }
+  const before: Record<string, unknown> = { ...phaseState }
+  const after: Record<string, unknown> = { ...phaseState, ...sanitizePatch(options.patch) }
+  const unchanged = deepEqual(before, after)
+  if (!unchanged) {
+    const nextState: WorkflowStateDocument = {
+      ...state,
+      phases: {
+        ...state.phases,
+        [phaseId]: after,
+      },
+    }
+    try {
+      writeWorkflowState(options.root, nextState)
+    } catch (error) {
+      return makePhasePatchResult({
+        ok: false,
+        phase: phaseId,
+        before,
+        after,
+        errors: [{ code: "write-failed", path: ".agents/state.json", message: `Failed to write workflow state: ${errorMessage(error)}` }],
+      })
+    }
+  }
+  let eventAppended = false
+  const warnings: string[] = []
+  if (options.event) {
+    const relativeLogPath = eventLogPathFromState(state)
+    const logPathResult = preflightWorkflowEventLogPath(options.root, relativeLogPath)
+    if (!logPathResult.ok) {
+      warnings.push("state-written-event-failed")
+      return makePhasePatchResult({
+        ok: false,
+        phase: phaseId,
+        before,
+        after,
+        warnings,
+        errors: [phasePatchError(logPathResult.error)],
+      })
+    }
+    const timestamp = (options.now ?? new Date()).toISOString()
+    const eventRecord: Record<string, unknown> = {
+      timestamp,
+      operator: options.event.operator ?? "ai",
+      phase: phaseId,
+      action: options.event.action,
+      result: options.event.result ?? "success",
+    }
+    if (options.event.metadata && Object.keys(options.event.metadata).length > 0) eventRecord.metadata = options.event.metadata
+    try {
+      appendWorkflowEvent(logPathResult.path, eventRecord)
+      eventAppended = true
+    } catch (error) {
+      warnings.push("state-written-event-failed")
+      return makePhasePatchResult({
+        ok: false,
+        phase: phaseId,
+        before,
+        after,
+        warnings,
+        errors: [{ code: "event-log-failed", path: relativeLogPath, message: `Failed to append workflow event: ${errorMessage(error)}` }],
+      })
+    }
+  }
+  return makePhasePatchResult({ ok: true, phase: phaseId, before, after, eventAppended, warnings })
+}
+
+function sanitizePatch(patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue
+    out[key] = value
+  }
+  return out
+}
+
+function deepEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true
+  if (left === null || right === null) return false
+  if (typeof left !== typeof right) return false
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false
+    return left.every((value, index) => deepEqual(value, right[index]))
+  }
+  if (typeof left === "object" && typeof right === "object") {
+    const leftKeys = Object.keys(left as Record<string, unknown>).sort()
+    const rightKeys = Object.keys(right as Record<string, unknown>).sort()
+    if (leftKeys.length !== rightKeys.length) return false
+    return leftKeys.every((key, index) => key === rightKeys[index] && deepEqual((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
+  }
+  return false
+}
+
+function phasePatchError(error: WorkflowError): PhasePatchError {
+  const code = error.code === "root-detection-failed" ? "root-detection-failed"
+    : error.code === "missing-state" ? "missing-state"
+    : error.code === "invalid-state" ? "invalid-state"
+    : error.code === "invalid-phase" ? "invalid-phase"
+    : error.code === "write-failed" ? "write-failed"
+    : "event-log-failed"
+  const result: PhasePatchError = { code, message: error.message }
+  if (error.path) result.path = error.path
+  return result
+}
+
+function makePhasePatchResult(input: {
+  ok: boolean
+  phase: string | null
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+  eventAppended?: boolean
+  warnings?: string[]
+  errors?: PhasePatchError[]
+}): PhasePatchResult {
+  return {
+    ok: input.ok,
+    phase: input.phase,
+    before: input.before ?? null,
+    after: input.after ?? null,
+    eventAppended: input.eventAppended ?? false,
+    warnings: input.warnings ?? [],
+    errors: input.errors ?? [],
+  }
 }
 
 export function renderWorkflowStatusOutput(result: WorkflowStatusResult): string {

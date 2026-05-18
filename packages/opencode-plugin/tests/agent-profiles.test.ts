@@ -14,10 +14,11 @@ describe("agent profiles", () => {
       "vibepaper-writer",
       "vibepaper-reviewer",
       "vibepaper-recorder",
+      "vibepaper-literature",
     ])
   })
 
-  test("builds five enabled VibePaper subagent profiles", () => {
+  test("builds enabled VibePaper subagent profiles", () => {
     const profiles = buildDefaultAgentProfiles()
 
     expect(Object.keys(profiles)).toEqual([...VIBEPAPER_AGENT_NAMES])
@@ -57,6 +58,20 @@ describe("agent profiles", () => {
       permissionProfile: "stateRecord",
       maxPermissionProfile: "stateRecord",
     })
+    expect(getDefaultAgentProfile("vibepaper-literature")).toMatchObject({
+      permissionProfile: "literatureWrite",
+      maxPermissionProfile: "literatureWrite",
+    })
+  })
+
+  test("literature prompt enforces relatedwork orchestration rules", () => {
+    const prompt = getDefaultAgentProfile("vibepaper-literature").prompt
+
+    expect(prompt).toContain("vibepaper_relatedwork_status")
+    expect(prompt).toContain("vibepaper_workflow_set_phase")
+    expect(prompt.toLowerCase()).toContain("restate")
+    expect(prompt).toContain("Never auto-advance the literature phase")
+    expect(prompt).toContain("vibe-cli-unavailable")
   })
 
   test("writer prompt keeps paper.md and writing-rule boundaries", () => {

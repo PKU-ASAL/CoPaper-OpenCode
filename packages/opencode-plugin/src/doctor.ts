@@ -5,9 +5,10 @@ import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-con
 import { agentRuntimeToDoctorChecks } from "./agent-diagnostics"
 import { assertInsideRoot } from "./fs-utils"
 import { detectRoot } from "./root"
-import { hasManagedMarker } from "./templates"
+import { resolveBridge, type BridgeDeps } from "./python-bridge"
+import { hasManagedMarker, MANAGED_COMMAND_NAMES, type CommandName } from "./templates"
 import { t } from "./i18n"
-import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, type DoctorCheck, type DoctorResult, type Locale } from "./types"
+import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, type DoctorCheck, type DoctorResult, type Locale } from "./types"
 
 const INIT_REMEDIATION = `Run: ${BUNX_CLI_COMMAND} init`
 
@@ -17,6 +18,7 @@ export interface DoctorOptions {
   config?: string
   worktree?: string
   packageVersion: string
+  bridgeDeps?: BridgeDeps
 }
 
 export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
@@ -55,8 +57,10 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     }
   }
 
-  addCommandChecks(root, checks, "vibe")
-  addCommandChecks(root, checks, "vibe-doctor")
+  for (const command of MANAGED_COMMAND_NAMES) {
+    addCommandChecks(root, checks, command)
+  }
+  await addVibeCliCheck(root, checks, options.bridgeDeps)
   checks.push(...buildAgentChecks(root, existingAgents))
   const ok = checks.every((check) => !(check.severity === "error" && check.status === "fail"))
   return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /vibe"] : [INIT_REMEDIATION, "Restart OpenCode, then run /vibe-doctor"] }
@@ -133,11 +137,11 @@ function addUnavailableConfigChecks(checks: DoctorCheck[], message: string, reme
   checks.push({ id: "plugin.configured", status: "fail", severity: "error", message: `${PACKAGE_NAME} is not configured`, remediation })
 }
 
-function addCommandChecks(root: string, checks: DoctorCheck[], command: "vibe" | "vibe-doctor") {
+function addCommandChecks(root: string, checks: DoctorCheck[], command: CommandName) {
   const path = join(root, ".opencode", "commands", `${command}.md`)
-  const presentId = command === "vibe" ? "commands.vibe.present" : "commands.vibe-doctor.present"
-  const managedId = command === "vibe" ? "commands.vibe.managed" : "commands.vibe-doctor.managed"
-  const severity = command === "vibe" ? "error" : "warning"
+  const presentId = `commands.${command}.present`
+  const managedId = `commands.${command}.managed`
+  const severity = command === VIBE_COMMAND ? "error" : "warning"
   if (!existsSync(path)) {
     checks.push({ id: presentId, status: "fail", severity, message: `${path} not found`, remediation: INIT_REMEDIATION })
     checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker missing because command file is missing`, remediation: INIT_REMEDIATION })
@@ -153,6 +157,29 @@ function addCommandChecks(root: string, checks: DoctorCheck[], command: "vibe" |
   checks.push({ id: presentId, status: "pass", severity, message: `${path} exists`, remediation: null })
   const managed = hasManagedMarker(content, command)
   checks.push({ id: managedId, status: managed ? "pass" : "warn", severity: "warning", message: managed ? `${command} command is VibePaper-managed` : `${command} command exists but is not VibePaper-managed`, remediation: managed ? null : "Review the command file or rerun init with --force" })
+}
+
+const VIBE_CLI_REMEDIATION = "Install the VibePaper Python CLI via `uv pip install -e .` in the project root."
+
+async function addVibeCliCheck(root: string, checks: DoctorCheck[], bridgeDeps?: BridgeDeps): Promise<void> {
+  const resolved = await resolveBridge(root, bridgeDeps ?? {})
+  if (!resolved.ok) {
+    checks.push({
+      id: "vibe-cli.available",
+      status: "fail",
+      severity: "warning",
+      message: resolved.error.message,
+      remediation: VIBE_CLI_REMEDIATION,
+    })
+    return
+  }
+  checks.push({
+    id: "vibe-cli.available",
+    status: "pass",
+    severity: "warning",
+    message: `vibe CLI resolved via ${resolved.resolution.kind} (${resolved.resolution.path})`,
+    remediation: null,
+  })
 }
 
 function buildAgentChecks(root: string, existingAgents: Record<string, OpenCodeAgentConfig>): DoctorCheck[] {

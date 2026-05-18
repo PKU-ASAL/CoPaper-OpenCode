@@ -179,7 +179,10 @@ describe("doctor", () => {
   test("does not include paper artifact checks", async () => {
     const project = temp()
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
-    const ids = result.checks.map((check) => check.id).filter((id) => !id.startsWith("agents.")).join("\n")
+    const ids = result.checks
+      .map((check) => check.id)
+      .filter((id) => !id.startsWith("agents.") && !id.startsWith("commands.") && id !== "vibe-cli.available")
+      .join("\n")
     expect(ids).not.toContain("paper")
     expect(ids).not.toContain("storyline")
     expect(ids).not.toContain("relatedwork")

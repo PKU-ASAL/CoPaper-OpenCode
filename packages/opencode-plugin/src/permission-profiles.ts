@@ -1,4 +1,4 @@
-export const PERMISSION_PROFILE_NAMES = ["readOnly", "storylineWrite", "paperWrite", "stateRecord"] as const
+export const PERMISSION_PROFILE_NAMES = ["readOnly", "storylineWrite", "paperWrite", "stateRecord", "literatureWrite"] as const
 
 export type PermissionProfileName = (typeof PERMISSION_PROFILE_NAMES)[number]
 export type OpenCodePermissionDecision = "allow" | "ask" | "deny"
@@ -34,6 +34,15 @@ const READ_ONLY_PROFILE: OpenCodePermissionConfig = {
   vibepaper_ppt_extract: "allow",
   vibepaper_checker_status: "allow",
   vibepaper_relatedwork_status: "allow",
+  vibepaper_relatedwork_keywords: "deny",
+  vibepaper_relatedwork_search: "deny",
+  vibepaper_relatedwork_import: "deny",
+  vibepaper_relatedwork_sync_bib: "deny",
+  vibepaper_relatedwork_download: "deny",
+  vibepaper_relatedwork_summarize: "deny",
+  vibepaper_relatedwork_register_summary: "deny",
+  vibepaper_relatedwork_build_index: "deny",
+  vibepaper_relatedwork_clean: "deny",
   vibepaper_workflow_status: "allow",
   vibepaper_workflow_log: "allow",
   vibepaper_init_apply: "deny",
@@ -56,6 +65,18 @@ const PERMISSION_PROFILES = {
     ...READ_ONLY_PROFILE,
     vibepaper_artifact_record: "ask",
     vibepaper_checker_record: "ask",
+  },
+  literatureWrite: {
+    ...READ_ONLY_PROFILE,
+    vibepaper_relatedwork_keywords: "allow",
+    vibepaper_relatedwork_search: "ask",
+    vibepaper_relatedwork_import: "ask",
+    vibepaper_relatedwork_sync_bib: "ask",
+    vibepaper_relatedwork_download: "ask",
+    vibepaper_relatedwork_summarize: "ask",
+    vibepaper_relatedwork_register_summary: "ask",
+    vibepaper_relatedwork_build_index: "ask",
+    vibepaper_relatedwork_clean: "ask",
   },
 } satisfies Record<PermissionProfileName, OpenCodePermissionConfig>
 

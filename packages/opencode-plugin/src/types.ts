@@ -4,6 +4,7 @@ export const BUNX_CLI_COMMAND = `bunx -p ${PACKAGE_NAME} ${CLI_NAME}` as const
 export const SCHEMA_VERSION = 1 as const
 export const VIBE_COMMAND = "vibe" as const
 export const VIBE_DOCTOR_COMMAND = "vibe-doctor" as const
+export const VIBE_RELATEDWORK_COMMAND = "vibe-relatedwork" as const
 export const DEFAULT_LOCALE = "zh-CN" as const
 export const SUPPORTED_LOCALES = ["zh-CN", "en-US"] as const
 export type Locale = typeof SUPPORTED_LOCALES[number]
@@ -851,4 +852,136 @@ export interface WorkflowSetPhaseResult {
   eventAppended: boolean
   warnings: string[]
   errors: WorkflowError[]
+}
+
+export type PhasePatchErrorCode = "root-detection-failed" | "missing-state" | "invalid-state" | "invalid-phase" | "write-failed" | "event-log-failed"
+
+export interface PhasePatchError {
+  code: PhasePatchErrorCode
+  message: string
+  path?: string
+}
+
+export interface PhasePatchOptions {
+  root: string
+  phase: string
+  patch: Record<string, unknown>
+  event?: {
+    action: string
+    operator?: WorkflowOperator | string
+    result?: unknown
+    metadata?: Record<string, unknown>
+  }
+  now?: Date
+}
+
+export interface PhasePatchResult {
+  ok: boolean
+  phase: string | null
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  eventAppended: boolean
+  warnings: string[]
+  errors: PhasePatchError[]
+}
+
+export type BridgeResolutionKind = "venv-bin" | "uv-run"
+
+export interface BridgeResolution {
+  kind: BridgeResolutionKind
+  path: string
+  args: string[]
+}
+
+export type BridgeErrorCode = "vibe-cli-unavailable" | "bridge-timeout" | "bridge-spawn-failed" | "vibe-nonzero-exit"
+
+export interface BridgeError {
+  code: BridgeErrorCode
+  message: string
+}
+
+export interface BridgeOptions {
+  root: string
+  args: readonly string[]
+  timeoutMs?: number
+  env?: Record<string, string | undefined>
+}
+
+export type BridgeResult =
+  | { ok: true; resolution: BridgeResolution; command: string; stdout: string; stderr: string; exitCode: number; durationMs: number }
+  | { ok: false; resolution: BridgeResolution | null; command: string | null; error: BridgeError; stdout: string; stderr: string; exitCode: number | null; durationMs: number }
+
+export type RelatedworkToolErrorCode = BridgeErrorCode | "root-detection-failed" | "invalid-args" | "state-refresh-failed" | "phase-patch-failed"
+
+export interface RelatedworkToolError {
+  code: RelatedworkToolErrorCode
+  message: string
+}
+
+export interface RelatedworkToolBaseOptions {
+  root?: string
+  cwd?: string
+  worktree?: string
+  locale?: string
+  env?: Record<string, string | undefined>
+  timeoutMs?: number
+  now?: Date
+}
+
+export interface RelatedworkKeywordsOptions extends RelatedworkToolBaseOptions {
+  source?: string
+  count?: number
+}
+
+export interface RelatedworkSearchOptions extends RelatedworkToolBaseOptions {
+  queries: string[]
+  queriesFile?: string
+  limit?: number
+}
+
+export interface RelatedworkImportOptions extends RelatedworkToolBaseOptions {
+  input?: string
+}
+
+export interface RelatedworkSyncBibOptions extends RelatedworkToolBaseOptions {}
+
+export interface RelatedworkDownloadOptions extends RelatedworkToolBaseOptions {
+  paperId?: string
+  all?: boolean
+}
+
+export interface RelatedworkSummarizeOptions extends RelatedworkToolBaseOptions {
+  paperId?: string
+  storyline?: string
+  template?: string
+}
+
+export interface RelatedworkRegisterSummaryOptions extends RelatedworkToolBaseOptions {
+  paperId: string
+  path: string
+}
+
+export interface RelatedworkBuildIndexOptions extends RelatedworkToolBaseOptions {}
+
+export interface RelatedworkCleanOptions extends RelatedworkToolBaseOptions {
+  dryRun?: boolean
+}
+
+export interface RelatedworkToolResult {
+  schemaVersion: typeof SCHEMA_VERSION
+  ok: boolean
+  toolId: string
+  root: string | null
+  locale: Locale
+  localeFallback: boolean
+  command: string | null
+  resolution: BridgeResolution | null
+  exitCode: number | null
+  stdout: string
+  stderr: string
+  durationMs: number
+  statusAfter: RelatedworkStatusResult | null
+  phasePatch: PhasePatchResult | null
+  warnings: string[]
+  errors: RelatedworkToolError[]
 }

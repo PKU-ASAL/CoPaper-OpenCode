@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { commandMarker, hasManagedMarker, renderCommandTemplate } from "../src/templates"
+import { commandMarker, hasManagedMarker, MANAGED_COMMAND_NAMES, renderCommandTemplate } from "../src/templates"
 
 describe("command templates", () => {
   test("renders /vibe in Chinese by default", () => {
@@ -8,6 +8,7 @@ describe("command templates", () => {
     expect(output).toContain("description: 显示 VibePaper 项目仪表盘")
     expect(output).toContain("vibepaper_dashboard")
     expect(output).toContain("/vibe-doctor")
+    expect(output).toContain("/vibe-relatedwork")
     expect(output).toContain("bunx -p @vibepaper/opencode vibepaper-opencode doctor")
     expect(output).toContain("确认初始化")
     expect(output).toContain("项目名称")
@@ -40,13 +41,17 @@ describe("command templates", () => {
     expect(output).toContain("@vibepaper-writer")
     expect(output).toContain("@vibepaper-reviewer")
     expect(output).toContain("@vibepaper-recorder")
+    expect(output).toContain("@vibepaper-literature")
     expect(output).toContain("agent profile")
+    expect(output).not.toContain("vibepaper_relatedwork_search")
+    expect(output).not.toContain("vibe --root <root> relatedwork")
     expect(output).not.toContain("!`")
   })
 
   test("renders /vibe in English when requested", () => {
     const output = renderCommandTemplate("vibe", "en-US")
     expect(output).toContain("description: Show VibePaper project dashboard")
+    expect(output).toContain("/vibe-relatedwork")
     expect(output).toContain("confirm initialization")
     expect(output).toContain("project name")
     expect(output).toContain("research domain")
@@ -78,7 +83,10 @@ describe("command templates", () => {
     expect(output).toContain("@vibepaper-writer")
     expect(output).toContain("@vibepaper-reviewer")
     expect(output).toContain("@vibepaper-recorder")
+    expect(output).toContain("@vibepaper-literature")
     expect(output).toContain("agent profile")
+    expect(output).not.toContain("vibepaper_relatedwork_search")
+    expect(output).not.toContain("vibe --root <root> relatedwork")
   })
 
   test("renders /vibe-doctor in Chinese by default", () => {
@@ -97,11 +105,64 @@ describe("command templates", () => {
     expect(output).toContain("agent profile diagnostics")
   })
 
+  test("renders /vibe-relatedwork in Chinese by default", () => {
+    const output = renderCommandTemplate("vibe-relatedwork")
+    expect(output).toContain("<!-- VibePaper managed: @vibepaper/opencode; command=vibe-relatedwork; schemaVersion=1 -->")
+    expect(output).toContain("description: 驱动 VibePaper 相关工作")
+    expect(output).toContain("vibepaper_relatedwork_status")
+    expect(output).toContain("vibepaper_relatedwork_keywords")
+    expect(output).toContain("vibepaper_relatedwork_search")
+    expect(output).toContain("vibepaper_relatedwork_import")
+    expect(output).toContain("vibepaper_relatedwork_sync_bib")
+    expect(output).toContain("vibepaper_relatedwork_download")
+    expect(output).toContain("vibepaper_relatedwork_summarize")
+    expect(output).toContain("vibepaper_relatedwork_register_summary")
+    expect(output).toContain("vibepaper_relatedwork_build_index")
+    expect(output).toContain("vibepaper_relatedwork_clean")
+    expect(output).toContain("@vibepaper-literature")
+    expect(output).toContain("vibepaper_workflow_set_phase")
+    expect(output).toContain("phase=literature")
+    expect(output).toContain("status=complete")
+    expect(output).toContain("vibe-cli-unavailable")
+    expect(output).toContain("uv pip install -e .")
+    expect(output).toContain("/vibe-doctor")
+    expect(output).not.toContain("vibe --root <root> relatedwork")
+    expect(output).not.toContain("!`")
+  })
+
+  test("renders /vibe-relatedwork in English when requested", () => {
+    const output = renderCommandTemplate("vibe-relatedwork", "en-US")
+    expect(output).toContain("description: Drive the VibePaper relatedwork")
+    expect(output).toContain("vibepaper_relatedwork_status")
+    expect(output).toContain("vibepaper_relatedwork_keywords")
+    expect(output).toContain("vibepaper_relatedwork_search")
+    expect(output).toContain("vibepaper_relatedwork_import")
+    expect(output).toContain("vibepaper_relatedwork_sync_bib")
+    expect(output).toContain("vibepaper_relatedwork_download")
+    expect(output).toContain("vibepaper_relatedwork_summarize")
+    expect(output).toContain("vibepaper_relatedwork_register_summary")
+    expect(output).toContain("vibepaper_relatedwork_build_index")
+    expect(output).toContain("vibepaper_relatedwork_clean")
+    expect(output).toContain("@vibepaper-literature")
+    expect(output).toContain("vibepaper_workflow_set_phase")
+    expect(output).toContain("phase=literature")
+    expect(output).toContain("status=complete")
+    expect(output).toContain("vibe-cli-unavailable")
+    expect(output).toContain("uv pip install -e .")
+    expect(output).not.toContain("vibe --root <root> relatedwork")
+  })
+
   test("detects VibePaper-managed command markers", () => {
     const marker = commandMarker("vibe")
     expect(marker).toBe("<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->")
     expect(hasManagedMarker(`${marker}\nbody`, "vibe")).toBe(true)
     expect(hasManagedMarker("# custom command", "vibe")).toBe(false)
     expect(hasManagedMarker(commandMarker("vibe-doctor"), "vibe")).toBe(false)
+    expect(hasManagedMarker(commandMarker("vibe-relatedwork"), "vibe-relatedwork")).toBe(true)
+    expect(hasManagedMarker(commandMarker("vibe-relatedwork"), "vibe")).toBe(false)
+  })
+
+  test("MANAGED_COMMAND_NAMES includes all three managed commands", () => {
+    expect([...MANAGED_COMMAND_NAMES]).toEqual(["vibe", "vibe-doctor", "vibe-relatedwork"])
   })
 })

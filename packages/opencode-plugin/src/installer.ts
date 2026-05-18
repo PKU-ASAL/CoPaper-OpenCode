@@ -5,7 +5,7 @@ import { mergePluginConfig } from "./config"
 import { assertInsideRoot, backupPathFor, writeFileAtomic } from "./fs-utils"
 import { t } from "./i18n"
 import { detectRoot } from "./root"
-import { hasManagedMarker, renderCommandTemplate, type CommandName } from "./templates"
+import { hasManagedMarker, MANAGED_COMMAND_NAMES, renderCommandTemplate, type CommandName } from "./templates"
 import { DEFAULT_LOCALE, PACKAGE_NAME, type Locale } from "./types"
 
 export interface InitOptions {
@@ -44,7 +44,7 @@ export async function planInit(options: InitOptions): Promise<InitPlan> {
   if (!configAction.ok) return { ok: false, error: configAction.error }
   actions.push(configAction.action)
 
-  for (const command of ["vibe", "vibe-doctor"] as CommandName[]) {
+  for (const command of MANAGED_COMMAND_NAMES) {
     const commandAction = planCommandAction(root, command, Boolean(options.force), now, locale)
     if (!commandAction.ok) return { ok: false, error: commandAction.error }
     actions.push(commandAction.action)

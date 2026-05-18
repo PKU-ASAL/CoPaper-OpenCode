@@ -11,6 +11,7 @@ import { buildPdfExtract, renderPdfExtractOutput } from "./pdf-extract"
 import { buildPptExtract, renderPptExtractOutput } from "./ppt-extract"
 import { applyProjectInit, renderProjectInitApplyOutput } from "./project-init"
 import { buildRelatedworkStatus, renderRelatedworkStatusOutput } from "./relatedwork-status"
+import { renderRelatedworkToolOutput, runRelatedworkBuildIndex, runRelatedworkClean, runRelatedworkDownload, runRelatedworkImport, runRelatedworkKeywords, runRelatedworkRegisterSummary, runRelatedworkSearch, runRelatedworkSummarize, runRelatedworkSyncBib } from "./relatedwork-tools"
 import { buildStorylineStructureStatus, renderStorylineStructureStatusOutput } from "./storyline-structure"
 import { buildWorkflowStatus, queryWorkflowLog, renderWorkflowLogOutput, renderWorkflowSetPhaseOutput, renderWorkflowStatusOutput, setWorkflowPhase } from "./workflow"
 import { ARTIFACT_CONFIDENCE, ARTIFACT_RECORD_IDS, ARTIFACT_STATUSES, CHECKER_ISSUE_SEVERITIES, CHECKER_RECORD_IDS, CHECKER_RECORD_STATUSES, WORKFLOW_OPERATORS, WORKFLOW_PHASE_STATUSES } from "./types"
@@ -122,6 +123,99 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         async execute(_args, context) {
           const result = await buildRelatedworkStatus({ cwd: context.directory, worktree: context.worktree })
           return renderRelatedworkStatusOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_keywords: tool({
+        description: "Extract relatedwork keywords from storyline.md (or paper.md fallback) via the Python CLI. Read-only; does not write files.",
+        args: {
+          source: tool.schema.string().optional().describe("Optional source markdown path (defaults to storyline.md)"),
+          count: tool.schema.number().int().min(1).max(30).optional().describe("Number of keywords to return (1-30)"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkKeywords({ cwd: context.directory, worktree: context.worktree, source: args.source, count: args.count })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_search: tool({
+        description: "Search related work via Semantic Scholar / arXiv. Writes relatedwork/search_cache.json. Requires explicit user confirmation before invoking.",
+        args: {
+          queries: tool.schema.array(tool.schema.string()).min(1).describe("List of search query strings"),
+          queriesFile: tool.schema.string().optional().describe("Optional path to a file containing one query per line"),
+          limit: tool.schema.number().int().min(1).optional().describe("Optional per-query result limit"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkSearch({ cwd: context.directory, worktree: context.worktree, queries: args.queries, queriesFile: args.queriesFile, limit: args.limit })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_import: tool({
+        description: "Import relatedwork/search_cache.json into relatedwork/literature.json. Writes the literature catalog. Requires explicit user confirmation.",
+        args: {
+          input: tool.schema.string().optional().describe("Optional input cache path (defaults to relatedwork/search_cache.json)"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkImport({ cwd: context.directory, worktree: context.worktree, input: args.input })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_sync_bib: tool({
+        description: "Synchronize relatedwork/paper_list.bib with the literature catalog. Writes the bibliography. Requires explicit user confirmation.",
+        args: {},
+        async execute(_args, context) {
+          const result = await runRelatedworkSyncBib({ cwd: context.directory, worktree: context.worktree })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_download: tool({
+        description: "Download related-work PDFs into relatedwork/pdfs/. Writes files. Requires explicit user confirmation.",
+        args: {
+          paperId: tool.schema.string().optional().describe("Optional paper id to download (defaults to all queued papers)"),
+          all: tool.schema.boolean().optional().describe("Force re-download for all known papers"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkDownload({ cwd: context.directory, worktree: context.worktree, paperId: args.paperId, all: args.all })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_summarize: tool({
+        description: "Generate LLM-backed PDF summaries into relatedwork/papers/. Writes markdown summary files. Requires explicit user confirmation.",
+        args: {
+          paperId: tool.schema.string().optional().describe("Optional paper id to summarize (defaults to all eligible papers)"),
+          storyline: tool.schema.string().optional().describe("Optional storyline markdown path (defaults to storyline.md)"),
+          template: tool.schema.string().optional().describe("Optional summary template markdown path"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkSummarize({ cwd: context.directory, worktree: context.worktree, paperId: args.paperId, storyline: args.storyline, template: args.template })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_register_summary: tool({
+        description: "Register an existing PDF summary in relatedwork/literature.json. Writes the literature catalog. Requires explicit user confirmation.",
+        args: {
+          paperId: tool.schema.string().describe("Paper id whose summary path should be registered"),
+          path: tool.schema.string().describe("Relative path to the markdown summary file under relatedwork/papers/"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkRegisterSummary({ cwd: context.directory, worktree: context.worktree, paperId: args.paperId, path: args.path })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_build_index: tool({
+        description: "Build the cross-paper index at .agents/cross_index.json from relatedwork/papers/. Writes the index. Requires explicit user confirmation.",
+        args: {},
+        async execute(_args, context) {
+          const result = await runRelatedworkBuildIndex({ cwd: context.directory, worktree: context.worktree })
+          return renderRelatedworkToolOutput(result)
+        },
+      }),
+      vibepaper_relatedwork_clean: tool({
+        description: "Clean stale related-work entries (orphan PDFs/summaries, dropped catalog entries). Writes files. Requires explicit user confirmation.",
+        args: {
+          dryRun: tool.schema.boolean().optional().describe("Preview cleanup without applying changes"),
+        },
+        async execute(args, context) {
+          const result = await runRelatedworkClean({ cwd: context.directory, worktree: context.worktree, dryRun: args.dryRun })
+          return renderRelatedworkToolOutput(result)
         },
       }),
       vibepaper_checker_record: tool({
