@@ -20,7 +20,10 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:cli": "bun test tests/cli.test.ts",
-    "test:package": "bun test tests/package-smoke.test.ts"
+    "test:package": "bun test tests/package-smoke.test.ts",
+    "dev:install": "bun scripts/dev-install.ts",
+    "dev:reset": "bun scripts/dev-reset.ts",
+    "dev:watch": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.29",

@@ -172,3 +172,100 @@ VIBEPAPER_LANG=en-US bunx -p @vibepaper/opencode vibepaper-opencode doctor
 ###### 发布前本地测试
 <!-- description: Local tarball install note -->
 测试本地 tarball 时，先把 tarball 安装到目标项目，再运行 `node_modules/.bin/vibepaper-opencode init`；这会在发布前写入稳定的项目内 `file://` 插件入口。具体命令和验收点见 `USAGE_TEST.zh-CN.md`。
+
+## 本地开发
+
+###### 一键安装到目标项目
+<!-- description: dev:install script wires bun link + init in one command -->
+本仓库提供 `dev:install` 脚本，把当前源码 link 到任意目标项目，并一次完成 build / link / `init --force` / 可选 Python 安装：
+
+```bash
+cd packages/opencode-plugin
+bun run dev:install /path/to/target-project                    # 默认行为
+bun run dev:install /path/to/target-project --with-python      # 同时 uv pip install -e <repo-root>
+bun run dev:install /path/to/target-project --skip-build       # 直接用现有 dist/
+bun run dev:install /path/to/target-project --skip-init        # 不刷新 .opencode/commands/
+```
+
+脚本会：
+
+1. `bun run build`（除非 `--skip-build`）
+2. 在插件目录 `bun link`
+3. 在目标项目 `bun link @vibepaper/opencode`（自动补一个最小 `package.json` 以满足 bun link 要求）
+4. 运行 `vibepaper-opencode init --force --root <target>`，刷新 `.opencode/commands/vibe.md`、`vibe-doctor.md`、`vibe-relatedwork.md`
+5. `--with-python` 时若目标项目缺 `.venv` 就先 `uv venv`，然后 `uv pip install -e <repo-root>`，让 `<target>/.venv/bin/vibe` 可用
+
+完成后**重启 OpenCode**，在目标项目里运行 `/vibe-doctor` 验证 `commands.vibe-relatedwork.present` 与 `vibe-cli.available` 这两条 check 都通过。
+
+###### 日常迭代
+<!-- description: dev:watch workflow for source edits -->
+改完源码后只需 rebuild + 重启 OpenCode：
+
+```bash
+bun run build
+# 或后台 watch
+bun run dev:watch
+```
+
+`.opencode/commands/*.md` 模板没变时不必再跑 `init`。
+
+###### 解除 link
+<!-- description: dev:reset removes the link in a target project -->
+```bash
+bun run dev:reset /path/to/target-project
+```
+
+会从目标项目卸掉 `@vibepaper/opencode`、删除 `node_modules/@vibepaper/opencode` 符号链接，并解除全局 link。`.opencode/commands/` 下的文件和 `opencode.json` 的 plugin 条目保留，需要手动清理。
+
+###### 升级到新版本
+<!-- description: dev:install is idempotent; rerun to upgrade -->
+`dev:install` 是幂等的，**升级不需要先卸载**：
+
+```bash
+cd packages/opencode-plugin
+bun run dev:install /path/to/target-project
+```
+
+`init --force` 会安全覆盖带有 `<!-- VibePaper managed: ... -->` 标记的 `vibe.md` 与 `vibe-doctor.md`，新增 `vibe-relatedwork.md`；`opencode.json` 已包含 `@vibepaper/opencode` 条目时不重复添加；`bun link` 让该 specifier 解析到本地最新源码，覆盖之前的 npm 安装。重启 OpenCode 即可生效。
+
+###### 完整卸载
+<!-- description: full uninstall steps for a target project -->
+若要把目标项目完全恢复到未安装状态：
+
+```bash
+# 1. 解除 link 并删除 node_modules 符号链接
+cd /Users/zrzz/Coding/VibePaper-OpenCode/packages/opencode-plugin
+bun run dev:reset /path/to/target-project
+
+# 2. 删除 slash 命令和 OpenCode 配置中的 plugin 条目
+cd /path/to/target-project
+trash .opencode/commands/vibe.md .opencode/commands/vibe-doctor.md .opencode/commands/vibe-relatedwork.md
+trash opencode.json   # 或手动编辑去掉 plugin 数组里的 "@vibepaper/opencode"
+
+# 3. 重启 OpenCode 让其重新读取配置
+```
+
+`trash` 取代 `rm` 以便文件可恢复；若不可用可用 `rm`。Python 端的 `<target>/.venv/bin/vibe` 不属于 OpenCode 集成，保留即可。
+
+###### Python 端前置条件
+<!-- description: Python prerequisites for relatedwork tools -->
+`vibe-relatedwork` 的所有写盘工具底层都调用 `vibe relatedwork ...` Python CLI。bridge 的解析顺序：
+
+1. `<target>/.venv/bin/vibe`（首选；最快、零依赖）
+2. `PATH` 中的 `uv` → `uv run --project <target> vibe ...`
+3. 都没有 → 工具返回 `vibe-cli-unavailable`，`/vibe-doctor` 的 `vibe-cli.available` 检查会标红
+
+两种安装方式：
+
+```bash
+# 方式 A：dev:install 时一并装到目标项目的 .venv
+bun run dev:install /path/to/target-project --with-python
+# 等价于：cd <target> && uv venv（缺则建）&& uv pip install -e <repo-root>
+
+# 方式 B：手动管理目标项目的 venv
+cd /path/to/target-project
+uv venv                                         # 若没有 .venv
+uv pip install -e /path/to/VibePaper-OpenCode   # 把 vibepaper 装到当前 .venv
+```
+
+要求 `uv >= 0.4`（用于 `uv venv` 和 `uv pip install`）。bridge 不会主动激活 `.venv`，所以**不依赖** shell 的 `source .venv/bin/activate`。
