@@ -19,7 +19,7 @@ const TIMEOUTS_MS: Record<string, number> = {
 
 type WritePhase = "keywords" | "search" | "import" | "sync-bib" | "download" | "summarize" | "register-summary" | "build-index" | "clean"
 
-const READ_ONLY_SUBCOMMANDS: ReadonlySet<WritePhase> = new Set(["keywords"])
+const NO_PLUGIN_PHASE_PATCH_SUBCOMMANDS: ReadonlySet<WritePhase> = new Set(["keywords"])
 
 const PHASE_ID = "literature"
 
@@ -72,8 +72,7 @@ export async function runRelatedworkSyncBib(options: RelatedworkSyncBibOptions, 
 
 export async function runRelatedworkDownload(options: RelatedworkDownloadOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "download"]
-  if (typeof options.paperId === "string" && options.paperId.trim() !== "") args.push("--id", options.paperId.trim())
-  if (options.all === true) args.push("--all")
+  if (typeof options.paperId === "string" && options.paperId.trim() !== "") args.push("--paper-id", options.paperId.trim())
   return invoke({ subcommand: "download", toolId: "vibepaper_relatedwork_download", args, options, deps })
 }
 
@@ -92,7 +91,7 @@ export async function runRelatedworkRegisterSummary(options: RelatedworkRegister
   if (typeof options.path !== "string" || options.path.trim() === "") {
     return immediateError("vibepaper_relatedwork_register_summary", "invalid-args", "path is required", options)
   }
-  const args: string[] = ["relatedwork", "register-summary", "--paper-id", options.paperId.trim(), "--path", options.path.trim()]
+  const args: string[] = ["relatedwork", "register-summary", "--paper-id", options.paperId.trim(), "--summary-path", options.path.trim()]
   return invoke({ subcommand: "register-summary", toolId: "vibepaper_relatedwork_register_summary", args, options, deps })
 }
 
@@ -103,7 +102,11 @@ export async function runRelatedworkBuildIndex(options: RelatedworkBuildIndexOpt
 
 export async function runRelatedworkClean(options: RelatedworkCleanOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "clean"]
-  if (options.dryRun === true) args.push("--dry-run")
+  if (options.dryRun === true) {
+    args.push("--dry-run")
+  } else {
+    args.push("--yes")
+  }
   return invoke({ subcommand: "clean", toolId: "vibepaper_relatedwork_clean", args, options, deps })
 }
 
@@ -182,7 +185,7 @@ interface PatchPhaseInput {
 }
 
 async function maybePatchPhase(input: PatchPhaseInput): Promise<PhasePatchResult | null> {
-  if (READ_ONLY_SUBCOMMANDS.has(input.subcommand)) return null
+  if (NO_PLUGIN_PHASE_PATCH_SUBCOMMANDS.has(input.subcommand)) return null
   if (input.statusAfter === null) return null
   const counts = input.statusAfter.counts
   const patch: Record<string, unknown> = {

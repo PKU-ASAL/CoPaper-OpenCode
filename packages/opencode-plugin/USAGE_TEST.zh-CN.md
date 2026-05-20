@@ -81,6 +81,16 @@ bun test tests/permission-profiles.test.ts tests/agent-profiles.test.ts tests/vi
 
 期望 permission profile、内置 agent prompt、`.opencode/vibepaper.json` 解析、OpenCode agent 注入、同名冲突、权限升级拒绝、recorder 工具门控和 doctor/template 诊断全部通过。
 
+###### Relatedwork bridge 聚焦回归
+在 `packages/opencode-plugin` 运行：
+
+```bash
+bun test tests/relatedwork-tools.test.ts
+bun run typecheck
+```
+
+期望 relatedwork 工具的 bridge argv 合同、phase patch、事件追加、keywords 通过 Python CLI 写入 `relatedwork/queries.txt` 且插件不额外追加 phase-patch 事件、bridge 错误展示和输出渲染全部通过。重点检查不会生成 Python CLI 不支持的 `download --id`、`download --all` 或 `register-summary --path`，且非 dry-run clean 会传递 `--yes` 避免交互阻塞。
+
 ## 自动化覆盖
 <!-- description: 测试文件和行为映射 -->
 
@@ -100,6 +110,7 @@ bun test tests/permission-profiles.test.ts tests/agent-profiles.test.ts tests/vi
 - `agent-config.test.ts`：验证默认注入、model/temperature/promptAppend 合并、禁用 agent、同名冲突、权限升级拒绝、安全降级和 diagnostic path/field。
 - `plugin.test.ts`：验证工具注册、`config` hook 注入和幂等、root-aware diagnostics、`ToolContext` 根目录、Dashboard 只读路径、artifact status 运行时 root、recorder-only artifact record、init apply 写入路径和 workflow 工具运行时 root。
 - `command-templates.test.ts`：验证 `/vibe` 初始化确认、artifact status 只读指引、artifact record 显式确认指引、workflow read 工具指引、set phase 写入确认规则和 agent profile 指引。
+- `relatedwork-tools.test.ts`：验证 OpenCode relatedwork 工具生成的 Python CLI argv、bridge 错误展示、status refresh、literature phase patch、事件追加、keywords 写入由 Python CLI 处理且插件不额外追加 phase-patch 事件和输出渲染。
 - `cli.test.ts`、`doctor.test.ts`、`package-smoke.test.ts`：验证 CLI、doctor、agent profile diagnostics、打包 smoke 和 locale。
 
 ###### 回归重点

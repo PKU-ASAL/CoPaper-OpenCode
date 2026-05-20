@@ -28,6 +28,7 @@ const WRITE_TOOL_PERMISSIONS = [
 ] as const
 
 const RELATEDWORK_WRITE_TOOL_PERMISSIONS = [
+  "vibepaper_relatedwork_keywords",
   "vibepaper_relatedwork_search",
   "vibepaper_relatedwork_import",
   "vibepaper_relatedwork_sync_bib",
@@ -100,7 +101,6 @@ describe("permission profiles", () => {
     expect(profile.bash).toBe("deny")
     expect(profile.edit).toBe("deny")
     expect(profile.vibepaper_relatedwork_status).toBe("allow")
-    expect(profile.vibepaper_relatedwork_keywords).toBe("allow")
     for (const permissionName of RELATEDWORK_WRITE_TOOL_PERMISSIONS) {
       expect(profile[permissionName]).toBe("ask")
     }
@@ -115,7 +115,6 @@ describe("permission profiles", () => {
       for (const permissionName of RELATEDWORK_WRITE_TOOL_PERMISSIONS) {
         expect(profile[permissionName]).toBe("deny")
       }
-      expect(profile.vibepaper_relatedwork_keywords).toBe("deny")
     }
   })
 

@@ -68,7 +68,7 @@ const PERMISSION_PROFILES = {
   },
   literatureWrite: {
     ...READ_ONLY_PROFILE,
-    vibepaper_relatedwork_keywords: "allow",
+    vibepaper_relatedwork_keywords: "ask",
     vibepaper_relatedwork_search: "ask",
     vibepaper_relatedwork_import: "ask",
     vibepaper_relatedwork_sync_bib: "ask",

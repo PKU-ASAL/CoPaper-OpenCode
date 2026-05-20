@@ -33,6 +33,19 @@ function recordingSpawn(result: SpawnResult): { spawn: SpawnFn; calls: SpawnCall
 
 const VENV_PATH = "/fake/.venv/bin/vibe"
 
+function commandTail(call: SpawnCall, length: number): string[] {
+  return call.command.slice(-length)
+}
+
+function expectCommandContainsInOrder(command: string[], expected: string[]) {
+  let searchFrom = 0
+  for (const value of expected) {
+    const foundAt = command.indexOf(value, searchFrom)
+    expect(foundAt).toBeGreaterThanOrEqual(0)
+    searchFrom = foundAt + 1
+  }
+}
+
 function makeBaseProject() {
   const project = makeTempProject()
   project.write(".agents/state.json", `${JSON.stringify({
@@ -85,7 +98,7 @@ describe("relatedwork tools", () => {
     project.cleanup()
   })
 
-  test("keywords is read-only: bridge invoked, no phase patch, no event appended", async () => {
+  test("keywords uses Python CLI without plugin phase patch or event", async () => {
     const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "kw1\nkw2\n", stderr: "", timedOut: false })
     const result = await runRelatedworkKeywords(
       { root: project.root, source: "storyline.md", count: 5 },
@@ -93,10 +106,10 @@ describe("relatedwork tools", () => {
     )
     expect(result.ok).toBe(true)
     expect(calls.length).toBe(1)
-    expect(calls[0].command.slice(-6)).toEqual(["relatedwork", "keywords", "--from", "storyline.md", "--count", "5"])
+    expect(commandTail(calls[0], 6)).toEqual(["relatedwork", "keywords", "--from", "storyline.md", "--count", "5"])
     expect(result.phasePatch).toBeNull()
     expect(result.statusAfter?.ok).toBe(true)
-    // No event log file because no patch event was emitted
+    // No plugin phase-patch event was emitted; Python CLI side effects are handled by the bridge command.
     expect(() => project.read(".agents/events.jsonl")).toThrow()
   })
 
@@ -108,8 +121,7 @@ describe("relatedwork tools", () => {
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null, now: () => 0 },
     )
     expect(result.ok).toBe(true)
-    expect(calls[0].command).toContain("import")
-    expect(calls[0].command).toContain("--input")
+    expectCommandContainsInOrder(calls[0].command, ["relatedwork", "import", "--input", "relatedwork/search_cache.json"])
     expect(result.phasePatch).not.toBeNull()
     expect(result.phasePatch?.ok).toBe(true)
     const after = result.phasePatch?.after ?? {}
@@ -129,26 +141,43 @@ describe("relatedwork tools", () => {
 
   test("download updates downloaded count from refreshed status", async () => {
     project.write("relatedwork/literature.json", JSON.stringify(makeCatalog(2, 2, 0, project)))
-    const { spawn } = recordingSpawn({ exitCode: 0, stdout: "ok\n", stderr: "", timedOut: false })
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "ok\n", stderr: "", timedOut: false })
     const result = await runRelatedworkDownload(
       { root: project.root, all: true },
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     expect(result.ok).toBe(true)
+    expect(commandTail(calls[0], 2)).toEqual(["relatedwork", "download"])
+    expect(calls[0].command).not.toContain("--all")
     expect(result.phasePatch?.after?.papers_downloaded).toBe(2)
     const eventLog = project.read(".agents/events.jsonl")
     expect(eventLog).toContain("relatedwork.download")
   })
 
+  test("download forwards Python CLI compatible paper-id and ignores legacy all flag", async () => {
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "ok\n", stderr: "", timedOut: false })
+
+    await runRelatedworkDownload(
+      { root: project.root, paperId: "paper-123", all: true },
+      { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
+    )
+
+    const command = calls[0].command
+    expectCommandContainsInOrder(command, ["relatedwork", "download", "--paper-id", "paper-123"])
+    expect(command).not.toContain("--id")
+    expect(command).not.toContain("--all")
+  })
+
   test("build_index sets cross_index_built when cross_index.json exists", async () => {
     project.write("relatedwork/literature.json", JSON.stringify(makeCatalog(2, 2, 2, project)))
     project.write(".agents/cross_index.json", JSON.stringify({ entries: [] }))
-    const { spawn } = recordingSpawn({ exitCode: 0, stdout: "built\n", stderr: "", timedOut: false })
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "built\n", stderr: "", timedOut: false })
     const result = await runRelatedworkBuildIndex(
       { root: project.root },
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     expect(result.ok).toBe(true)
+    expect(commandTail(calls[0], 2)).toEqual(["relatedwork", "build-index"])
     expect(result.phasePatch?.after?.cross_index_built).toBe(true)
   })
 
@@ -165,6 +194,7 @@ describe("relatedwork tools", () => {
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     const command = calls[0].command
+    expectCommandContainsInOrder(command, ["relatedwork", "search", "--query", "foo", "--query", "bar", "--limit", "5"])
     const queryFlagPositions: number[] = []
     command.forEach((value, index) => {
       if (value === "--query") queryFlagPositions.push(index)
@@ -173,6 +203,18 @@ describe("relatedwork tools", () => {
     expect(command[queryFlagPositions[0] + 1]).toBe("foo")
     expect(command[queryFlagPositions[1] + 1]).toBe("bar")
     expect(command).toContain("--limit")
+  })
+
+  test("sync-bib invokes Python CLI sync-bib subcommand", async () => {
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "synced\n", stderr: "", timedOut: false })
+
+    const result = await runRelatedworkSyncBib(
+      { root: project.root },
+      { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
+    )
+
+    expect(result.ok).toBe(true)
+    expect(commandTail(calls[0], 2)).toEqual(["relatedwork", "sync-bib"])
   })
 
   test("vibe-cli-unavailable surfaces without phase patch", async () => {
@@ -204,6 +246,20 @@ describe("relatedwork tools", () => {
     expect(missingPath.ok).toBe(false)
   })
 
+  test("register_summary forwards Python CLI compatible summary-path", async () => {
+    project.write("relatedwork/papers/paper-1.md", "# Summary\n")
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "registered\n", stderr: "", timedOut: false })
+
+    await runRelatedworkRegisterSummary(
+      { root: project.root, paperId: "paper-1", path: "relatedwork/papers/paper-1.md" },
+      { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
+    )
+
+    const command = calls[0].command
+    expectCommandContainsInOrder(command, ["relatedwork", "register-summary", "--paper-id", "paper-1", "--summary-path", "relatedwork/papers/paper-1.md"])
+    expect(command).not.toContain("--path")
+  })
+
   test("summarize forwards optional flags only when provided", async () => {
     const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "", stderr: "", timedOut: false })
     await runRelatedworkSummarize(
@@ -211,6 +267,7 @@ describe("relatedwork tools", () => {
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     const command = calls[0].command
+    expectCommandContainsInOrder(command, ["relatedwork", "summarize", "--paper-id", "abc"])
     expect(command).toContain("--paper-id")
     expect(command).not.toContain("--storyline")
     expect(command).not.toContain("--template")
@@ -222,7 +279,20 @@ describe("relatedwork tools", () => {
       { root: project.root, dryRun: true },
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
-    expect(calls[0].command).toContain("--dry-run")
+    expectCommandContainsInOrder(calls[0].command, ["relatedwork", "clean", "--dry-run"])
+    expect(calls[0].command).not.toContain("--yes")
+  })
+
+  test("clean forwards --yes for confirmed non-dry-run bridge calls", async () => {
+    const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "cleaned\n", stderr: "", timedOut: false })
+
+    await runRelatedworkClean(
+      { root: project.root },
+      { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
+    )
+
+    expectCommandContainsInOrder(calls[0].command, ["relatedwork", "clean", "--yes"])
+    expect(calls[0].command).not.toContain("--dry-run")
   })
 
   test("renderRelatedworkToolOutput surfaces stdout, stderr, status counts, and json", async () => {
@@ -240,7 +310,7 @@ describe("relatedwork tools", () => {
   })
 })
 
-describe("relatedwork tools - events.jsonl is appended atomically", () => {
+describe("relatedwork tools - plugin phase-patch events are appended atomically", () => {
   test("two sequential write tools append two events", async () => {
     const project = makeBaseProject()
     try {
@@ -258,7 +328,7 @@ describe("relatedwork tools - events.jsonl is appended atomically", () => {
     }
   })
 
-  test("read-only tools never append events", async () => {
+  test("keywords never appends plugin phase-patch events", async () => {
     const project = makeBaseProject()
     try {
       const { spawn } = recordingSpawn({ exitCode: 0, stdout: "kw\n", stderr: "", timedOut: false })

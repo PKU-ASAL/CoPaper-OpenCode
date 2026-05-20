@@ -126,7 +126,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         },
       }),
       vibepaper_relatedwork_keywords: tool({
-        description: "Extract relatedwork keywords from storyline.md (or paper.md fallback) via the Python CLI. Read-only; does not write files.",
+        description: "Extract relatedwork keywords via the Python CLI. Writes relatedwork/queries.txt; does not patch literature phase counters.",
         args: {
           source: tool.schema.string().optional().describe("Optional source markdown path (defaults to storyline.md)"),
           count: tool.schema.number().int().min(1).max(30).optional().describe("Number of keywords to return (1-30)"),

@@ -255,6 +255,12 @@ trash opencode.json   # 或手动编辑去掉 plugin 数组里的 "@vibepaper/op
 2. `PATH` 中的 `uv` → `uv run --project <target> vibe ...`
 3. 都没有 → 工具返回 `vibe-cli-unavailable`，`/vibe-doctor` 的 `vibe-cli.available` 检查会标红
 
+###### Relatedwork 参数合同
+<!-- description: Python CLI argument contract for relatedwork bridge -->
+插件侧 relatedwork 写工具只负责生成 Python CLI 支持的参数：download 使用 `--paper-id` 限定单篇论文，未指定 `paperId` 时让 Python CLI 处理待下载论文；register-summary 使用 `--summary-path`；clean 在工具确认后以 `--yes` 非交互执行，预览时使用 `dryRun` 对应的 `--dry-run`。
+
+`keywords` 也是 Python 写盘工具：它会通过 Python CLI 写入 `relatedwork/queries.txt`。插件不会为 `keywords` 额外追加 phase-patch 事件；其他 relatedwork 写工具会刷新 literature 计数并追加插件侧事件。
+
 两种安装方式：
 
 ```bash
@@ -267,5 +273,16 @@ cd /path/to/target-project
 uv venv                                         # 若没有 .venv
 uv pip install -e /path/to/VibePaper-OpenCode   # 把 vibepaper 装到当前 .venv
 ```
+
+###### Relatedwork 最小发布验证
+<!-- description: Focused relatedwork release validation -->
+修改 relatedwork bridge 后，在插件目录运行：
+
+```bash
+bun test tests/relatedwork-tools.test.ts
+bun run typecheck
+```
+
+这两个命令验证 TypeScript 工具生成的 `vibe relatedwork ...` 参数与当前 Python CLI 合同一致，并保证类型检查通过。
 
 要求 `uv >= 0.4`（用于 `uv venv` 和 `uv pip install`）。bridge 不会主动激活 `.venv`，所以**不依赖** shell 的 `source .venv/bin/activate`。
