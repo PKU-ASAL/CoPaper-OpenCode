@@ -8,6 +8,14 @@ import { detectRoot } from "./root"
 import { hasManagedMarker, MANAGED_COMMAND_NAMES, renderCommandTemplate, type CommandName } from "./templates"
 import { DEFAULT_LOCALE, PACKAGE_NAME, type Locale } from "./types"
 
+export const LOCAL_PLUGIN_RELATIVE_PATH = ".opencode/plugins/vibepaper.js" as const
+export const LOCAL_PLUGIN_MARKER = "VibePaper managed local plugin: @vibepaper/opencode" as const
+export const LOCAL_PLUGIN_IMPORT = "../../node_modules/@vibepaper/opencode/dist/index.js" as const
+export const LOCAL_PLUGIN_CONTENT = `// ${LOCAL_PLUGIN_MARKER}
+// Loaded by OpenCode from .opencode/plugins/ without absolute paths.
+export { VibePaperPlugin, default } from "${LOCAL_PLUGIN_IMPORT}"
+`
+
 export interface InitOptions {
   root?: string
   cwd?: string
@@ -35,11 +43,15 @@ export async function planInit(options: InitOptions): Promise<InitPlan> {
   const root = detection.root
   const now = options.now ?? new Date()
   const locale = options.locale ?? DEFAULT_LOCALE
-  const pluginSpecifier = options.pluginSpecifier ?? resolvePluginSpecifier(root, options.cliEntryPath)
+  const pluginSpecifier = options.pluginSpecifier
   const configPath = selectConfigPath(root, options.config)
   if (!configPath.ok) return { ok: false, error: configPath.error }
 
   const actions: FileAction[] = []
+  const localPluginAction = planLocalPluginAction(root, Boolean(options.force), now)
+  if (!localPluginAction.ok) return { ok: false, error: localPluginAction.error }
+  actions.push(localPluginAction.action)
+
   const configAction = planConfigAction(root, configPath.path, pluginSpecifier, now)
   if (!configAction.ok) return { ok: false, error: configAction.error }
   actions.push(configAction.action)
@@ -108,8 +120,29 @@ export function resolvePluginSpecifier(root: string, cliEntryPath?: string): str
   }
 }
 
-function planConfigAction(root: string, path: string, pluginSpecifier: string, now: Date): { ok: true; action: FileAction } | { ok: false; error: string } {
-  if (!existsSync(path)) return { ok: true, action: { kind: "write", path, content: `${JSON.stringify({ plugin: [pluginSpecifier] })}\n` } }
+function planLocalPluginAction(root: string, force: boolean, now: Date): { ok: true; action: FileAction } | { ok: false; error: string } {
+  const path = join(root, LOCAL_PLUGIN_RELATIVE_PATH)
+  try {
+    assertInsideRoot(root, path)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+  if (!existsSync(path)) return { ok: true, action: { kind: "write", path, content: LOCAL_PLUGIN_CONTENT } }
+  const current = readFileSync(path, "utf8")
+  if (current === LOCAL_PLUGIN_CONTENT) return { ok: true, action: { kind: "skip", path, reason: "local plugin already current" } }
+  if (!current.includes(LOCAL_PLUGIN_MARKER) && !force) return { ok: false, error: `Refusing to overwrite unmanaged local plugin: ${path}` }
+  const rel = relative(root, path)
+  return { ok: true, action: { kind: "write", path, content: LOCAL_PLUGIN_CONTENT, backupFrom: path, backupTo: backupPathFor(root, rel, now) } }
+}
+
+function planConfigAction(root: string, path: string, pluginSpecifier: string | undefined, now: Date): { ok: true; action: FileAction } | { ok: false; error: string } {
+  if (!existsSync(path)) {
+    const content = pluginSpecifier === undefined
+      ? `${JSON.stringify({ $schema: "https://opencode.ai/config.json" }, null, 2)}\n`
+      : `${JSON.stringify({ plugin: [pluginSpecifier] })}\n`
+    return { ok: true, action: { kind: "write", path, content } }
+  }
+  if (pluginSpecifier === undefined) return { ok: true, action: { kind: "skip", path, reason: "local plugin wrapper does not require config plugin entry" } }
   const input = readFileSync(path, "utf8")
   const merge = mergePluginConfig(input, pluginSpecifier)
   if (!merge.ok) return { ok: false, error: merge.error }

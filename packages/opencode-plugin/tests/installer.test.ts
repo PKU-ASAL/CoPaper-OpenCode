@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join, sep } from "node:path"
 import { assertInsideRoot, backupPathFor, writeFileAtomic } from "../src/fs-utils"
-import { applyInitPlan, planInit, resolvePluginSpecifier, type InitPlan } from "../src/installer"
+import { applyInitPlan, LOCAL_PLUGIN_CONTENT, LOCAL_PLUGIN_MARKER, LOCAL_PLUGIN_RELATIVE_PATH, planInit, resolvePluginSpecifier, type InitPlan } from "../src/installer"
 import { renderCommandTemplate } from "../src/templates"
 import { hashTree, makeTempProject } from "./fixtures"
 
@@ -70,7 +70,9 @@ describe("installer", () => {
     expect(plan.ok).toBe(true)
     const result = await applyInitPlan(plan)
     expect(result.ok).toBe(true)
-    expect(JSON.parse(project.read("opencode.json")).plugin).toEqual(["@vibepaper/opencode"])
+    expect(JSON.parse(project.read("opencode.json"))).toEqual({ $schema: "https://opencode.ai/config.json" })
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toBe(LOCAL_PLUGIN_CONTENT)
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).not.toContain(project.root)
     expect(project.read(".opencode/commands/vibe.md")).toContain("command=vibe")
     expect(project.read(".opencode/commands/vibe-doctor.md")).toContain("command=vibe-doctor")
   })
@@ -95,11 +97,26 @@ describe("installer", () => {
     expect(resolvePluginSpecifier(project.root, cliPath)).toBe("@vibepaper/opencode")
   })
 
-  test("merges existing JSON config and backs it up", async () => {
+  test("keeps existing JSON config unchanged when using the local plugin wrapper", async () => {
     const project = temp()
     project.write("opencode.json", JSON.stringify({ model: "x", plugin: ["other"] }, null, 2))
     const original = project.read("opencode.json")
     const plan = await planInit({ root: project.root, now: new Date("2026-04-29T12:00:00Z") })
+    expect(plan.ok).toBe(true)
+    await applyInitPlan(plan)
+    const parsed = JSON.parse(project.read("opencode.json"))
+    expect(parsed.model).toBe("x")
+    expect(parsed.plugin).toEqual(["other"])
+    expect(project.read("opencode.json")).toBe(original)
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toContain(LOCAL_PLUGIN_MARKER)
+    expect(existsSync(project.path(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/opencode.json"))).toBe(false)
+  })
+
+  test("merges existing JSON config and backs it up when explicit plugin specifier is requested", async () => {
+    const project = temp()
+    project.write("opencode.json", JSON.stringify({ model: "x", plugin: ["other"] }, null, 2))
+    const original = project.read("opencode.json")
+    const plan = await planInit({ root: project.root, pluginSpecifier: "@vibepaper/opencode", now: new Date("2026-04-29T12:00:00Z") })
     expect(plan.ok).toBe(true)
     await applyInitPlan(plan)
     const parsed = JSON.parse(project.read("opencode.json"))
@@ -139,6 +156,20 @@ describe("installer", () => {
     await applyInitPlan(forced)
     expect(project.read(".opencode/commands/vibe.md")).toContain("command=vibe")
     expect(project.read(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/.opencode/commands/vibe.md")).toBe("# user command")
+  })
+
+  test("fails on unmanaged local plugin unless force is used", async () => {
+    const project = temp()
+    project.write(LOCAL_PLUGIN_RELATIVE_PATH, "# user plugin")
+    const plan = await planInit({ root: project.root })
+    expect(plan.ok).toBe(false)
+    expect(plan.error).toContain("unmanaged local plugin")
+
+    const forced = await planInit({ root: project.root, force: true, now: new Date("2026-04-29T12:00:00Z") })
+    expect(forced.ok).toBe(true)
+    await applyInitPlan(forced)
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toBe(LOCAL_PLUGIN_CONTENT)
+    expect(project.read(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/.opencode/plugins/vibepaper.js")).toBe("# user plugin")
   })
 
   test("rejects explicit config paths outside root during planning", async () => {

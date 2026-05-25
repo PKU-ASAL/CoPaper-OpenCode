@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import { LOCAL_PLUGIN_MARKER, LOCAL_PLUGIN_RELATIVE_PATH } from "../src/installer"
 import { makeTempProject } from "./fixtures"
 
 const projects: ReturnType<typeof makeTempProject>[] = []
@@ -23,7 +24,9 @@ describe("CLI", () => {
     const project = temp()
     const result = runCli(["init", "--root", project.root])
     expect(result.status).toBe(0)
-    expect(project.read("opencode.json")).toContain("@vibepaper/opencode")
+    expect(JSON.parse(project.read("opencode.json"))).toEqual({ $schema: "https://opencode.ai/config.json" })
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toContain(LOCAL_PLUGIN_MARKER)
+    expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).not.toContain(project.root)
     expect(result.stdout).toContain("重启 OpenCode")
     expect(result.stdout.match(/重启 OpenCode/g)?.length ?? 0).toBe(1)
     expect(result.stdout).toContain("已安装 VibePaper OpenCode 集成。")

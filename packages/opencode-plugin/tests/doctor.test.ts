@@ -130,6 +130,25 @@ describe("doctor", () => {
     expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
   })
 
+  test("accepts a managed project-local plugin wrapper", async () => {
+    const project = temp()
+    project.write("opencode.json", JSON.stringify({ $schema: "https://opencode.ai/config.json" }))
+    project.write(".opencode/plugins/vibepaper.js", [
+      "// VibePaper managed local plugin: @vibepaper/opencode",
+      "// Loaded by OpenCode from .opencode/plugins/ without absolute paths.",
+      'export { VibePaperPlugin, default } from "../../node_modules/@vibepaper/opencode/dist/index.js"',
+      "",
+    ].join("\n"))
+    project.write(".opencode/commands/vibe.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->\n")
+    project.write(".opencode/commands/vibe-doctor.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe-doctor; schemaVersion=1 -->\n")
+
+    const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
+
+    expect(result.ok).toBe(true)
+    expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
+    expect(result.checks.find((check) => check.id === "plugin.configured")?.message).toContain("managed local plugin")
+  })
+
   test("rejects explicit config paths outside root without throwing", async () => {
     const project = temp()
     const outside = temp()

@@ -9,6 +9,7 @@ import { resolveBridge, type BridgeDeps } from "./python-bridge"
 import { hasManagedMarker, MANAGED_COMMAND_NAMES, type CommandName } from "./templates"
 import { t } from "./i18n"
 import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, type DoctorCheck, type DoctorResult, type Locale } from "./types"
+import { LOCAL_PLUGIN_IMPORT, LOCAL_PLUGIN_MARKER, LOCAL_PLUGIN_RELATIVE_PATH } from "./installer"
 
 const INIT_REMEDIATION = `Run: ${BUNX_CLI_COMMAND} init`
 
@@ -50,8 +51,20 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       } else {
         checks.push({ id: "config.parse", status: "pass", severity: "error", message: "OpenCode config parsed successfully", remediation: null })
         const plugins = parsedConfig.plugin
-        const configured = Array.isArray(plugins) && plugins.some(isVibePaperPluginSpecifier)
-        checks.push({ id: "plugin.configured", status: configured ? "pass" : "fail", severity: "error", message: configured ? `${PACKAGE_NAME} is listed in plugin config` : `${PACKAGE_NAME} not found in plugin config`, remediation: configured ? null : INIT_REMEDIATION })
+        const configuredByPackage = Array.isArray(plugins) && plugins.some(isVibePaperPluginSpecifier)
+        const localPlugin = readManagedLocalPlugin(root)
+        const configured = configuredByPackage || localPlugin.ok
+        checks.push({
+          id: "plugin.configured",
+          status: configured ? "pass" : "fail",
+          severity: "error",
+          message: configuredByPackage
+            ? `${PACKAGE_NAME} is listed in plugin config`
+            : localPlugin.ok
+              ? `${PACKAGE_NAME} is installed as a managed local plugin at ${LOCAL_PLUGIN_RELATIVE_PATH}`
+              : `${PACKAGE_NAME} not found in plugin config or managed local plugin directory`,
+          remediation: configured ? null : INIT_REMEDIATION,
+        })
         existingAgents = extractExistingAgents(parsedConfig)
       }
     }
@@ -135,6 +148,15 @@ function addUnavailableConfigChecks(checks: DoctorCheck[], message: string, reme
   checks.push({ id: "config.present", status: "fail", severity: "error", message, remediation })
   checks.push({ id: "config.parse", status: "fail", severity: "error", message: `OpenCode config cannot be parsed: ${message}`, remediation })
   checks.push({ id: "plugin.configured", status: "fail", severity: "error", message: `${PACKAGE_NAME} is not configured`, remediation })
+}
+
+function readManagedLocalPlugin(root: string): { ok: true } | { ok: false; error?: string } {
+  const path = join(root, LOCAL_PLUGIN_RELATIVE_PATH)
+  const result = readTextFile(path)
+  if (!result.ok) return { ok: false, error: result.error }
+  if (!result.content.includes(LOCAL_PLUGIN_MARKER)) return { ok: false, error: "local plugin marker missing" }
+  if (!result.content.includes(LOCAL_PLUGIN_IMPORT)) return { ok: false, error: "local plugin import target missing" }
+  return { ok: true }
 }
 
 function addCommandChecks(root: string, checks: DoctorCheck[], command: CommandName) {
