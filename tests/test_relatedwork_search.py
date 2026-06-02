@@ -1,4 +1,4 @@
-"""Tests for vibepaper.relatedwork_search."""
+"""Tests for copaper.relatedwork_search."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from urllib.error import HTTPError
 import pytest
 from click.testing import CliRunner
 
-from vibepaper import relatedwork_search
-from vibepaper.cli import _load_env_file, main as cli_main
-from vibepaper.relatedwork_search import (
+from copaper import relatedwork_search
+from copaper.cli import _load_env_file, main as cli_main
+from copaper.relatedwork_search import (
     DEFAULT_S2_BASE,
     SemanticScholarError,
     _auth_headers,

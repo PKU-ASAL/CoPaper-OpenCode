@@ -23,9 +23,9 @@ async function main(): Promise<void> {
     process.exit(2)
   }
 
-  await runBestEffort(["bun", "remove", "@vibepaper/opencode"], target, "unlink-target")
+  await runBestEffort(["bun", "remove", "@copaper/opencode"], target, "unlink-target")
 
-  const linkPath = join(target, "node_modules", "@vibepaper", "opencode")
+  const linkPath = join(target, "node_modules", "@copaper", "opencode")
   if (existsSync(linkPath) || isOrphanSymlink(linkPath)) {
     try {
       unlinkSync(linkPath)

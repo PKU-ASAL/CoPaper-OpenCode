@@ -9,7 +9,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
-SCAFFOLD_SKILLS_DIR = REPO_ROOT / "vibepaper" / "scaffold" / "skills"
+SCAFFOLD_SKILLS_DIR = REPO_ROOT / "copaper" / "scaffold" / "skills"
 
 ALL_SKILL_NAMES = sorted(
     d.name

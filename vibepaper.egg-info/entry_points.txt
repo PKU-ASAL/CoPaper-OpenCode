@@ -1,2 +1,0 @@
-[console_scripts]
-vibe = vibepaper.cli:main

@@ -7,8 +7,8 @@ const pkg = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"))
 
 describe("package metadata", () => {
   test("uses the expected npm package name and binary", () => {
-    expect(pkg.name).toBe("@vibepaper/opencode")
-    expect(pkg.bin).toEqual({ "vibepaper-opencode": "./dist/cli.js" })
+    expect(pkg.name).toBe("@copaper/opencode")
+    expect(pkg.bin).toEqual({ "copaper-opencode": "./dist/cli.js" })
   })
 
   test("exports the OpenCode plugin entry separately from the CLI", () => {
@@ -31,6 +31,6 @@ describe("built package smoke", () => {
   test("built plugin entry exists after build", () => {
     const entryPath = join(packageRoot, "dist", "index.js")
     expect(existsSync(entryPath)).toBe(true)
-    expect(readFileSync(entryPath, "utf8")).toContain("VibePaperPlugin")
+    expect(readFileSync(entryPath, "utf8")).toContain("CoPaperPlugin")
   })
 })

@@ -64,7 +64,7 @@ function inspectAgentsFile(root: string): ReadinessItem {
   try {
     if (!statSync(fullPath).isFile()) return makeItem("agents", path, "conflict", false, `${path} should be reviewed.`)
     const content = readFileSync(fullPath, "utf8")
-    if (content.includes("VibePaper")) return makeItem("agents", path, "exists-managed", false, `${path} is managed by VibePaper.`)
+    if (content.includes("CoPaper")) return makeItem("agents", path, "exists-managed", false, `${path} is managed by CoPaper.`)
   } catch {
     return makeItem("agents", path, "conflict", false, `${path} cannot be inspected.`)
   }

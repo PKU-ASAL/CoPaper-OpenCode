@@ -5,22 +5,22 @@
 <!-- description: 本次设计目标 -->
 
 ###### 修复发布阻塞路径
-本阶段只修复 `@vibepaper/opencode` 调用 Python `vibe relatedwork ...` 的最小发布风险。目标是让 OpenCode relatedwork 工具生成的 argv 与 Python Click CLI 接受的参数保持一致，避免用户在插件中触发文献流程时遇到非零退出或交互式阻塞。
+本阶段只修复 `@copaper/opencode` 调用 Python `copaper relatedwork ...` 的最小发布风险。目标是让 OpenCode relatedwork 工具生成的 argv 与 Python Click CLI 接受的参数保持一致，避免用户在插件中触发文献流程时遇到非零退出或交互式阻塞。
 
 ###### 锁定跨运行时合同
-VibePaper 当前是 Python CLI 与 TypeScript OpenCode 插件的双运行时架构。相关文献能力由 Python 侧实现，插件侧只负责参数构造、bridge 调用、状态刷新和事件补丁。本设计用合同测试防止两侧再次漂移。
+CoPaper 当前是 Python CLI 与 TypeScript OpenCode 插件的双运行时架构。相关文献能力由 Python 侧实现，插件侧只负责参数构造、bridge 调用、状态刷新和事件补丁。本设计用合同测试防止两侧再次漂移。
 
 ## Goals
 <!-- description: 必须实现的能力 -->
 
 ###### 修正 download 参数
-`vibepaper_relatedwork_download` 必须向 CLI 传递 `--paper-id <id>`，而不是 `--id <id>`。没有 `paperId` 时不传额外选择参数，因为 Python CLI 默认处理待下载论文。插件已有的 `all` 选项视为兼容字段，不应生成 Python 不支持的 `--all`。
+`copaper_relatedwork_download` 必须向 CLI 传递 `--paper-id <id>`，而不是 `--id <id>`。没有 `paperId` 时不传额外选择参数，因为 Python CLI 默认处理待下载论文。插件已有的 `all` 选项视为兼容字段，不应生成 Python 不支持的 `--all`。
 
 ###### 修正 register 参数
-`vibepaper_relatedwork_register_summary` 必须向 CLI 传递 `--summary-path <path>`，而不是 `--path <path>`。`paperId` 和 summary path 仍需在插件侧先做非空校验，缺失时返回 `invalid-args`，不调用 bridge。
+`copaper_relatedwork_register_summary` 必须向 CLI 传递 `--summary-path <path>`，而不是 `--path <path>`。`paperId` 和 summary path 仍需在插件侧先做非空校验，缺失时返回 `invalid-args`，不调用 bridge。
 
 ###### 避免 clean 阻塞
-`vibepaper_relatedwork_clean` 是插件侧确认后的写操作。非 dry-run 调用必须传递 `--yes`，避免 Python CLI 的 `click.confirm("Proceed?")` 在 OpenCode bridge 中等待输入直到超时。dry-run 继续只传 `--dry-run`。
+`copaper_relatedwork_clean` 是插件侧确认后的写操作。非 dry-run 调用必须传递 `--yes`，避免 Python CLI 的 `click.confirm("Proceed?")` 在 OpenCode bridge 中等待输入直到超时。dry-run 继续只传 `--dry-run`。
 
 ###### 补齐合同测试
 `relatedwork-tools.test.ts` 应断言每个 relatedwork 工具最终传给 bridge 的 argv，至少覆盖 `download`、`register-summary`、`clean`、`summarize`、`search`、`keywords`、`import`、`sync-bib` 和 `build-index` 的关键参数。
@@ -44,7 +44,7 @@ Semantic Scholar 搜索、BibTeX 同步、PDF 下载、LLM 摘要、cross-index 
 <!-- description: 当前已确认的合同漂移 -->
 
 ###### Download flag mismatch
-插件当前在 `packages/opencode-plugin/src/relatedwork-tools.ts` 使用 `--id` 和 `--all`。Python CLI 在 `vibepaper/cli.py` 的 `relatedwork download` 只接受 `--paper-id` 和 `--retry-failed`，因此 `--id` 或 `--all` 会导致 Click 参数错误。
+插件当前在 `packages/opencode-plugin/src/relatedwork-tools.ts` 使用 `--id` 和 `--all`。Python CLI 在 `copaper/cli.py` 的 `relatedwork download` 只接受 `--paper-id` 和 `--retry-failed`，因此 `--id` 或 `--all` 会导致 Click 参数错误。
 
 ###### Register flag mismatch
 插件当前使用 `--path` 传 summary 文件。Python CLI 的 `relatedwork register-summary` 要求 `--summary-path`，因此插件调用会失败，即使 `paperId` 和路径都有效。
@@ -59,7 +59,7 @@ Python CLI 的 `relatedwork clean` 在没有 `--yes` 且非 `--dry-run` 时会�
 主要修改 `packages/opencode-plugin/src/relatedwork-tools.ts` 的 argv 构造。每个工具函数继续只负责把 typed options 转成 CLI 参数，然后交给统一 `invoke` 流程处理 bridge、status refresh、phase patch 和渲染。
 
 ###### 以 Python CLI 为真源
-参数合同以 `vibepaper/cli.py` 的 Click option 为准。若插件 option 与 CLI 不完全一致，优先映射到 CLI 已支持语义；无法映射的字段不生成未知参数，并由测试记录该兼容行为。
+参数合同以 `copaper/cli.py` 的 Click option 为准。若插件 option 与 CLI 不完全一致，优先映射到 CLI 已支持语义；无法映射的字段不生成未知参数，并由测试记录该兼容行为。
 
 ###### 合同测试优先
 测试不只检查 `result.ok`，还要检查记录到的 `calls[0].command`。这样即使 mock bridge 返回成功，也能发现插件生成了 Python CLI 不支持的参数。
@@ -68,13 +68,13 @@ Python CLI 的 `relatedwork clean` 在没有 `--yes` 且非 `--dry-run` 时会�
 <!-- description: 调用路径 -->
 
 ###### OpenCode 工具入口
-OpenCode 调用 `vibepaper_relatedwork_*` 工具，`index.ts` 把参数传给 `relatedwork-tools.ts` 中对应的 `runRelatedwork*` 函数。
+OpenCode 调用 `copaper_relatedwork_*` 工具，`index.ts` 把参数传给 `relatedwork-tools.ts` 中对应的 `runRelatedwork*` 函数。
 
 ###### 参数构造
 `runRelatedwork*` 根据 options 构造 `args: ["relatedwork", "<subcommand>", ...flags]`。本阶段只调整 flag 名称和非交互确认参数，不改变 root、locale、timeout 或 env 的处理。
 
 ###### Bridge 调用
-`invoke` 调用 `python-bridge.ts`，解析 `.venv/bin/vibe` 或 `uv run --project <root> vibe`，再执行 `vibe --root <root> relatedwork ...`。命令结果和 stderr/stdout 仍按现有 `RelatedworkToolResult` 返回。
+`invoke` 调用 `python-bridge.ts`，解析 `.venv/bin/copaper` 或 `uv run --project <root> copaper`，再执行 `copaper --root <root> relatedwork ...`。命令结果和 stderr/stdout 仍按现有 `RelatedworkToolResult` 返回。
 
 ###### 状态刷新
 写工具完成后继续刷新 relatedwork status，并对 literature phase counters 做 idempotent patch。失败时仍尽量返回 bridge 错误、stderr 和 statusAfter，方便用户诊断。
@@ -98,7 +98,7 @@ OpenCode 调用 `vibepaper_relatedwork_*` 工具，`index.ts` 把参数传给 `r
 更新 `packages/opencode-plugin/tests/relatedwork-tools.test.ts`。新增或强化 argv assertions，确保 download、register-summary 和 clean 的关键参数与 Python CLI 一致。
 
 ###### Existing behavior coverage
-保留现有 phase patch、event append、read-only no-event、nonzero bridge error、vibe unavailable、render output 等测试。参数修复不得破坏这些行为。
+保留现有 phase patch、event append、read-only no-event、nonzero bridge error、copaper unavailable、render output 等测试。参数修复不得破坏这些行为。
 
 ###### Optional Python sanity
 如果实现中需要确认 CLI 参数，可运行相关 pytest 或 Click runner 测试。但本阶段主要风险在 TypeScript argv 生成，因此最小验证以 Bun relatedwork tool 测试为主。
@@ -110,7 +110,7 @@ OpenCode 调用 `vibepaper_relatedwork_*` 工具，`index.ts` 把参数传给 `r
 若 README 或中文测试说明列出了 relatedwork 工具行为，应更新为 Python CLI 真实参数语义：download 可按 `paperId` 限定，否则处理待下载论文；register-summary 使用 summary path；clean 的真实删除由确认后的工具调用执行。
 
 ###### Manual smoke path
-文档应建议最小发布验证：运行 plugin relatedwork tests、typecheck，并在需要时用本地 OpenCode 项目执行 `/vibe-relatedwork` 的 dry-run 或状态检查。不要在本阶段承诺完整 npm 发布流程。
+文档应建议最小发布验证：运行 plugin relatedwork tests、typecheck，并在需要时用本地 OpenCode 项目执行 `/copaper-relatedwork` 的 dry-run 或状态检查。不要在本阶段承诺完整 npm 发布流程。
 
 ## Acceptance Criteria
 <!-- description: 完成判定 -->

@@ -34,19 +34,19 @@ function findOpenCodeRoot(start: string): RootDetection | null {
   while (true) {
     if (existsSync(join(current, "opencode.json"))) return { root: current, reason: "found opencode.json" }
     if (existsSync(join(current, "opencode.jsonc"))) return { root: current, reason: "found opencode.jsonc" }
-    if (hasVibeCommandMarker(current)) return { root: current, reason: "found VibePaper command marker" }
+    if (hasCoPaperCommandMarker(current)) return { root: current, reason: "found CoPaper command marker" }
     const parent = dirname(current)
     if (parent === current) return null
     current = parent
   }
 }
 
-function hasVibeCommandMarker(current: string): boolean {
-  const vibeCommand = join(current, ".opencode", "commands", "vibe.md")
+function hasCoPaperCommandMarker(current: string): boolean {
+  const copaperCommand = join(current, ".opencode", "commands", "copaper.md")
   try {
-    if (!statSync(vibeCommand).isFile()) return false
-    const content = readFileSync(vibeCommand, "utf8")
-    return hasManagedMarker(content, "vibe")
+    if (!statSync(copaperCommand).isFile()) return false
+    const content = readFileSync(copaperCommand, "utf8")
+    return hasManagedMarker(content, "copaper")
   } catch {
     return false
   }

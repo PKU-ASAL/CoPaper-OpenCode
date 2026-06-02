@@ -1,4 +1,4 @@
-"""Tests for vibepaper.eventlog module (Task 5)."""
+"""Tests for copaper.eventlog module (Task 5)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from vibepaper.eventlog import EventLogger
+from copaper.eventlog import EventLogger
 
 
 class TestLogCreatesValidJsonl:
@@ -128,7 +128,7 @@ class TestLogRotation:
         logger = EventLogger(str(log_path))
 
         # Use a small rotation threshold so the test runs fast
-        with patch("vibepaper.eventlog._MAX_LOG_SIZE", 500):
+        with patch("copaper.eventlog._MAX_LOG_SIZE", 500):
             # Write enough events to exceed 500 bytes
             for i in range(50):
                 logger.log(action=f"bulk_{i}", operator="system", result="success")

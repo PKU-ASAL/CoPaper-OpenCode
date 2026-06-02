@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vibepaper"
+name = "copaper"
 version = "0.1.0"
 description = "AI-assisted academic writing framework with structured phase management"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "VibePaper Team"},
+    {name = "CoPaper Team"},
 ]
 dependencies = [
     "click>=8.0",
@@ -27,13 +27,13 @@ dev = [
 ]
 
 [project.scripts]
-vibe = "vibepaper.cli:main"
+copaper = "copaper.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["vibepaper*"]
+include = ["copaper*"]
 
 [tool.setuptools.package-data]
-vibepaper = ["scaffold/**/*", "scaffold/*"]
+copaper = ["scaffold/**/*", "scaffold/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

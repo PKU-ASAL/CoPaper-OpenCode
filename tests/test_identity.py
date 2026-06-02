@@ -1,4 +1,4 @@
-"""Tests for vibepaper.identity module (Task 15)."""
+"""Tests for copaper.identity module (Task 15)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import git
 import pytest
 
-from vibepaper.identity import IdentityManager
+from copaper.identity import IdentityManager
 
 
 class TestDetectFromGit:

@@ -1,6 +1,6 @@
-# VibePaper Acceptance Checklist
+# CoPaper Acceptance Checklist
 
-Manual verification steps for each Phase of the VibePaper workflow.
+Manual verification steps for each Phase of the CoPaper workflow.
 
 ## Phase A: Storyline (storyline-helper)
 
@@ -47,18 +47,18 @@ Manual verification steps for each Phase of the VibePaper workflow.
 
 ## CLI Workflow
 
-- [ ] `vibe init "My Paper" --domain SE` — creates project
-- [ ] `vibe status` — shows all phases
-- [ ] `vibe status --json` — outputs valid JSON
-- [ ] `vibe commit storyline -m "draft"` — creates git commit
-- [ ] `vibe log` — shows event entries
-- [ ] `vibe log --phase storyline` — filters by phase
-- [ ] `vibe rollback storyline` — resets phase
-- [ ] `vibe report` — generates weekly report
-- [ ] `vibe report --since 2024-01-01` — filters by date
-- [ ] `vibe report --output report.md` — writes to file
-- [ ] `vibe diff storyline literature` — shows phase diff
-- [ ] `vibe skip literature --reason "not needed"` — skips phase
+- [ ] `copaper init "My Paper" --domain SE` — creates project
+- [ ] `copaper status` — shows all phases
+- [ ] `copaper status --json` — outputs valid JSON
+- [ ] `copaper commit storyline -m "draft"` — creates git commit
+- [ ] `copaper log` — shows event entries
+- [ ] `copaper log --phase storyline` — filters by phase
+- [ ] `copaper rollback storyline` — resets phase
+- [ ] `copaper report` — generates weekly report
+- [ ] `copaper report --since 2024-01-01` — filters by date
+- [ ] `copaper report --output report.md` — writes to file
+- [ ] `copaper diff storyline literature` — shows phase diff
+- [ ] `copaper skip literature --reason "not needed"` — skips phase
 
 ## Git Integration
 

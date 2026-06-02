@@ -1,13 +1,13 @@
-# VibePaper 工作流数据流分析
+# CoPaper 工作流数据流分析
 
 ## 核心结论
 
-VibePaper 当前有两套需要区分的结构：
+CoPaper 当前有两套需要区分的结构：
 
 1. **阶段结构（phase model）**：`storyline → literature → discussion → experiments → writing → latex_review`
 2. **工件结构（artifact model）**：`storyline.md`、`paper.md`、`relatedwork/`（含 `literature.json` / `paper_list.bib` / `pdfs/` / `papers/`）、`.agents/state.json`、`.agents/events.jsonl`
 
-`vibepaper/constants.py` 中的 `PHASE_DEPENDENCIES` 只表达推荐正向顺序，不足以表达当前技能层面已经存在的“跳过、重入、补跑、逆向提炼”等真实工作流。
+`copaper/constants.py` 中的 `PHASE_DEPENDENCIES` 只表达推荐正向顺序，不足以表达当前技能层面已经存在的“跳过、重入、补跑、逆向提炼”等真实工作流。
 
 ## 核心工件
 
@@ -15,9 +15,9 @@ VibePaper 当前有两套需要区分的结构：
 |---|---|---|---|
 | `storyline.md` | 研究问题、insight、设计与评测意图的高层叙事 | `storyline-helper`、用户 | `relatedwork-finder`、`socratic-discussion`、`experiment-analyzer`、`markdown-helper`、`writing-orchestrator` |
 | `paper.md` | 正式论文框架与段落级内容 | `markdown-helper`、`mad-writer`、`latex2markdown`、用户 | `writing-orchestrator`、`markdown-review`、7 checkers、`review-revise`、`submission-precheck`、`markdown2latex` |
-| `relatedwork/literature.json` / `paper_list.bib` / `relatedwork/papers/*.md` / `relatedwork/summary.md` | 文献元数据、BibTeX、摘要与归纳 | `relatedwork-finder` + `vibe relatedwork` | `markdown-helper`、`markdown-review`、`review-revise`、`mad-writer` |
-| `.agents/state.json` | 状态、checker 结果、技能中间状态 | `vibe init`、部分 skills | `vibe status`、`writing-orchestrator`、`review-revise`、`socratic-discussion`、`experiment-analyzer` |
-| `.agents/events.jsonl` | CLI 操作日志 | `vibe` CLI | `vibe log`、`vibe report` |
+| `relatedwork/literature.json` / `paper_list.bib` / `relatedwork/papers/*.md` / `relatedwork/summary.md` | 文献元数据、BibTeX、摘要与归纳 | `relatedwork-finder` + `copaper relatedwork` | `markdown-helper`、`markdown-review`、`review-revise`、`mad-writer` |
+| `.agents/state.json` | 状态、checker 结果、技能中间状态 | `copaper init`、部分 skills | `copaper status`、`writing-orchestrator`、`review-revise`、`socratic-discussion`、`experiment-analyzer` |
+| `.agents/events.jsonl` | CLI 操作日志 | `copaper` CLI | `copaper log`、`copaper report` |
 
 ## 哪些步骤 / skill 只需要 `storyline.md`
 
@@ -62,7 +62,7 @@ VibePaper 当前有两套需要区分的结构：
 
 3. **`LaTeX → paper.md`**
    - `latex2markdown` 已支持
-   - 用途：已有旧论文或模板项目时导入 VibePaper 结构
+   - 用途：已有旧论文或模板项目时导入 CoPaper 结构
 
 4. **`checker results → paper.md`**
    - `review-revise` 已支持多轮修订
@@ -74,7 +74,7 @@ VibePaper 当前有两套需要区分的结构：
 
 从 CLI 行为看，答案是 **可以**。
 
-- `vibe skip <phase>` 对所有有效 phase 名称都可执行
+- `copaper skip <phase>` 对所有有效 phase 名称都可执行
 - 当前工具层没有对 `storyline` / `writing` 设置硬限制
 - 因此“是否建议跳过”和“工具层是否允许跳过”是两回事
 
@@ -87,7 +87,7 @@ VibePaper 当前有两套需要区分的结构：
 - `experiment-analyzer` 可以在不同 mode 间多次进入
 - `writing-orchestrator` / `markdown-helper` / `mad-writer` 本身就是循环式工作流
 - `markdown-review` / `review-revise` 天然支持多轮迭代
-- `vibe rollback <phase>` 提供 Git 维度的阶段性回退
+- `copaper rollback <phase>` 提供 Git 维度的阶段性回退
 
 ## 当前结构的其它问题
 
@@ -138,11 +138,11 @@ CLI 现在有：`init`、`status`、`set-phase`、`skip`、`log`、`report`、`c
 仓库里同时存在：
 
 - `.agents/skills/*`
-- `vibepaper/scaffold/skills/*`
+- `copaper/scaffold/skills/*`
 
-任何 skill 的更新都必须同步两份，否则 `vibe init` 初始化出来的项目会落后于仓库源码。
+任何 skill 的更新都必须同步两份，否则 `copaper init` 初始化出来的项目会落后于仓库源码。
 
-### 6. 之前 `vibe init` 没有复制 `paper.md`
+### 6. 之前 `copaper init` 没有复制 `paper.md`
 
 这个问题已修复，但它暴露了一个更深层问题：
 
@@ -161,7 +161,7 @@ CLI 现在有：`init`、`status`、`set-phase`、`skip`、`log`、`report`、`c
 
 ## 当前实现后的结论
 
-修复 `vibe init` 复制 `paper.md` 后，初始化脚手架终于与当前 skill 生态基本一致：
+修复 `copaper init` 复制 `paper.md` 后，初始化脚手架终于与当前 skill 生态基本一致：
 
 - storyline-first 可以直接开始
 - paper-first 也可以成立

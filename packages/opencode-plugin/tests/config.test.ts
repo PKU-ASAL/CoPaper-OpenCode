@@ -9,31 +9,31 @@ describe("mergePluginConfig", () => {
     expect(result.changed).toBe(true)
     const parsed = parse(result.output!)
     expect(parsed.model).toBe("x")
-    expect(parsed.plugin).toEqual(["@vibepaper/opencode"])
+    expect(parsed.plugin).toEqual(["@copaper/opencode"])
   })
 
   test("appends plugin and deduplicates existing values", () => {
     const result = mergePluginConfig('{"plugin":["other"]}')
     expect(result.ok).toBe(true)
-    expect(parse(result.output!).plugin).toEqual(["other", "@vibepaper/opencode"])
+    expect(parse(result.output!).plugin).toEqual(["other", "@copaper/opencode"])
   })
 
   test("uses an explicit plugin specifier for local package installs", () => {
-    const localSpecifier = "file:///tmp/project/node_modules/@vibepaper/opencode/dist/index.js"
+    const localSpecifier = "file:///tmp/project/node_modules/@copaper/opencode/dist/index.js"
     const result = mergePluginConfig('{"model":"x"}', localSpecifier)
     expect(result.ok).toBe(true)
     expect(parse(result.output!).plugin).toEqual([localSpecifier])
   })
 
   test("replaces package specifier with explicit local plugin specifier", () => {
-    const localSpecifier = "file:///tmp/project/node_modules/@vibepaper/opencode/dist/index.js"
-    const result = mergePluginConfig('{"plugin":["@vibepaper/opencode"]}', localSpecifier)
+    const localSpecifier = "file:///tmp/project/node_modules/@copaper/opencode/dist/index.js"
+    const result = mergePluginConfig('{"plugin":["@copaper/opencode"]}', localSpecifier)
     expect(result.ok).toBe(true)
     expect(parse(result.output!).plugin).toEqual([localSpecifier])
   })
 
   test("does not rewrite when plugin already exists", () => {
-    const input = '{"plugin":["@vibepaper/opencode"]}'
+    const input = '{"plugin":["@copaper/opencode"]}'
     const result = mergePluginConfig(input)
     expect(result.ok).toBe(true)
     expect(result.changed).toBe(false)
@@ -51,7 +51,7 @@ describe("mergePluginConfig", () => {
     const result = mergePluginConfig(input)
     expect(result.ok).toBe(true)
     expect(result.changed).toBe(true)
-    expect(parse(result.output!).plugin).toEqual(["other", "@vibepaper/opencode"])
+    expect(parse(result.output!).plugin).toEqual(["other", "@copaper/opencode"])
     expect(result.output!).toContain("// user model")
   })
 
@@ -65,12 +65,12 @@ describe("mergePluginConfig", () => {
     const result = mergePluginConfig(input)
     expect(result.ok).toBe(true)
     expect(result.changed).toBe(true)
-    expect(parse(result.output!).plugin).toEqual(["other", "@vibepaper/opencode"])
+    expect(parse(result.output!).plugin).toEqual(["other", "@copaper/opencode"])
     expect(result.output!).toContain("// keep this plugin comment")
   })
 
   test("fails closed when plugin is not an array", () => {
-    const result = mergePluginConfig('{"plugin":"@vibepaper/opencode"}')
+    const result = mergePluginConfig('{"plugin":"@copaper/opencode"}')
     expect(result.ok).toBe(false)
     expect(result.error).toContain("plugin must be an array")
   })

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from vibepaper.checker_integration import (
+from copaper.checker_integration import (
     CHECKER_NAMES,
     CheckerTracker,
     format_checker_results,

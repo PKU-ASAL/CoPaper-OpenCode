@@ -31,7 +31,7 @@ function recordingSpawn(result: SpawnResult): { spawn: SpawnFn; calls: SpawnCall
   return { spawn, calls }
 }
 
-const VENV_PATH = "/fake/.venv/bin/vibe"
+const VENV_PATH = "/fake/.venv/bin/copaper"
 
 function commandTail(call: SpawnCall, length: number): string[] {
   return call.command.slice(-length)
@@ -217,24 +217,24 @@ describe("relatedwork tools", () => {
     expect(commandTail(calls[0], 2)).toEqual(["relatedwork", "sync-bib"])
   })
 
-  test("vibe-cli-unavailable surfaces without phase patch", async () => {
+  test("copaper-cli-unavailable surfaces without phase patch", async () => {
     const result = await runRelatedworkSyncBib(
       { root: project.root },
       { spawn: async () => ({ exitCode: 0, stdout: "", stderr: "", timedOut: false }), resolveVenv: () => null, resolveUv: () => null },
     )
     expect(result.ok).toBe(false)
-    expect(result.errors[0]?.code).toBe("vibe-cli-unavailable")
+    expect(result.errors[0]?.code).toBe("copaper-cli-unavailable")
     expect(result.phasePatch?.ok).toBe(true) // status refreshed and patch attempted (idempotent zeros)
   })
 
-  test("non-zero exit surfaces vibe-nonzero-exit and still refreshes status", async () => {
+  test("non-zero exit surfaces copaper-nonzero-exit and still refreshes status", async () => {
     const { spawn } = recordingSpawn({ exitCode: 1, stdout: "", stderr: "no network\n", timedOut: false })
     const result = await runRelatedworkDownload(
       { root: project.root },
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     expect(result.ok).toBe(false)
-    expect(result.errors[0]?.code).toBe("vibe-nonzero-exit")
+    expect(result.errors[0]?.code).toBe("copaper-nonzero-exit")
     expect(result.stderr).toContain("no network")
     expect(result.statusAfter?.ok).toBe(true)
   })
@@ -303,7 +303,7 @@ describe("relatedwork tools", () => {
       { spawn, resolveVenv: () => VENV_PATH, resolveUv: () => null },
     )
     const rendered = renderRelatedworkToolOutput(result)
-    expect(rendered).toContain("vibepaper_relatedwork_import")
+    expect(rendered).toContain("copaper_relatedwork_import")
     expect(rendered).toContain("imported")
     expect(rendered).toContain("papers=2")
     expect(rendered).toContain("```json")

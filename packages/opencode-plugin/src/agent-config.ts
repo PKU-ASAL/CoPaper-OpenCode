@@ -1,8 +1,8 @@
 import {
-  VIBEPAPER_AGENT_NAMES,
+  COPAPER_AGENT_NAMES,
   buildDefaultAgentProfiles,
-  type VibePaperAgentName,
-  type VibePaperAgentProfile,
+  type CoPaperAgentName,
+  type CoPaperAgentProfile,
 } from "./agent-profiles"
 import {
   canUsePermissionProfile,
@@ -11,13 +11,13 @@ import {
   type PermissionProfileName,
 } from "./permission-profiles"
 import {
-  loadVibePaperConfig,
+  loadCoPaperConfig,
   type AgentDiagnostic,
   type AgentDiagnosticCode,
   type AgentDiagnosticSeverity,
-} from "./vibepaper-config"
+} from "./copaper-config"
 
-const CONFIG_RELATIVE_PATH = ".opencode/vibepaper.json"
+const CONFIG_RELATIVE_PATH = ".opencode/copaper.json"
 
 export type AgentRuntimeStatus = "injected" | "disabled" | "conflicted"
 
@@ -30,8 +30,8 @@ export interface OpenCodeAgentConfig {
   permission: OpenCodePermissionConfig
 }
 
-export interface VibePaperAgentRuntimeRow {
-  name: VibePaperAgentName
+export interface CoPaperAgentRuntimeRow {
+  name: CoPaperAgentName
   status: AgentRuntimeStatus
   description: string
   permissionProfile: PermissionProfileName
@@ -39,24 +39,24 @@ export interface VibePaperAgentRuntimeRow {
   temperature?: number
 }
 
-export interface VibePaperAgentRuntimeState {
-  agents: VibePaperAgentRuntimeRow[]
+export interface CoPaperAgentRuntimeState {
+  agents: CoPaperAgentRuntimeRow[]
   diagnostics: AgentDiagnostic[]
 }
 
-export interface VibePaperAgentConfigResult {
-  injectedAgents: Partial<Record<VibePaperAgentName, OpenCodeAgentConfig>>
-  runtime: VibePaperAgentRuntimeState
+export interface CoPaperAgentConfigResult {
+  injectedAgents: Partial<Record<CoPaperAgentName, OpenCodeAgentConfig>>
+  runtime: CoPaperAgentRuntimeState
   diagnostics: AgentDiagnostic[]
 }
 
-interface BuildVibePaperAgentConfigInput {
+interface BuildCoPaperAgentConfigInput {
   root: string
   existingAgents: Record<string, OpenCodeAgentConfig>
 }
 
 interface EffectiveAgentProfile {
-  name: VibePaperAgentName
+  name: CoPaperAgentName
   enabled: boolean
   description: string
   mode: "subagent"
@@ -66,17 +66,17 @@ interface EffectiveAgentProfile {
   permissionProfile: PermissionProfileName
 }
 
-export function buildVibePaperAgentConfig({
+export function buildCoPaperAgentConfig({
   root,
   existingAgents,
-}: BuildVibePaperAgentConfigInput): VibePaperAgentConfigResult {
-  const loaded = loadVibePaperConfig(root)
+}: BuildCoPaperAgentConfigInput): CoPaperAgentConfigResult {
+  const loaded = loadCoPaperConfig(root)
   const profiles = buildDefaultAgentProfiles(loaded.config.locale)
   const mergeDiagnostics: AgentDiagnostic[] = []
-  const injectedAgents: Partial<Record<VibePaperAgentName, OpenCodeAgentConfig>> = {}
-  const runtimeAgents: VibePaperAgentRuntimeRow[] = []
+  const injectedAgents: Partial<Record<CoPaperAgentName, OpenCodeAgentConfig>> = {}
+  const runtimeAgents: CoPaperAgentRuntimeRow[] = []
 
-  for (const agentName of VIBEPAPER_AGENT_NAMES) {
+  for (const agentName of COPAPER_AGENT_NAMES) {
     const profile = profiles[agentName]
     const override = loaded.config.agents[agentName]
     const effectiveProfile = buildEffectiveProfile(profile, {
@@ -99,7 +99,7 @@ export function buildVibePaperAgentConfig({
       mergeDiagnostics.push(agentConfigDiagnostic(
         "warning",
         "agent-name-conflict",
-        `OpenCode agent "${agentName}" already exists; VibePaper injection is skipped.`,
+        `OpenCode agent "${agentName}" already exists; CoPaper injection is skipped.`,
         `agents.${agentName}`,
       ))
       runtimeAgents.push(toRuntimeRow(effectiveProfile, "conflicted"))
@@ -122,7 +122,7 @@ export function buildVibePaperAgentConfig({
 }
 
 function buildEffectiveProfile(
-  profile: VibePaperAgentProfile,
+  profile: CoPaperAgentProfile,
   options: {
     model?: string
     temperature?: number
@@ -176,7 +176,7 @@ function toOpenCodeAgentConfig(profile: EffectiveAgentProfile): OpenCodeAgentCon
 function toRuntimeRow(
   profile: EffectiveAgentProfile,
   status: AgentRuntimeStatus,
-): VibePaperAgentRuntimeRow {
+): CoPaperAgentRuntimeRow {
   return {
     name: profile.name,
     status,
@@ -198,7 +198,7 @@ function appendProjectPreferences(prompt: string, promptAppend: string | undefin
   ].join("\n")
 }
 
-function temperatureFromHint(hint: VibePaperAgentProfile["temperatureHint"]): number {
+function temperatureFromHint(hint: CoPaperAgentProfile["temperatureHint"]): number {
   switch (hint) {
     case "low":
       return 0.2

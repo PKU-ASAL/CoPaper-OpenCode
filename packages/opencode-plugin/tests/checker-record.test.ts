@@ -26,7 +26,7 @@ describe("checker record", () => {
     const result = await recordCheckerResult({
       root: project.root,
       locale: "en-US",
-      agent: "vibepaper-recorder",
+      agent: "copaper-recorder",
       checker: "problem-checker",
       status: "issues_found",
       critical: 1,
@@ -64,7 +64,7 @@ describe("checker record", () => {
     const record = await recordCheckerResult({
       root: project.root,
       locale: "zh-CN",
-      agent: "vibepaper-recorder",
+      agent: "copaper-recorder",
       checker: "logic-checker",
       status: "clean",
       critical: 0,
@@ -91,7 +91,7 @@ describe("checker record", () => {
     const unauthorized = await recordCheckerResult({
       root: project.root,
       locale: "zh-CN",
-      agent: "vibepaper-writer",
+      agent: "copaper-writer",
       checker: "problem-checker",
       status: "clean",
       critical: 0,
@@ -108,7 +108,7 @@ describe("checker record", () => {
     const invalid = await recordCheckerResult({
       root: project.root,
       locale: "zh-CN",
-      agent: "vibepaper-recorder",
+      agent: "copaper-recorder",
       checker: "missing-checker",
       status: "done",
       critical: -1,
@@ -134,7 +134,7 @@ describe("checker record", () => {
     const result = await recordCheckerResult({
       root: project.root,
       locale: "zh-CN",
-      agent: "vibepaper-recorder",
+      agent: "copaper-recorder",
       checker: "data-checker",
       status: "issues_found",
       critical: 1,
@@ -158,7 +158,7 @@ describe("checker record", () => {
     const result = await recordCheckerResult({
       root: project.root,
       locale: "zh-CN",
-      agent: "vibepaper-recorder",
+      agent: "copaper-recorder",
       checker: "clarity-checker",
       status: "unknown",
       critical: 0,

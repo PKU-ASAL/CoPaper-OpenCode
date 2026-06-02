@@ -1,4 +1,4 @@
-"""Tests for vibepaper.report module (Task 16)."""
+"""Tests for copaper.report module (Task 16)."""
 
 from __future__ import annotations
 
@@ -7,17 +7,17 @@ from pathlib import Path
 
 import git
 
-from vibepaper.report import generate_weekly_report, generate_diff_report
+from copaper.report import generate_weekly_report, generate_diff_report
 
 
 class TestGenerateWeeklyReport:
     def test_report_contains_phase_progress(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("TestPaper", "SE")
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         el = EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
         el.log("init_project", "user", "success", phase="storyline")
@@ -30,12 +30,12 @@ class TestGenerateWeeklyReport:
         assert "storyline" in report
 
     def test_report_with_since_date(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("P", "D")
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         el = EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
         el.log("init_project", "user", "success", phase="storyline")
@@ -44,12 +44,12 @@ class TestGenerateWeeklyReport:
         assert "since 2020-01-01" in report
 
     def test_report_event_log_stats(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("P", "D")
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         el = EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
         el.log("init_project", "user", "success", phase="storyline")
@@ -60,7 +60,7 @@ class TestGenerateWeeklyReport:
         assert "init_project" in report
 
     def test_report_recomputes_current_phase_from_state(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("P", "D")
@@ -75,7 +75,7 @@ class TestGenerateWeeklyReport:
             encoding="utf-8",
         )
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
 
@@ -114,12 +114,12 @@ class TestGenerateDiffReport:
 
 class TestWeeklyReportFormat:
     def test_report_is_valid_markdown(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("P", "D")
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
 
@@ -130,12 +130,12 @@ class TestWeeklyReportFormat:
         assert "## Event Log Statistics" in report
 
     def test_report_no_events(self, tmp_path: Path) -> None:
-        from vibepaper.state import StateManager
+        from copaper.state import StateManager
 
         sm = StateManager(str(tmp_path))
         sm.init_project("P", "D")
 
-        from vibepaper.eventlog import EventLogger
+        from copaper.eventlog import EventLogger
 
         EventLogger(str(tmp_path / ".agents" / "events.jsonl"))
 

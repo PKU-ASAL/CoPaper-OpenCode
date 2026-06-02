@@ -56,16 +56,16 @@ describe("detectRoot", () => {
     mkdirSync(project.path("repo", "sub", "deep"), { recursive: true })
     mkdirSync(project.path("repo", "sub", ".opencode", "commands"), { recursive: true })
     writeFileSync(project.path("repo", "opencode.json"), "{}")
-    writeFileSync(project.path("repo", "sub", ".opencode", "commands", "vibe.md"), `${commandMarker("vibe")}\n`)
+    writeFileSync(project.path("repo", "sub", ".opencode", "commands", "copaper.md"), `${commandMarker("copaper")}\n`)
     const result = await detectRoot({ cwd: project.path("repo", "sub", "deep") })
     expect(result.root).toBe(project.path("repo", "sub"))
-    expect(result.reason).toBe("found VibePaper command marker")
+    expect(result.reason).toBe("found CoPaper command marker")
   })
 
   test("malformed marker does not block ancestor opencode json", async () => {
     const project = temp()
     mkdirSync(project.path("repo", "sub", "deep"), { recursive: true })
-    mkdirSync(project.path("repo", "sub", ".opencode", "commands", "vibe.md"), { recursive: true })
+    mkdirSync(project.path("repo", "sub", ".opencode", "commands", "copaper.md"), { recursive: true })
     writeFileSync(project.path("repo", "opencode.json"), "{}")
     const result = await detectRoot({ cwd: project.path("repo", "sub", "deep") })
     expect(result.root).toBe(project.path("repo"))
@@ -82,13 +82,13 @@ describe("detectRoot", () => {
     expect(result.reason).toBe("found opencode.json")
   })
 
-  test("managed vibe command marker can identify root", async () => {
+  test("managed copaper command marker can identify root", async () => {
     const project = temp()
     mkdirSync(project.path("paper", ".opencode", "commands", "nested"), { recursive: true })
-    writeFileSync(project.path("paper", ".opencode", "commands", "vibe.md"), `${commandMarker("vibe")}\n`)
+    writeFileSync(project.path("paper", ".opencode", "commands", "copaper.md"), `${commandMarker("copaper")}\n`)
     const result = await detectRoot({ cwd: project.path("paper", ".opencode", "commands", "nested") })
     expect(result.root).toBe(project.path("paper"))
-    expect(result.reason).toBe("found VibePaper command marker")
+    expect(result.reason).toBe("found CoPaper command marker")
   })
 
   test("falls back to worktree when no config marker exists", async () => {

@@ -1,4 +1,4 @@
-"""Tests for vibepaper.crossindex module (Task 7)."""
+"""Tests for copaper.crossindex module (Task 7)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from vibepaper.crossindex import CrossIndex
+from copaper.crossindex import CrossIndex
 
 
 class TestAddPaperAndQuery:

@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for VibePaper test suite."""
+"""Shared pytest fixtures for CoPaper test suite."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from vibepaper.schema import DEFAULT_STATE
+from copaper.schema import DEFAULT_STATE
 
 
 @pytest.fixture
 def tmp_project_dir(tmp_path: Path) -> Path:
     """Create a temporary directory with .agents/ subdirectory.
 
-    Mimics the minimal VibePaper project structure needed for tests.
+    Mimics the minimal CoPaper project structure needed for tests.
     """
     agents_dir = tmp_path / ".agents"
     agents_dir.mkdir()

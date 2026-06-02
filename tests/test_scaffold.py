@@ -1,10 +1,10 @@
-"""Tests for vibepaper.scaffold module."""
+"""Tests for copaper.scaffold module."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from vibepaper.scaffold import (
+from copaper.scaffold import (
     copy_agents_md,
     copy_paper,
     copy_skills,
@@ -24,7 +24,7 @@ class TestCopySkills:
         assert "storyline-helper" in skill_dirs
         assert "markdown-helper" in skill_dirs
         assert "relatedwork-finder" in skill_dirs
-        assert "vibepaper-manage" in skill_dirs
+        assert "copaper-manage" in skill_dirs
 
     def test_copies_skills_agents_md(self, tmp_path: Path) -> None:
         _ = copy_skills(tmp_path)
@@ -118,7 +118,7 @@ class TestCopyAgentsMd:
         assert dst == tmp_path / "AGENTS.md"
         assert dst.exists()
         content = dst.read_text(encoding="utf-8")
-        assert "VibePaper" in content
+        assert "CoPaper" in content
 
     def test_does_not_overwrite_existing(self, tmp_path: Path) -> None:
         existing = tmp_path / "AGENTS.md"
@@ -140,7 +140,7 @@ class TestScaffoldProject:
         assert (tmp_path / "AGENTS.md").exists()
 
         scaffold_skills_dir = (
-            Path(__file__).resolve().parent.parent / "vibepaper" / "scaffold" / "skills"
+            Path(__file__).resolve().parent.parent / "copaper" / "scaffold" / "skills"
         )
         expected_skill_dirs = {
             d.name for d in scaffold_skills_dir.iterdir() if d.is_dir()

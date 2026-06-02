@@ -8,35 +8,35 @@ import {
 } from "../src/permission-profiles"
 
 const SAFE_READ_TOOL_PERMISSIONS = [
-  "vibepaper_dashboard",
-  "vibepaper_artifact_status",
-  "vibepaper_paper_structure_status",
-  "vibepaper_storyline_structure_status",
-  "vibepaper_pdf_extract",
-  "vibepaper_ppt_extract",
-  "vibepaper_checker_status",
-  "vibepaper_relatedwork_status",
-  "vibepaper_workflow_status",
-  "vibepaper_workflow_log",
+  "copaper_dashboard",
+  "copaper_artifact_status",
+  "copaper_paper_structure_status",
+  "copaper_storyline_structure_status",
+  "copaper_pdf_extract",
+  "copaper_ppt_extract",
+  "copaper_checker_status",
+  "copaper_relatedwork_status",
+  "copaper_workflow_status",
+  "copaper_workflow_log",
 ] as const
 
 const WRITE_TOOL_PERMISSIONS = [
-  "vibepaper_init_apply",
-  "vibepaper_artifact_record",
-  "vibepaper_checker_record",
-  "vibepaper_workflow_set_phase",
+  "copaper_init_apply",
+  "copaper_artifact_record",
+  "copaper_checker_record",
+  "copaper_workflow_set_phase",
 ] as const
 
 const RELATEDWORK_WRITE_TOOL_PERMISSIONS = [
-  "vibepaper_relatedwork_keywords",
-  "vibepaper_relatedwork_search",
-  "vibepaper_relatedwork_import",
-  "vibepaper_relatedwork_sync_bib",
-  "vibepaper_relatedwork_download",
-  "vibepaper_relatedwork_summarize",
-  "vibepaper_relatedwork_register_summary",
-  "vibepaper_relatedwork_build_index",
-  "vibepaper_relatedwork_clean",
+  "copaper_relatedwork_keywords",
+  "copaper_relatedwork_search",
+  "copaper_relatedwork_import",
+  "copaper_relatedwork_sync_bib",
+  "copaper_relatedwork_download",
+  "copaper_relatedwork_summarize",
+  "copaper_relatedwork_register_summary",
+  "copaper_relatedwork_build_index",
+  "copaper_relatedwork_clean",
 ] as const
 
 describe("permission profiles", () => {
@@ -69,29 +69,29 @@ describe("permission profiles", () => {
       external_directory: "deny",
       task: "deny",
       skill: "deny",
-      vibepaper_dashboard: "allow",
-      vibepaper_artifact_status: "allow",
-      vibepaper_paper_structure_status: "allow",
-      vibepaper_storyline_structure_status: "allow",
-      vibepaper_pdf_extract: "allow",
-      vibepaper_ppt_extract: "allow",
-      vibepaper_checker_status: "allow",
-      vibepaper_relatedwork_status: "allow",
-      vibepaper_relatedwork_keywords: "deny",
-      vibepaper_relatedwork_search: "deny",
-      vibepaper_relatedwork_import: "deny",
-      vibepaper_relatedwork_sync_bib: "deny",
-      vibepaper_relatedwork_download: "deny",
-      vibepaper_relatedwork_summarize: "deny",
-      vibepaper_relatedwork_register_summary: "deny",
-      vibepaper_relatedwork_build_index: "deny",
-      vibepaper_relatedwork_clean: "deny",
-      vibepaper_workflow_status: "allow",
-      vibepaper_workflow_log: "allow",
-      vibepaper_init_apply: "deny",
-      vibepaper_artifact_record: "deny",
-      vibepaper_checker_record: "deny",
-      vibepaper_workflow_set_phase: "deny",
+      copaper_dashboard: "allow",
+      copaper_artifact_status: "allow",
+      copaper_paper_structure_status: "allow",
+      copaper_storyline_structure_status: "allow",
+      copaper_pdf_extract: "allow",
+      copaper_ppt_extract: "allow",
+      copaper_checker_status: "allow",
+      copaper_relatedwork_status: "allow",
+      copaper_relatedwork_keywords: "deny",
+      copaper_relatedwork_search: "deny",
+      copaper_relatedwork_import: "deny",
+      copaper_relatedwork_sync_bib: "deny",
+      copaper_relatedwork_download: "deny",
+      copaper_relatedwork_summarize: "deny",
+      copaper_relatedwork_register_summary: "deny",
+      copaper_relatedwork_build_index: "deny",
+      copaper_relatedwork_clean: "deny",
+      copaper_workflow_status: "allow",
+      copaper_workflow_log: "allow",
+      copaper_init_apply: "deny",
+      copaper_artifact_record: "deny",
+      copaper_checker_record: "deny",
+      copaper_workflow_set_phase: "deny",
     })
   })
 
@@ -100,13 +100,13 @@ describe("permission profiles", () => {
 
     expect(profile.bash).toBe("deny")
     expect(profile.edit).toBe("deny")
-    expect(profile.vibepaper_relatedwork_status).toBe("allow")
+    expect(profile.copaper_relatedwork_status).toBe("allow")
     for (const permissionName of RELATEDWORK_WRITE_TOOL_PERMISSIONS) {
       expect(profile[permissionName]).toBe("ask")
     }
-    expect(profile.vibepaper_init_apply).toBe("deny")
-    expect(profile.vibepaper_workflow_set_phase).toBe("deny")
-    expect(profile.vibepaper_artifact_record).toBe("deny")
+    expect(profile.copaper_init_apply).toBe("deny")
+    expect(profile.copaper_workflow_set_phase).toBe("deny")
+    expect(profile.copaper_artifact_record).toBe("deny")
   })
 
   test("non-literature profiles continue to deny relatedwork write tools", () => {
@@ -133,7 +133,7 @@ describe("permission profiles", () => {
     })
   })
 
-  test("all profiles allow safe read-only VibePaper tools", () => {
+  test("all profiles allow safe read-only CoPaper tools", () => {
     for (const profileName of PERMISSION_PROFILE_NAMES) {
       const profile = getPermissionProfile(profileName)
       for (const permissionName of SAFE_READ_TOOL_PERMISSIONS) {
@@ -142,7 +142,7 @@ describe("permission profiles", () => {
     }
   })
 
-  test("non-recorder profiles deny VibePaper write and process tools", () => {
+  test("non-recorder profiles deny CoPaper write and process tools", () => {
     for (const profileName of ["readOnly", "storylineWrite", "paperWrite"] as const) {
       const profile = getPermissionProfile(profileName)
       for (const permissionName of WRITE_TOOL_PERMISSIONS) {
@@ -175,10 +175,10 @@ describe("permission profiles", () => {
     expect(profile.edit).toBe("deny")
     expect(typeof profile.read).toBe("object")
     expect(profile.bash).toBe("deny")
-    expect(profile.vibepaper_artifact_record).toBe("ask")
-    expect(profile.vibepaper_checker_record).toBe("ask")
-    expect(profile.vibepaper_init_apply).toBe("deny")
-    expect(profile.vibepaper_workflow_set_phase).toBe("deny")
+    expect(profile.copaper_artifact_record).toBe("ask")
+    expect(profile.copaper_checker_record).toBe("ask")
+    expect(profile.copaper_init_apply).toBe("deny")
+    expect(profile.copaper_workflow_set_phase).toBe("deny")
   })
 
   test("permission profile ordering only allows safe downgrades", () => {

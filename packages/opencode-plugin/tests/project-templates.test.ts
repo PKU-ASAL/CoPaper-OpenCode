@@ -13,7 +13,7 @@ describe("project templates", () => {
       ".agents/state.json",
       ".agents/events.jsonl",
     ])
-    expect(files.find((file) => file.path === "AGENTS.md")?.content).toContain("VibePaper")
+    expect(files.find((file) => file.path === "AGENTS.md")?.content).toContain("CoPaper")
     expect(files.find((file) => file.path === ".agents/events.jsonl")?.content).toBe("")
     expect(files.some((file) => file.path.startsWith(".agents/skills/"))).toBe(false)
     expect(files.some((file) => file.path.startsWith("relatedwork/"))).toBe(false)
@@ -32,7 +32,7 @@ describe("project templates", () => {
     expect(Object.keys(state.phases)).toEqual(["storyline", "literature", "discussion", "experiments", "writing", "latex_review"])
     expect(state.phases.storyline).toEqual({ status: "not_started", completed_at: null, metadata: {} })
     expect(state.phases.literature.catalog_path).toBe("relatedwork/literature.json")
-    expect(state.git.identity.git_email).toBe("bot@vibepaper.dev")
+    expect(state.git.identity.git_email).toBe("bot@copaper.dev")
     expect(state.checkers).toEqual({})
   })
 })

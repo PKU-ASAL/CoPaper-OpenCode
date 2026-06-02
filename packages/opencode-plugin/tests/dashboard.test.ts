@@ -29,7 +29,7 @@ describe("dashboard", () => {
     expect(result.locale).toBe("zh-CN")
     expect(result.readiness?.status).toBe("needs-init")
     expect(result.initPreview.items.find((item) => item.path === "paper.md")?.action).toBe("create")
-    expect(markdown).toContain("## VibePaper 项目仪表盘")
+    expect(markdown).toContain("## CoPaper 项目仪表盘")
     expect(markdown).toContain("**状态：")
     expect(markdown).toContain("项目就绪度")
     expect(markdown).toContain("就绪=")
@@ -51,7 +51,7 @@ describe("dashboard", () => {
     const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "en-US" })
     const markdown = renderDashboardOutput(result)
     expect(result.locale).toBe("en-US")
-    expect(markdown).toContain("## VibePaper Project Dashboard")
+    expect(markdown).toContain("## CoPaper Project Dashboard")
     expect(markdown).toContain("**Status:**")
     expect(markdown).toContain("ready=")
     expect(markdown).toContain("Init Preview")
@@ -103,13 +103,13 @@ describe("dashboard", () => {
     project.write("writingrules.md", "# Rules\n")
     project.write(".agents/state.json", "{}\n")
     project.write(".agents/events.jsonl", "")
-    project.write("AGENTS.md", "# VibePaper project guide\n")
+    project.write("AGENTS.md", "# CoPaper project guide\n")
 
     const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
     expect(result.ok).toBe(true)
     expect(result.readiness?.status).toBe("ready")
     expect(result.recommendation.id).toBe("continue-workflow")
-    expect(renderDashboardOutput(result)).toContain("项目已具备核心 VibePaper 文件")
+    expect(renderDashboardOutput(result)).toContain("项目已具备核心 CoPaper 文件")
   })
 
   test("does not expose workflow section for ready files with invalid workflow state", async () => {
@@ -122,7 +122,7 @@ describe("dashboard", () => {
     project.write("writingrules.md", "# Rules\n")
     project.write(".agents/state.json", "{}\n")
     project.write(".agents/events.jsonl", "")
-    project.write("AGENTS.md", "# VibePaper project guide\n")
+    project.write("AGENTS.md", "# CoPaper project guide\n")
 
     const result = await buildDashboardResult({ root: project.root, packageVersion: "0.1.0", locale: "zh-CN" })
     const markdown = renderDashboardOutput(result)
@@ -147,7 +147,7 @@ describe("dashboard", () => {
 
     expect(result.ok).toBe(true)
     expect(result.readiness?.status).toBe("ready")
-    expect(markdown).toContain("项目已具备核心 VibePaper 文件")
+    expect(markdown).toContain("项目已具备核心 CoPaper 文件")
     expect(initPreviewSection).toContain("relatedwork/")
     expect(initPreviewSection).not.toContain(".agents/skills")
   })

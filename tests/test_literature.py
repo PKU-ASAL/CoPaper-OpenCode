@@ -5,8 +5,8 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from vibepaper.literature import LiteratureCatalog, extract_bibtex_key
-from vibepaper.relatedwork_download import download_papers, validate_pdf_file
+from copaper.literature import LiteratureCatalog, extract_bibtex_key
+from copaper.relatedwork_download import download_papers, validate_pdf_file
 
 
 class TestLiteratureCatalog:
@@ -137,7 +137,7 @@ class TestRelatedworkDownload:
     def test_download_papers_marks_downloaded(
         self, tmp_path: Path, monkeypatch
     ) -> None:
-        from vibepaper import relatedwork_download
+        from copaper import relatedwork_download
 
         pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF"
         monkeypatch.setattr(

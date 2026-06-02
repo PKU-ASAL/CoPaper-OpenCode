@@ -1,8 +1,8 @@
-"""Tests for vibepaper.checker_integration and vibepaper.__main__."""
+"""Tests for copaper.checker_integration and copaper.__main__."""
 
 from __future__ import annotations
 
-from vibepaper.checker_integration import run_checkers, format_checker_results
+from copaper.checker_integration import run_checkers, format_checker_results
 
 
 class TestCheckerIntegration:
@@ -21,4 +21,4 @@ class TestCheckerIntegration:
 
 class TestMainEntryPoint:
     def test_main_module_importable(self) -> None:
-        import vibepaper.__main__  # noqa: F401
+        import copaper.__main__  # noqa: F401

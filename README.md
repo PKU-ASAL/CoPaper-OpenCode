@@ -1,14 +1,14 @@
-# VibePaper 使用与测试手册
+# CoPaper 使用与测试手册
 
 > 版本：0.1.0 | 本文档描述当前实际实现，而非理想愿景。
 
 ## 项目概述
 
-VibePaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成：
+CoPaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成：
 
-1. **Python 包 (`vibepaper/`)**：提供六阶段流水线的状态管理、事件日志、Git 操作、周报生成和 7-checker 集成。
+1. **Python 包 (`copaper/`)**：提供六阶段流水线的状态管理、事件日志、Git 操作、周报生成和 7-checker 集成。
 2. **Agent Skills (`.agents/skills/`)**：多个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换，再到文本去 AI 痕迹润色的完整流程。
-3. **CLI (`vibe` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、显式阶段状态更新、阶段跳过、Git 提交/回滚、周报和差异对比。
+3. **CLI (`copaper` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、显式阶段状态更新、阶段跳过、Git 提交/回滚、周报和差异对比。
 
 核心理念：**结构与模板优先，AI 辅助优化**。AI 基于你提供的 Insight 和实验数据组织语言、优化文字，而非自由发挥；对成稿可结合 `humanizer` 做“去 AI 味”润色，保持原意同时提升自然度。
 
@@ -41,10 +41,10 @@ pip install -e .[dev]
 
 ```bash
 # 方式一：通过 console script
-vibe --help
+copaper --help
 
 # 方式二：通过 Python 模块
-python -m vibepaper --help
+python -m copaper --help
 ```
 
 ### 依赖说明
@@ -61,12 +61,12 @@ python -m vibepaper --help
 ## 仓库结构
 
 ```
-VibePaper-Skill/
-├── vibepaper/                  # Python 包：状态管理、CLI、Git 操作等
+CoPaper-Skill/
+├── copaper/                  # Python 包：状态管理、CLI、Git 操作等
 │   ├── __init__.py             # 版本号与公共 API
-│   ├── __main__.py             # python -m vibepaper 入口
+│   ├── __main__.py             # python -m copaper 入口
 │   ├── cli.py                  # Click CLI 命令定义
-│   ├── scaffold/               # `vibe init` 复制到新项目的脚手架资源
+│   ├── scaffold/               # `copaper init` 复制到新项目的脚手架资源
 │   ├── constants.py            # 六阶段定义、状态枚举、依赖图
 │   ├── schema.py               # state.json 的 schema 与默认值
 │   ├── state.py                # StateManager：读写 state.json
@@ -103,7 +103,7 @@ VibePaper-Skill/
 │   │   ├── human-comment-helper/ # 人工评审注释
 │   │   ├── humanizer/           # 去 AI 痕迹润色
 │   │   ├── mad-writer/          # 自动写作循环
-│   │   └── vibepaper-manage/    # CLI 工作流管理
+│   │   └── copaper-manage/    # CLI 工作流管理
 │   ├── state.json              # 项目状态文件（init 后生成）
 │   └── events.jsonl            # 事件日志（追加式 JSON Lines）
 ├── relatedwork/                # 文献存储目录
@@ -128,13 +128,13 @@ VibePaper-Skill/
 ├── pyproject.toml              # 包配置
 ├── workflow-dataflow.md         # storyline.md / paper.md / skills 数据流分析
 ├── writingrules.md              # 写作规范
-├── paper.md                     # 论文主文档模板（`vibe init` 会复制）
-└── storyline.md                 # 研究主线模板（`vibe init` 会复制）
+├── paper.md                     # 论文主文档模板（`copaper init` 会复制）
+└── storyline.md                 # 研究主线模板（`copaper init` 会复制）
 ```
 
 ## 六阶段流水线
 
-VibePaper 定义了六个写作阶段，按顺序推进：
+CoPaper 定义了六个写作阶段，按顺序推进：
 
 | 阶段 | 名称 | 说明 | 推荐前置 | 工具层面可跳过 |
 |------|------|------|----------|----------------|
@@ -145,15 +145,15 @@ VibePaper 定义了六个写作阶段，按顺序推进：
 | 5 | `writing` | 逐节撰写 paper.md | discussion | 是 |
 | 6 | `latex_review` | 转换为 LaTeX 并审查 | writing | 是 |
 
-**依赖关系**：`vibepaper/constants.py` 中的 `PHASE_DEPENDENCIES` 定义的是**推荐正向推进顺序**，用于状态检查与默认流程编排；它不是对内容工作的硬禁止。实际技能层面允许重入、补跑与部分逆向工作流。
+**依赖关系**：`copaper/constants.py` 中的 `PHASE_DEPENDENCIES` 定义的是**推荐正向推进顺序**，用于状态检查与默认流程编排；它不是对内容工作的硬禁止。实际技能层面允许重入、补跑与部分逆向工作流。
 
 **当前阶段语义**：`current_phase` 不再只是初始化时的默认值。CLI 现在会根据真实 phase 状态自动重算它：优先选择 `in_progress` 的 phase；如果没有，则选择第一个既不是 `complete` 也不是 `skipped` 的 phase。
 
-**跳过规则**：CLI 当前允许对任意有效阶段名执行 `vibe skip <phase>`；`--reason` 是**可选**参数，但强烈建议填写，便于后续追踪。实践上最常跳过的是 `experiments`，但其它阶段在工具层面也都可以跳过、回退后重做或在必要时补做。
+**跳过规则**：CLI 当前允许对任意有效阶段名执行 `copaper skip <phase>`；`--reason` 是**可选**参数，但强烈建议填写，便于后续追踪。实践上最常跳过的是 `experiments`，但其它阶段在工具层面也都可以跳过、回退后重做或在必要时补做。
 
 ## 文档与 Skill 数据流
 
-VibePaper 的核心不是“阶段本身”，而是几个关键工件之间的数据流：`storyline.md`、`paper.md`、`relatedwork/`、`.agents/state.json`。
+CoPaper 的核心不是“阶段本身”，而是几个关键工件之间的数据流：`storyline.md`、`paper.md`、`relatedwork/`、`.agents/state.json`。
 
 推荐正向路径是：
 
@@ -181,38 +181,38 @@ VibePaper 的核心不是“阶段本身”，而是几个关键工件之间的�
 
 ```bash
 # ✅ 正确
-vibe --root /path/to/project status
-vibe --root ./my-paper init --name "My Paper" --domain SE
+copaper --root /path/to/project status
+copaper --root ./my-paper init --name "My Paper" --domain SE
 
 # ❌ 错误——--root 在子命令之后会被忽略
-vibe init --root /path/to/project --name "My Paper" --domain SE
+copaper init --root /path/to/project --name "My Paper" --domain SE
 ```
 
 ### 命令一览
 
-#### `vibe init` — 初始化项目
+#### `copaper init` — 初始化项目
 
 ```bash
 # 交互式（会提示输入 name 和 domain）
-vibe init
+copaper init
 
 # 非交互式
-vibe init --name "My Paper" --domain "software engineering"
+copaper init --name "My Paper" --domain "software engineering"
 
 # 指定项目根目录
-vibe --root /path/to/project init --name "My Paper" --domain SE
+copaper --root /path/to/project init --name "My Paper" --domain SE
 ```
 
 创建 `.agents/` 目录、`state.json`、`events.jsonl`，并复制 `.agents/skills/`、`storyline.md`、`paper.md`、`writingrules.md`、`AGENTS.md`。如果 `state.json` 已存在，会提示确认是否重新初始化。
 
-#### `vibe status` — 查看项目状态
+#### `copaper status` — 查看项目状态
 
 ```bash
 # 人类可读格式
-vibe status
+copaper status
 
 # JSON 格式（适合脚本解析）
-vibe status --json
+copaper status --json
 ```
 
 输出示例：
@@ -231,72 +231,72 @@ writing             [    ] not_started
 latex_review        [    ] not_started
 ```
 
-#### `vibe skip` — 跳过阶段
+#### `copaper skip` — 跳过阶段
 
 ```bash
 # 推荐写法：带原因
-vibe skip experiments --reason "纯理论论文，无需实验"
+copaper skip experiments --reason "纯理论论文，无需实验"
 
 # 也可省略原因（不推荐）
-vibe skip experiments
+copaper skip experiments
 ```
 
 **注意**：`skip` 的参数是阶段名称（如 `experiments`），不是阶段字母（如 `D`）。有效名称为：`storyline`、`literature`、`discussion`、`experiments`、`writing`、`latex_review`。
 
-#### `vibe set-phase` — 显式设置阶段状态
+#### `copaper set-phase` — 显式设置阶段状态
 
 ```bash
 # 将 storyline 标为完成，并自动推进 current_phase
-vibe set-phase storyline --status complete
+copaper set-phase storyline --status complete
 
 # 将 discussion 标为进行中；如果推荐前置阶段未完成，会给出 warning 但不会硬阻止
-vibe set-phase discussion --status in_progress
+copaper set-phase discussion --status in_progress
 
 # 将 experiments 标为 skipped
-vibe set-phase experiments --status skipped --reason "纯理论论文"
+copaper set-phase experiments --status skipped --reason "纯理论论文"
 ```
 
 支持的状态值：`not_started`、`in_progress`、`complete`、`skipped`。
 
 这个命令适合 agent/脚本在不手改 `.agents/state.json` 的前提下，显式推进或回退工作流状态。
 
-#### `vibe log` — 查询操作日志
+#### `copaper log` — 查询操作日志
 
 ```bash
 # 查看所有日志
-vibe log
+copaper log
 
 # 按阶段过滤
-vibe log --phase storyline
+copaper log --phase storyline
 
 # 按操作者过滤
-vibe log --operator user
+copaper log --operator user
 
 # 查看最近 10 条
-vibe log --last 10
+copaper log --last 10
 
 # 按日期过滤
-vibe log --since 2026-04-01
+copaper log --since 2026-04-01
 ```
 
-#### `vibe report` — 生成周报
+#### `copaper report` — 生成周报
 
 ```bash
 # 输出到终端
-vibe report
+copaper report
 
 # 指定起始日期
-vibe report --since 2026-04-01
+copaper report --since 2026-04-01
 
 # 输出到文件
-vibe report --output report.md
+copaper report --output report.md
 ```
 
 周报包含：阶段进度、Git 提交摘要（按作者分组）、事件日志统计。如果不在 Git 仓库中，Git 部分会显示 "Git repository not available"。
 
-#### `vibe relatedwork` — 管理论文元数据、BibTeX 与 PDF
+#### `copaper relatedwork` — 管理论文元数据、BibTeX 与 PDF
 
-literature 阶段的所有步骤都封装成 `vibe relatedwork *` 子命令。检索走 Semantic Scholar Graph API；关键词抽取与单篇摘要走任意 OpenAI 兼容的 LLM 端点（默认从 `.env` 读取配置）。
+literature 阶段的所有步骤都封装成 `copaper relatedwork *` 子命令。检索走 Semantic Scholar Graph API；关键词抽取与单篇摘要走任意 OpenAI 兼容的 LLM 端点（默认从 `.env` 读取配置）。
 
 ##### 必需环境变量（写到项目根的 `.env`，启动时自动加载）
 
@@ -307,7 +307,7 @@ S2_API_BASE="..."                         # 可选：走中转代理时填，未
 
 # LLM（keywords + summarize 需要）
 OPENAI_API_KEY="..."                      # 必填
-VIBEPAPER_MODEL="gpt-4o-mini"             # 必填，建议先用便宜模型 smoke
+COPAPER_MODEL="gpt-4o-mini"             # 必填，建议先用便宜模型 smoke
 OPENAI_BASE_URL="https://proxy/v1"        # 可选：走中转代理时填
 ```
 
@@ -317,75 +317,75 @@ OPENAI_BASE_URL="https://proxy/v1"        # 可选：走中转代理时填
 
 ```bash
 # Step 1 · LLM 从 storyline.md 抽 query → relatedwork/queries.txt
-vibe relatedwork keywords --count 6
+copaper relatedwork keywords --count 6
 
 # Step 2 · Semantic Scholar 检索 → relatedwork/search_cache.json
-vibe relatedwork search --queries-file relatedwork/queries.txt --limit 5
+copaper relatedwork search --queries-file relatedwork/queries.txt --limit 5
 
 # Step 3 · 灌进 canonical catalog → relatedwork/literature.json
-vibe relatedwork import --input relatedwork/search_cache.json
+copaper relatedwork import --input relatedwork/search_cache.json
 
 # Step 4 · 同步 BibTeX → relatedwork/paper_list.bib
-vibe relatedwork sync-bib
+copaper relatedwork sync-bib
 
 # Step 5 · 下载 OA PDF → relatedwork/pdfs/<paper_id>.pdf
-vibe relatedwork download
+copaper relatedwork download
 
 # Step 6 · LLM 单篇 summary → relatedwork/papers/<paper_id>.md
-vibe relatedwork summarize --concurrency 4
+copaper relatedwork summarize --concurrency 4
 
 # Step 7 · 交叉索引 + 覆盖报告 → .agents/cross_index.json
-vibe relatedwork build-index
+copaper relatedwork build-index
 
 # 任意时刻看状态
-vibe relatedwork status
+copaper relatedwork status
 ```
 
 ##### 每个子命令的常用 flag
 
 ```bash
 # keywords —— 从 storyline.md / paper.md 抽搜索短语
-vibe relatedwork keywords --count 8 --model gpt-4o-mini --out relatedwork/queries.txt
+copaper relatedwork keywords --count 8 --model gpt-4o-mini --out relatedwork/queries.txt
 
 # search —— S2 检索 + BibTeX/arXiv/PDF URL/TLDR 自动归一化
 # 默认过滤(可覆盖):--fields-of-study "Computer Science" 默认开启,--open-access 默认关闭
-vibe relatedwork search --queries-file relatedwork/queries.txt \
+copaper relatedwork search --queries-file relatedwork/queries.txt \
     --limit 20 --year 2022-2026 \
     --venue "CVPR,NeurIPS"
 
 # 只要有 OA PDF 的论文(便于后续 download)
-vibe relatedwork search --queries-file relatedwork/queries.txt --open-access
+copaper relatedwork search --queries-file relatedwork/queries.txt --open-access
 
 # 跨学科搜索(关掉默认的 CS 限定)
-vibe relatedwork search --queries-file relatedwork/queries.txt --fields-of-study ""
+copaper relatedwork search --queries-file relatedwork/queries.txt --fields-of-study ""
 
 # 也可不写 queries-file,直接传 query
-vibe relatedwork search --query "streaming vla" --query "robot policy"
+copaper relatedwork search --query "streaming vla" --query "robot policy"
 
 # import / sync-bib —— 元数据双向同步
-vibe relatedwork import --input relatedwork/search_cache.json
-vibe relatedwork sync-bib
+copaper relatedwork import --input relatedwork/search_cache.json
+copaper relatedwork sync-bib
 
 # download —— urllib + 3 次重试 + %PDF 头校验
-vibe relatedwork download
-vibe relatedwork download --retry-failed
-vibe relatedwork download --paper-id song2025ceed
+copaper relatedwork download
+copaper relatedwork download --retry-failed
+copaper relatedwork download --paper-id song2025ceed
 
 # summarize —— pypdf 抽文本 + LLM,内部 ThreadPool + 16 QPS token bucket
-vibe relatedwork summarize                       # 全部 downloaded 且无 summary 的
-vibe relatedwork summarize --paper-id <id>       # 只一篇
-vibe relatedwork summarize --force               # 重新做已有 summary
-vibe relatedwork summarize --concurrency 8 --qps 16 --max-pdf-bytes 52428800
+copaper relatedwork summarize                       # 全部 downloaded 且无 summary 的
+copaper relatedwork summarize --paper-id <id>       # 只一篇
+copaper relatedwork summarize --force               # 重新做已有 summary
+copaper relatedwork summarize --concurrency 8 --qps 16 --max-pdf-bytes 52428800
 
 # build-index —— 解析 papers/*.md 生成交叉索引 + 覆盖报告
-vibe relatedwork build-index
+copaper relatedwork build-index
 
 # register-summary —— 手动登记一篇外部生成的 summary(summarize CLI 已自动调,通常不需要手动)
-vibe relatedwork register-summary --paper-id <id> --summary-path relatedwork/papers/<id>.md
+copaper relatedwork register-summary --paper-id <id> --summary-path relatedwork/papers/<id>.md
 
 # status —— 总表
-vibe relatedwork status
-vibe relatedwork status --json
+copaper relatedwork status
+copaper relatedwork status --json
 ```
 
 ##### 关键产物
@@ -401,37 +401,37 @@ vibe relatedwork status --json
 | `.agents/cross_index.json` | `build-index` | storyline 技术点 ↔ 论文 反向索引 + 覆盖率 |
 | `.agents/state.json` literature phase | 上述所有命令自动同步 | 聚合计数(`papers_found` / `papers_downloaded` / `download_failures` / `summaries_done` / `cross_index_built`) |
 
-#### `vibe diff` — 阶段间差异对比
+#### `copaper diff` — 阶段间差异对比
 
 ```bash
-vibe diff storyline literature
+copaper diff storyline literature
 ```
 
 显示两个阶段最后一次提交之间的 Git diff。如果某个阶段没有提交，会提示无 diff 可用。
 
-#### `vibe commit` — 阶段化 Git 提交
+#### `copaper commit` — 阶段化 Git 提交
 
 ```bash
 # 自动检测当前阶段
-vibe commit -m "完成研究主线初稿"
+copaper commit -m "完成研究主线初稿"
 
 # 指定阶段
-vibe commit --phase storyline -m "完成研究主线初稿"
+copaper commit --phase storyline -m "完成研究主线初稿"
 
 # 强制提交（即使没有暂存变更）
-vibe commit -m "空提交标记" --force
+copaper commit -m "空提交标记" --force
 ```
 
-提交消息格式为 `[phase] message`，并自动添加 `Co-authored-by: VibePaper AI <ai@vibepaper>` 尾部。**必须在 Git 仓库中运行**。
+提交消息格式为 `[phase] message`，并自动添加 `Co-authored-by: CoPaper AI <ai@copaper>` 尾部。**必须在 Git 仓库中运行**。
 
-#### `vibe rollback` — 回滚到某阶段的提交
+#### `copaper rollback` — 回滚到某阶段的提交
 
 ```bash
 # 交互式确认
-vibe rollback storyline
+copaper rollback storyline
 
 # 跳过确认
-vibe rollback storyline -y
+copaper rollback storyline -y
 ```
 
 使用 `git reset --soft` 回滚到指定阶段的最后一次提交，同时将 `state.json` 中该阶段状态重置为 `not_started`。**必须在 Git 仓库中运行**。
@@ -440,7 +440,7 @@ vibe rollback storyline -y
 
 | 错误信息 | 原因 | 解决方法 |
 |----------|------|----------|
-| `No project found. Run 'vibe init' first.` | 当前目录没有 `.agents/state.json` | 先运行 `vibe init` |
+| `No project found. Run 'copaper init' first.` | 当前目录没有 `.agents/state.json` | 先运行 `copaper init` |
 | `--root` 选项不生效 | `--root` 放在了子命令之后 | 将 `--root` 移到子命令之前 |
 | `skip` 报错无效阶段名 | 使用了字母标签如 `A`/`B` 而非阶段名 | 使用完整名称如 `storyline`、`experiments` |
 | `report` 显示 "Git repository not available" | 不在 Git 仓库中 | 在 Git 仓库内运行，或忽略此部分 |
@@ -451,7 +451,7 @@ vibe rollback storyline -y
 
 ### `.agents/state.json`
 
-项目初始化后由 `vibe init` 创建，是项目进度的唯一真实来源。结构如下：
+项目初始化后由 `copaper init` 创建，是项目进度的唯一真实来源。结构如下：
 
 ```json
 {
@@ -500,8 +500,8 @@ vibe rollback storyline -y
     "auto_commit": false,
     "identity": {
       "role": "assistant",
-      "git_name": "VibePaper Bot",
-      "git_email": "bot@vibepaper.dev"
+      "git_name": "CoPaper Bot",
+      "git_email": "bot@copaper.dev"
     }
   },
   "checkers": {}
@@ -566,11 +566,11 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 
 **触发**：`"find related work"`
 
-- 编排 `vibe relatedwork keywords / search / import / sync-bib / download` 7 步流水线
-- 关键词抽取与 Semantic Scholar 检索都委派给 `vibe` CLI,**不再调用任何 MCP 搜索工具**
+- 编排 `copaper relatedwork keywords / search / import / sync-bib / download` 7 步流水线
+- 关键词抽取与 Semantic Scholar 检索都委派给 `copaper` CLI,**不再调用任何 MCP 搜索工具**
 - 与 `relatedwork-summarizer` 配合完成 PDF 下载 → 单篇 summary → 交叉索引
 
-详见 `vibe relatedwork` 章节。
+详见 `copaper relatedwork` 章节。
 
 ### socratic-discussion — 苏格拉底式讨论
 
@@ -626,7 +626,7 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 - 从已有 `.pdf` 初稿提取内容，按语义映射到 `paper.md` 的既有 section
 - 可以从已有的论文初稿转变为paper.md进行审稿
 - 严格按 section 逐步转换，并在每节写入前走用户确认
-- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `paper.md`，先执行 `vibe --root <project-dir> init ...` 再更新 `writing` phase
+- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `paper.md`，先执行 `copaper --root <project-dir> init ...` 再更新 `writing` phase
 
 ### ppt2storyline — PPT/PPTX 转 Storyline
 
@@ -635,7 +635,7 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 - 从 `.pptx` 提取幻灯片文本并映射到 `storyline.md` 既有 section
 - 可以从小组会ppt直接转变成storyline.md并进行完整的工作流程
 - 以“忠实原文 + 轻量润色”为原则，不新增未在 PPT 出现的研究结论
-- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `storyline.md`，先执行 `vibe --root <project-dir> init ...` 再更新 phase
+- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `storyline.md`，先执行 `copaper --root <project-dir> init ...` 再更新 phase
 
 ### humanizer — 去 AI 痕迹润色
 
@@ -654,7 +654,7 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 python -m pytest tests/ -v
 
 # 运行测试并查看覆盖率
-python -m pytest tests/ --cov=vibepaper --cov-report=term
+python -m pytest tests/ --cov=copaper --cov-report=term
 ```
 
 当前测试状态：**全部通过，覆盖率约 90%**。
@@ -690,32 +690,32 @@ python -m pytest tests/ --cov=vibepaper --cov-report=term
 
 ```bash
 # 1. 初始化项目
-vibe init --name "Test Paper" --domain SE
+copaper init --name "Test Paper" --domain SE
 
 # 2. 查看状态
-vibe status
-vibe status --json
+copaper status
+copaper status --json
 
 # 3. 提交
-vibe commit -m "draft"
+copaper commit -m "draft"
 
 # 4. 查看日志
-vibe log
-vibe log --phase storyline
+copaper log
+copaper log --phase storyline
 
 # 5. 回滚
-vibe rollback storyline
+copaper rollback storyline
 
 # 6. 生成报告
-vibe report
-vibe report --since 2026-04-01
-vibe report --output report.md
+copaper report
+copaper report --since 2026-04-01
+copaper report --output report.md
 
 # 7. 阶段差异
-vibe diff storyline literature
+copaper diff storyline literature
 
 # 8. 跳过阶段
-vibe skip literature --reason "not needed"
+copaper skip literature --reason "not needed"
 ```
 
 **Git 集成验收**：
@@ -731,11 +731,11 @@ vibe skip literature --reason "not needed"
 
 ## 故障排除
 
-### `No project found. Run 'vibe init' first.`
+### `No project found. Run 'copaper init' first.`
 
 当前目录（或 `--root` 指定目录）下没有 `.agents/state.json` 文件。
 
-**解决**：在目标目录运行 `vibe init --name "项目名" --domain "领域"`。
+**解决**：在目标目录运行 `copaper init --name "项目名" --domain "领域"`。
 
 ### `--root` 位置错误
 
@@ -743,10 +743,10 @@ vibe skip literature --reason "not needed"
 
 ```bash
 # ✅ 正确
-vibe --root /path/to/project status
+copaper --root /path/to/project status
 
 # ❌ 错误——Click 不会识别子命令之后的全局选项
-vibe status --root /path/to/project
+copaper status --root /path/to/project
 ```
 
 ### `skip` 命令需要有效阶段名
@@ -755,10 +755,10 @@ vibe status --root /path/to/project
 
 ```bash
 # ✅ 正确
-vibe skip experiments --reason "纯理论论文"
+copaper skip experiments --reason "纯理论论文"
 
 # ❌ 错误——D 不是有效阶段名
-vibe skip D --reason "纯理论论文"
+copaper skip D --reason "纯理论论文"
 ```
 
 有效阶段名：`storyline`、`literature`、`discussion`、`experiments`、`writing`、`latex_review`。
@@ -778,10 +778,10 @@ vibe skip D --reason "纯理论论文"
 
 ```bash
 # 会提示输入 Project name 和 Research domain
-vibe init
+copaper init
 
 # 非交互式——适合脚本
-vibe init --name "My Paper" --domain "SE"
+copaper init --name "My Paper" --domain "SE"
 ```
 
 ## 建议的首次运行流程
@@ -795,20 +795,20 @@ pip install -e .[dev]
 # 2. 初始化项目（在 Git 仓库中）
 cd /path/to/your/paper-project
 git init  # 如果还不是 Git 仓库
-vibe init --name "My Research" --domain "software engineering"
+copaper init --name "My Research" --domain "software engineering"
 
 # 3. 构建研究主线
 #    在 OpenCode 中触发："help me write storyline"
 #    或手动编辑 storyline.md
 
-# 4. 检索文献(纯 CLI 流水线,需先在 .env 中配 OPENAI_API_KEY / VIBEPAPER_MODEL / S2_API_KEY)
-vibe relatedwork keywords --count 6
-vibe relatedwork search --queries-file relatedwork/queries.txt --limit 5
-vibe relatedwork import --input relatedwork/search_cache.json
-vibe relatedwork sync-bib
-vibe relatedwork download
-vibe relatedwork summarize --concurrency 4
-vibe relatedwork build-index
+# 4. 检索文献(纯 CLI 流水线,需先在 .env 中配 OPENAI_API_KEY / COPAPER_MODEL / S2_API_KEY)
+copaper relatedwork keywords --count 6
+copaper relatedwork search --queries-file relatedwork/queries.txt --limit 5
+copaper relatedwork import --input relatedwork/search_cache.json
+copaper relatedwork sync-bib
+copaper relatedwork download
+copaper relatedwork summarize --concurrency 4
+copaper relatedwork build-index
 #    也可以在 OpenCode 中触发 "find related work" 让 skill 编排上述命令
 
 # 5. 苏格拉底式讨论
@@ -817,7 +817,7 @@ vibe relatedwork build-index
 
 # 6. 实验分析（或跳过）
 #    在 OpenCode 中触发："analyze experiments"
-#    或跳过：vibe skip experiments --reason "纯理论论文无需实验"
+#    或跳过：copaper skip experiments --reason "纯理论论文无需实验"
 
 # 7. 写作
 #    在 OpenCode 中触发："write the paper"
@@ -836,9 +836,9 @@ vibe relatedwork build-index
 #     生成最终投稿版本
 
 # 全程可用 CLI 跟踪进度
-vibe status
-vibe log
-vibe report
+copaper status
+copaper log
+copaper report
 ```
 
 ## 写作规范

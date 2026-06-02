@@ -72,7 +72,7 @@ describe("relatedwork status", () => {
     })
     expect(result.papers.find((paper) => paper.paperId === "smith2026runtime")?.pdfExists).toBe(true)
     expect(result.papers.find((paper) => paper.paperId === "smith2026runtime")?.summaryExists).toBe(true)
-    expect(markdown).toContain("## VibePaper 相关工作状态")
+    expect(markdown).toContain("## CoPaper 相关工作状态")
     expect(markdown).toContain("smith2026runtime")
     expect(hashTree(project.root)).toBe(before)
   })

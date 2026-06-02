@@ -11,16 +11,16 @@
 新能力只写 `.agents/state.json` 的 `artifacts` 区域，并追加 `.agents/events.jsonl`。它不推进 phase，不运行 checker，不触发 relatedwork，不安装 skills，也不执行 Git 操作。
 
 ###### 不再规划 Python CLI parity
-后续新控制能力以 `@vibepaper/opencode` 为主入口。Python CLI 不新增对应 artifact record 命令，仅作为旧项目状态格式的兼容背景。
+后续新控制能力以 `@copaper/opencode` 为主入口。Python CLI 不新增对应 artifact record 命令，仅作为旧项目状态格式的兼容背景。
 
 ## Goals
 <!-- description: 必须实现的能力 -->
 
 ###### 记录 artifact readiness
-新增 `vibepaper_artifact_record` 工具，用于记录 `storyline`、`paper`、`relatedwork`、`cross_index` 和 `checker_results` 的显式 readiness 状态。
+新增 `copaper_artifact_record` 工具，用于记录 `storyline`、`paper`、`relatedwork`、`cross_index` 和 `checker_results` 的显式 readiness 状态。
 
 ###### 保留扫描事实
-现有 `vibepaper_artifact_status` 继续读取文件系统并报告观察结果。持久 readiness 是额外证据，不取代扫描事实，也不允许掩盖文件缺失或过期。
+现有 `copaper_artifact_status` 继续读取文件系统并报告观察结果。持久 readiness 是额外证据，不取代扫描事实，也不允许掩盖文件缺失或过期。
 
 ###### 审计每次写入
 每次成功写入必须追加 event log，记录 artifact、status、confidence、reason、previous status 和 stale 信息。失败时返回结构化错误。
@@ -32,7 +32,7 @@
 <!-- description: 本阶段明确不做的内容 -->
 
 ###### 不做 Python CLI 命令
-本阶段不新增 `vibe artifact record` 或其他 Python CLI 入口。新写入能力只存在于 OpenCode plugin 工具层。
+本阶段不新增 `copaper artifact record` 或其他 Python CLI 入口。新写入能力只存在于 OpenCode plugin 工具层。
 
 ###### 不做 workflow 调度器
 本阶段不实现 `resume`、`progress` 或下一步自动调度。artifact readiness 不自动改变 `current_phase`，也不自动设置任何 phase status。
@@ -47,7 +47,7 @@
 <!-- description: 用户可见行为 -->
 
 ###### 确认后写入
-agent 调用 `vibepaper_artifact_record` 前，必须复述 artifact、status、confidence 和 reason，并等待用户确认。未确认不得调用写入工具。
+agent 调用 `copaper_artifact_record` 前，必须复述 artifact、status、confidence 和 reason，并等待用户确认。未确认不得调用写入工具。
 
 ###### Dashboard 合并展示
 项目 ready 后，Dashboard 展示扫描状态和 recorded readiness。若二者冲突，Dashboard 显示冲突或 stale 提示，而不是静默相信其中一方。
@@ -79,7 +79,7 @@ Markdown 说明默认中文。工具名、artifact ID、JSON 字段、status、c
 ## Tool Design
 <!-- description: OpenCode 写入工具 -->
 
-###### `vibepaper_artifact_record`
+###### `copaper_artifact_record`
 该工具使用 OpenCode runtime `ToolContext.directory` 和 `ToolContext.worktree` 做 root detection。不得使用插件初始化时捕获的 root。
 
 ###### 参数
@@ -98,7 +98,7 @@ Markdown 说明默认中文。工具名、artifact ID、JSON 字段、status、c
 <!-- description: 扫描结果与记录状态合并 -->
 
 ###### 扫描事实优先
-`vibepaper_artifact_status` 继续以文件系统扫描判断事实状态。recorded readiness 只能作为辅助 evidence 和人工确认信号。
+`copaper_artifact_status` 继续以文件系统扫描判断事实状态。recorded readiness 只能作为辅助 evidence 和人工确认信号。
 
 ###### Hash stale
 若 recorded `content_hash` 与当前 artifact hash 不一致，Dashboard 标记 recorded readiness stale。工具不得继续把旧记录当成当前 ready 事实。
@@ -125,7 +125,7 @@ Markdown 说明默认中文。工具名、artifact ID、JSON 字段、status、c
 日志行使用 UTF-8 compact JSON。现有 workflow log 读取 malformed line 时应继续跳过，不能因为 artifact event 破坏日志展示。
 
 ## Dashboard Integration
-<!-- description: `/vibe` 展示变化 -->
+<!-- description: `/copaper` 展示变化 -->
 
 ###### Recorded readiness 列
 Artifacts 区块增加 recorded readiness 信息，展示 recorded status、confidence、updated time 和 stale 标记。扫描 evidence 仍保留。
@@ -137,7 +137,7 @@ Artifacts 区块增加 recorded readiness 信息，展示 recorded status、conf
 Dashboard JSON 中的 `artifactStatus` 包含每个 artifact 的 scan row 和 recorded record 摘要。字段名保持 English。
 
 ###### Slash command 指引
-`/vibe` 模板必须说明 `vibepaper_artifact_record` 是写操作，调用前需要用户明确确认，且不会自动推进 phase 或运行重型流程。
+`/copaper` 模板必须说明 `copaper_artifact_record` 是写操作，调用前需要用户明确确认，且不会自动推进 phase 或运行重型流程。
 
 ## Error Handling
 <!-- description: 失败和异常规则 -->
@@ -173,10 +173,10 @@ state 不是 JSON object 或无法解析时，record 工具拒绝写入。artifa
 记录 content hash 后修改对应文件，验证 artifact status 和 Dashboard 将 recorded readiness 标记为 stale 或冲突。
 
 ###### Integration tests
-验证 `vibepaper_artifact_status` 仍然只读，但能读取 recorded readiness；验证 Dashboard 合并展示扫描事实和 recorded record。
+验证 `copaper_artifact_status` 仍然只读，但能读取 recorded readiness；验证 Dashboard 合并展示扫描事实和 recorded record。
 
 ###### Template tests
-验证 `/vibe` 文案包含写入确认门槛、无自动 phase 推进、无 checker、无 relatedwork、无 skills 安装和无 Git 操作。
+验证 `/copaper` 文案包含写入确认门槛、无自动 phase 推进、无 checker、无 relatedwork、无 skills 安装和无 Git 操作。
 
 ## Acceptance Criteria
 <!-- description: 完成判定 -->

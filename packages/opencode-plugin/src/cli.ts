@@ -126,8 +126,8 @@ function unsupportedOption(command: Command, arg: string): { ok: false; error: s
 
 function help(code: number) {
   console.log(`Usage:
-  vibepaper-opencode init [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--dry-run] [--force]
-  vibepaper-opencode doctor [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--format text|markdown|json]
+  copaper-opencode init [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--dry-run] [--force]
+  copaper-opencode doctor [--root <dir>] [--config <path>] [--locale zh-CN|en-US] [--format text|markdown|json]
 `)
   return code
 }

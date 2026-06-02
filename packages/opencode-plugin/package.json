@@ -1,10 +1,10 @@
 {
-  "name": "@vibepaper/opencode",
+  "name": "@copaper/opencode",
   "version": "0.1.0",
-  "description": "OpenCode integration plugin for VibePaper",
+  "description": "OpenCode integration plugin for CoPaper",
   "type": "module",
   "bin": {
-    "vibepaper-opencode": "./dist/cli.js"
+    "copaper-opencode": "./dist/cli.js"
   },
   "exports": {
     ".": "./dist/index.js",

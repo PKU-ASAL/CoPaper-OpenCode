@@ -1,4 +1,4 @@
-# Repository Atlas: VibePaper
+# Repository Atlas: CoPaper
 
 <!-- description: Master architecture map for the repository. -->
 
@@ -8,7 +8,7 @@
 
 ###### Structured academic workflow platform
 
-VibePaper combines a Python `vibe` CLI, scaffolded agent skills, project-state files, related-work automation, and an OpenCode plugin so researchers can manage a six-phase paper workflow with reproducible state and explicit artifact readiness.
+CoPaper combines a Python `copaper` CLI, scaffolded agent skills, project-state files, related-work automation, and an OpenCode plugin so researchers can manage a six-phase paper workflow with reproducible state and explicit artifact readiness.
 
 ###### Dual runtime architecture
 
@@ -20,11 +20,11 @@ The Python package owns canonical workflow operations and scaffold data. The Typ
 
 ###### Python CLI runtime
 
-`vibepaper/cli.py` defines the `vibe` command tree, including project init, status, phase updates, event logs, reports, Git-backed phase commands, and `relatedwork` subcommands.
+`copaper/cli.py` defines the `copaper` command tree, including project init, status, phase updates, event logs, reports, Git-backed phase commands, and `relatedwork` subcommands.
 
 ###### OpenCode plugin runtime
 
-`packages/opencode-plugin/src/index.ts` exports the OpenCode plugin, injects VibePaper subagents, and registers `vibepaper_*` tools for dashboards, artifact status, workflow updates, checker records, related-work operations, and import extraction.
+`packages/opencode-plugin/src/index.ts` exports the OpenCode plugin, injects CoPaper subagents, and registers `copaper_*` tools for dashboards, artifact status, workflow updates, checker records, related-work operations, and import extraction.
 
 ###### Package metadata
 
@@ -32,19 +32,19 @@ The Python package owns canonical workflow operations and scaffold data. The Typ
 
 ###### Agent-facing guidance
 
-`AGENTS.md` defines repository conventions. `.agents/skills/` is the source skill library; `vibepaper/scaffold/skills/` is the packaged mirror copied by `vibe init`.
+`AGENTS.md` defines repository conventions. `.agents/skills/` is the source skill library; `copaper/scaffold/skills/` is the packaged mirror copied by `copaper init`.
 
 ## Repository Directory Map
 
 <!-- description: Aggregated folder responsibilities. -->
 
-###### `vibepaper/`
+###### `copaper/`
 
-Python runtime package for CLI commands, state persistence, event logs, scaffold copying, literature metadata, related-work LLM/search/download/summarization, checker tracking, cross-indexing, Git operations, and reports. Detailed map: [vibepaper/codemap.md](vibepaper/codemap.md).
+Python runtime package for CLI commands, state persistence, event logs, scaffold copying, literature metadata, related-work LLM/search/download/summarization, checker tracking, cross-indexing, Git operations, and reports. Detailed map: [copaper/codemap.md](copaper/codemap.md).
 
 ###### `packages/`
 
-Integration package workspace. It currently contains the OpenCode integration package published as `@vibepaper/opencode`. Detailed map: [packages/codemap.md](packages/codemap.md).
+Integration package workspace. It currently contains the OpenCode integration package published as `@copaper/opencode`. Detailed map: [packages/codemap.md](packages/codemap.md).
 
 ###### `packages/opencode-plugin/`
 
@@ -56,7 +56,7 @@ TypeScript source for plugin registration, tool handlers, config parsing, projec
 
 ###### `.agents/skills/`
 
-Source skill library for storyline, literature, discussion, experiments, writing, review, conversion, checkers, submission, humanization, and VibePaper management. Tests enforce mirrored `SKILL.md` files in `vibepaper/scaffold/skills/`.
+Source skill library for storyline, literature, discussion, experiments, writing, review, conversion, checkers, submission, humanization, and CoPaper management. Tests enforce mirrored `SKILL.md` files in `copaper/scaffold/skills/`.
 
 ###### `tests/`
 
@@ -72,7 +72,7 @@ Pytest suite for Python CLI behavior, state/event persistence, scaffold copying,
 
 ###### Project bootstrap
 
-`vibe init` or the plugin's `vibepaper_init_apply` creates project artifacts, `.agents/state.json`, `.agents/events.jsonl`, and skill assets. The Python scaffold copies bundled files; the plugin templates write a TypeScript-managed equivalent for OpenCode workflows.
+`copaper init` or the plugin's `copaper_init_apply` creates project artifacts, `.agents/state.json`, `.agents/events.jsonl`, and skill assets. The Python scaffold copies bundled files; the plugin templates write a TypeScript-managed equivalent for OpenCode workflows.
 
 ###### Workflow state loop
 
@@ -80,11 +80,11 @@ Both runtimes read and write `.agents/state.json` and `.agents/events.jsonl`. Py
 
 ###### Literature pipeline
 
-The Python CLI owns Semantic Scholar search, BibTeX sync, PDF download, LLM keyword extraction, LLM summarization, and cross-index construction. The plugin exposes those operations through `relatedwork-tools.ts`, which executes `vibe relatedwork ...` via `python-bridge.ts`.
+The Python CLI owns Semantic Scholar search, BibTeX sync, PDF download, LLM keyword extraction, LLM summarization, and cross-index construction. The plugin exposes those operations through `relatedwork-tools.ts`, which executes `copaper relatedwork ...` via `python-bridge.ts`.
 
 ###### Agent workflow loop
 
-OpenCode loads the plugin, receives VibePaper subagent profiles, and uses permission profiles to separate read-only coordination from storyline edits, paper edits, state recording, and literature writes. Skills guide agents to prefer plugin tools over direct state edits.
+OpenCode loads the plugin, receives CoPaper subagent profiles, and uses permission profiles to separate read-only coordination from storyline edits, paper edits, state recording, and literature writes. Skills guide agents to prefer plugin tools over direct state edits.
 
 ## Design Constraints
 
@@ -104,7 +104,7 @@ Levels 1-5 are structural, Level 6 headings carry paragraph topics, and body tex
 
 ###### Source and scaffold sync
 
-Changes to `.agents/skills/` must be mirrored to `vibepaper/scaffold/skills/`; scaffold tests compare source and packaged skill files byte-for-byte.
+Changes to `.agents/skills/` must be mirrored to `copaper/scaffold/skills/`; scaffold tests compare source and packaged skill files byte-for-byte.
 
 ## Quality Gates
 

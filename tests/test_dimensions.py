@@ -1,8 +1,8 @@
-"""Tests for vibepaper.dimensions module."""
+"""Tests for copaper.dimensions module."""
 
 from __future__ import annotations
 
-from vibepaper.dimensions import DimensionRegistry, QuestionType
+from copaper.dimensions import DimensionRegistry, QuestionType
 
 
 class TestDimensionRegistry:
