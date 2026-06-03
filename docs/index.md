@@ -1,18 +1,20 @@
 # Copaper-你的论文助手
 
+完整参考手册见：[完整参考手册](full-manual.md)。
+
 ## 使用前须知
 
 ###### 工具定位
-CoPaper 只能用于辅助完成论文写作、项目管理和资料整理，不能替代作者的学术判断、实验验证或最终责任。
+CoPaper 是辅助工具。它可以帮你整理材料、管理状态、调用写作和审阅工具，但不能替代作者的判断、实验验证或最终责任。
 
 ###### 学术诚信
-所有实验数据、图表、指标、案例和结论都必须来自真实实验或可核查来源。不得使用 CoPaper 抄袭、伪造数据、编造引用、夸大贡献，或进行任何其他学术不端行为。
+实验数据、图表、指标、案例和结论必须来自真实实验或可核查来源。不要用 CoPaper 抄袭、编数据、编引用，或者把贡献写得比实际更大。
 
 ###### 分步生成
-由于目前模型和项目能力仍有局限，建议按章节、按小节、按段落逐步生成和修改论文，不要一次性要求生成整篇论文。一次处理过多内容时，模型更容易遗漏约束、混淆上下文或产生质量不稳定的结果。
+模型现在还不适合一口气处理整篇论文。更稳的做法是按章节、小节、段落推进。一次塞太多内容，模型更容易漏约束、串上下文，写出来也会忽好忽坏。
 
 ###### 人工核查
-所有由 CoPaper 或模型生成的内容都可能包含幻觉、不准确表述或未经验证的推断。提交、传播或用于正式论文前，作者必须逐条人工核查事实、数据、引用、实验设置、结论和文字原创性。
+CoPaper 或模型生成的内容都可能有幻觉、不准确表述或未经验证的推断。正式使用前，请逐条检查事实、数据、引用、实验设置、结论和文字原创性。
 
 ## CoPaper OpenCode 插件安装
 
@@ -50,7 +52,7 @@ Bun 需要 `-p`，因为包名是 `@copaper/opencode`，命令名是 `copaper-op
 ## 插件能力总览
 
 ###### OpenCode Tools
-插件目前注册了 23 个 `copaper_*` 工具，主要分为只读检查、初始化、导入提取、relatedwork、状态记录和 workflow 管理。
+插件目前提供 23 个 `copaper_*` 工具。大致可以分成几类：只读检查、初始化、导入提取、relatedwork、状态记录和 workflow 管理。
 
 | 工具 | 作用 |
 |---|---|
@@ -79,7 +81,7 @@ Bun 需要 `-p`，因为包名是 `@copaper/opencode`，命令名是 `copaper-op
 | `copaper_workflow_set_phase` | 在确认后修改 workflow phase 状态并写入事件日志。 |
 
 ###### CoPaper Subagents
-插件会向 OpenCode 注入 6 个内置 subagents，用权限边界把协调、写作、审稿、记录和文献流程分开。
+插件会向 OpenCode 注入 6 个内置 subagents。它们分工比较明确：谁负责协调，谁能写 `paper.md`，谁只做审阅，谁负责记录状态。
 
 | Subagent | 作用 |
 |---|---|
@@ -91,7 +93,7 @@ Bun 需要 `-p`，因为包名是 `@copaper/opencode`，命令名是 `copaper-op
 | `@copaper-literature` | 负责 relatedwork 流程，调用检索、导入、下载、摘要和 cross-index 工具。 |
 
 ###### Project Skills
-项目当前包含 28 个 skills，位于 `.agents/skills/`。它们是给 agent 的工作流说明，用来约束什么时候读哪些文件、如何修改、何时必须等待确认。
+项目当前包含 28 个 skills，位于 `.agents/skills/`。可以把它们理解成 agent 的操作手册：什么时候读文件、能改哪里、什么时候必须停下来等用户确认。
 
 | Skill | 作用 |
 |---|---|
@@ -130,7 +132,7 @@ OpenCode 里直接管理 phase 的入口是 `copaper-manage` skill。它会先�
 ## 整体使用流程说明书
 
 ###### 使用方式选择
-CoPaper 可以用两种方式操作：CLI 适合脚本化、批处理和 Git 阶段管理；OpenCode 插件适合在 IDE 中通过 `/copaper`、subagents 和确认式工具完成日常写作。推荐混合使用：项目初始化、relatedwork 批处理和 Git 操作用 CLI；状态查看、主线写作、论文写作、审阅和 readiness 记录用插件。
+CoPaper 有两种入口。CLI 适合脚本、批处理和 Git 阶段管理；OpenCode 插件适合日常写作，在 IDE 里通过 `/copaper`、subagents 和确认式工具推进。实际使用时通常会混着来：初始化、relatedwork 批处理和 Git 操作用 CLI；状态查看、主线写作、论文写作、审阅和 readiness 记录交给插件。
 
 ###### Step 0：准备环境
 目标项目至少需要 Python、Git、Bun 和 OpenCode。Python 端提供 `copaper` CLI；Bun 端安装 `@copaper/opencode` 插件；OpenCode 端负责 slash commands、tools 和 subagents。relatedwork 的搜索、关键词和摘要功能还需要在目标项目配置 `.env`，但不要把密钥提交进 Git。
@@ -270,6 +272,8 @@ writing 阶段围绕 `paper.md` 展开。推荐先用 `writing-orchestrator` 扫
 ###### Step 8：生成 LaTeX 终稿
 已有材料的导入入口放在 Step 1 初始化阶段。论文成形并通过必要审阅后，最后一步使用 `latex-final-writer` 生成 LaTeX 终稿。该 skill 会基于已完成的 `paper.md`、`storyline.md`、相关工作摘要、实验材料和用户提供的会议/期刊模板，创建或更新 `writing_plan.md`，初始化 `tex/` 结构，并逐节写作可投稿的 LaTeX 草稿。
 
+由于目前模型和项目能力仍有局限，建议按章节、按小节、按段落逐步生成和修改论文，不要一次性要求生成整篇论文。一次处理过多内容时，模型更容易遗漏约束、混淆上下文或产生质量不稳定的结果。
+
 ```text
 我已经完成 paper.md，请基于 tex/ 模板使用 latex-final-writer 生成 LaTeX 终稿
 ```
@@ -277,7 +281,7 @@ writing 阶段围绕 `paper.md` 展开。推荐先用 `writing-orchestrator` 扫
 生成终稿时不要凭空新增实验、数字、引用或 claim。完成后应编译 LaTeX，并人工核对引用、图表、公式、页数、匿名要求、overfull boxes 和未定义引用。
 
 ###### 推荐完整路径
-最稳妥的完整路径是：安装插件和 CLI → 初始化项目或导入已有材料 → 完成/确认 `storyline.md` → 跑 relatedwork → 做 Socratic discussion → 准备实验或记录跳过原因 → 写/导入 `paper.md` → 逐节 checker/review-revise → submission precheck → 使用 `latex-final-writer` 生成 LaTeX 终稿。PPT 导入主线后可从 Step 3 继续；已有论文导入 `paper.md` 后可从 Step 7 继续。每个阶段都可以重入；如果后面发现前面有缺口，回到对应 skill 修正即可。
+推荐的完整路径是：安装插件和 CLI → 初始化项目或导入已有材料 → 完成/确认 `storyline.md` → 跑 relatedwork → 做 Socratic discussion → 准备实验或记录跳过原因 → 写/导入 `paper.md` → 逐节 checker/review-revise → submission precheck → 使用 `latex-final-writer` 生成 LaTeX 终稿。PPT 导入主线后可从 Step 3 继续；已有论文导入 `paper.md` 后可从 Step 7 继续。每个阶段都可以重入；如果后面发现前面有缺口，回到对应 skill 修正即可。
 
 ```text
 初始化 → 主线 → 文献 → 讨论 → 实验/跳过 → 写作 → 审阅修订 → 预检 → LaTeX 终稿
