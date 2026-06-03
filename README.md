@@ -9,16 +9,16 @@
 ## 中文快速指南
 
 
-CoPaper 是给研究者用的论文写作工作流工具。它不会替你“想出一篇论文”，而是把写作过程拆开：先理清 research storyline，再补 related work，接着写 `paper.md`，最后再进入 LaTeX 草稿。
+CoPaper 是给研究者用的论文写作工作流工具。它不替你“想出一篇论文”，而是把写作过程拆开：先理清 research storyline，再补 related work，接着写 `paper.md`，最后进入 LaTeX 阶段。
 
-它适合那种材料已经有一些、但容易散在 PPT、PDF、实验记录、草稿和对话里的项目。CoPaper 做的事比较朴素：帮你把这些材料放到一个可追踪的流程里。
+它适合那种材料已经有一些、但容易散在 PPT、PDF、实验记录、草稿和对话里的项目。CoPaper 做的事很简单：帮你把这些材料放到一个可追踪的流程里。
 
 本项目提炼自北京大学操作系统实验室的论文写作工作流。
 
 ### 使用前须知
 
 ###### 工具定位
-CoPaper 只是辅助工具。论文是否成立，实验是否可信，结论是否能写，最后都要由作者负责。
+CoPaper 只是辅助工具。它帮助作者理清思路、发现写作中的遗漏和不足，但不能生成论文，也不能产生任何有实际意义的创新想法。论文是否成立、实验是否可信、结论能否成立，都需要作者逐段把关和负责。
 
 ###### 学术诚信
 实验数据、图表、指标、案例和结论必须来自真实实验或可核查来源。不要用 CoPaper 抄袭、编数据、编引用，或者把贡献写得比实际更大。
@@ -27,13 +27,13 @@ CoPaper 只是辅助工具。论文是否成立，实验是否可信，结论是
 模型现在还不适合一口气处理整篇论文。更稳的做法是按章节、小节、段落推进。一次塞太多内容，模型更容易漏约束、串上下文，写出来也会忽好忽坏。
 
 ###### 人工核查
-CoPaper 或模型生成的内容都可能有幻觉、不准确表述或未经验证的推断。正式使用前，请逐条检查事实、数据、引用、实验设置、结论和文字原创性。
+CoPaper 和模型生成的内容都可能有幻觉、不准确表述、未经验证的推断。正式使用前，请逐条检查事实、数据、引用、实验设置、结论和文字原创性。
 
 ### 适合谁
 
 - 正在用 OpenCode / Oh-My-OpenCode 写论文的研究者
-- 想把论文拆成 storyline、literature、discussion、experiments、writing、latex_review 等阶段来推进的人
-- 需要记录阶段状态、artifact readiness、checker 结果和 related-work 进度的人
+- 想按 storyline、literature、discussion、experiments、writing、latex_review 等阶段推进论文的人
+- 需要跟踪阶段状态、artifact readiness、checker 结果和 related-work 进度的人
 - 已经有 PPT、PDF 初稿或 LaTeX 草稿，想迁移到 `storyline.md` / `paper.md` 工作流的人
 
 ### 核心能力
@@ -100,7 +100,7 @@ copaper --root <project-dir> set-phase storyline --status complete
 copaper --root <project-dir> log --last 10
 ```
 
-在 OpenCode 中，推荐从 `/copaper` 开始查看 Dashboard，再根据任务交给对应 subagent 或 skill。
+在 OpenCode 中，推荐先跑 `/copaper` 看 Dashboard，再按任务交给对应的 subagent 或 skill。
 
 ### 推荐写作路径
 
@@ -116,11 +116,11 @@ copaper --root <project-dir> log --last 10
 → 生成 LaTeX 终稿
 ```
 
-每个阶段都可以重入。后续发现前面材料不足时，回到对应阶段修正即可。
+每个阶段都可以重入。后面发现前面材料不足，回到对应阶段修正即可。
 
 ### 文档
 
-完整用户手册请看 GitHub Pages：
+完整用户手册见 GitHub Pages：
 
 ```text
 https://pku-asal.github.io/CoPaper-OpenCode/
