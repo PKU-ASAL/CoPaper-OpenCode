@@ -1,887 +1,307 @@
-# CoPaper 使用与测试手册
+# Copaper - 你的论文助手 / Your Paper Assistant
 
-> 版本：0.1.0 | 本文档描述当前实际实现，而非理想愿景。
+- 中文：[中文快速指南](#中文快速指南)
+- English: [English Quick Guide](#english-quick-guide)
+- 完整文档 / Full docs: <https://pku-asal.github.io/CoPaper-OpenCode/>
 
-## 项目概述
+## 中文快速指南
 
-CoPaper 是一个 AI 辅助学术论文写作框架，由以下三部分组成：
+CoPaper 是给研究者用的论文写作工作流工具。它不会替你“想出一篇论文”，而是把写作过程拆开：先理清 research storyline，再补 related work，接着写 `paper.md`，最后再进入 LaTeX 草稿。
 
-1. **Python 包 (`copaper/`)**：提供六阶段流水线的状态管理、事件日志、Git 操作、周报生成和 7-checker 集成。
-2. **Agent Skills (`.agents/skills/`)**：多个 OpenCode/Sisyphus 技能，通过自然语言触发，覆盖从研究主线构建到 LaTeX 转换，再到文本去 AI 痕迹润色的完整流程。
-3. **CLI (`copaper` 命令)**：基于 Click 的命令行工具，用于项目初始化、状态查询、显式阶段状态更新、阶段跳过、Git 提交/回滚、周报和差异对比。
+它适合那种材料已经有一些、但容易散在 PPT、PDF、实验记录、草稿和对话里的项目。CoPaper 做的事比较朴素：帮你把这些材料放到一个可追踪的流程里。
 
-核心理念：**结构与模板优先，AI 辅助优化**。AI 基于你提供的 Insight 和实验数据组织语言、优化文字，而非自由发挥；对成稿可结合 `humanizer` 做“去 AI 味”润色，保持原意同时提升自然度。
+### 使用前须知
 
-## 目标用户与非目标
+###### 工具定位
+CoPaper 只是辅助工具。论文是否成立，实验是否可信，结论是否能写，最后都要由作者负责。
 
-**目标用户**：使用 OpenCode/Oh-My-OpenCode (Sisyphus) 进行学术论文写作的研究者，需要结构化的写作流程管理和 AI 辅助。
+###### 学术诚信
+实验数据、图表、指标、案例和结论必须来自真实实验或可核查来源。不要用 CoPaper 抄袭、编数据、编引用，或者把贡献写得比实际更大。
 
-**非目标**：
-- 本项目不是独立的论文自动生成器——AI 只在用户确认后起草内容。
-- 本项目不替代 Git 操作，而是与 Git 协同工作。
-- 本项目不提供大模型推理能力，需要用户自行配置底层模型。
+###### 分步生成
+模型现在还不适合一口气处理整篇论文。更稳的做法是按章节、小节、段落推进。一次塞太多内容，模型更容易漏约束、串上下文，写出来也会忽好忽坏。
 
-## 环境与安装
+###### 人工核查
+CoPaper 或模型生成的内容都可能有幻觉、不准确表述或未经验证的推断。正式使用前，请逐条检查事实、数据、引用、实验设置、结论和文字原创性。
 
-### 前置条件
+### 适合谁
 
-- **Python ≥ 3.10**
-- **Git**（`commit`、`rollback`、`diff` 命令依赖 Git 仓库；`report` 可在非 Git 仓库运行，但不会包含 Git 提交摘要）
-- 推荐使用 VSCode + OpenCode/Oh-My-OpenCode (Sisyphus 代理模式) 作为运行环境
-- 推荐为 subagent 配置支持多模态输入且上下文窗口长的模型（如 `google/gemini-3.1-pro-preview`）
+- 正在用 OpenCode / Oh-My-OpenCode 写论文的研究者
+- 想把论文拆成 storyline、literature、discussion、experiments、writing、latex_review 等阶段来推进的人
+- 需要记录阶段状态、artifact readiness、checker 结果和 related-work 进度的人
+- 已经有 PPT、PDF 初稿或 LaTeX 草稿，想迁移到 `storyline.md` / `paper.md` 工作流的人
 
-### 安装步骤
+### 核心能力
+
+- `copaper` CLI：初始化项目、查看状态、更新 phase、记录日志、生成报告、管理 relatedwork
+- OpenCode 插件：提供 `/copaper`、`/copaper-doctor`、`/copaper-relatedwork` 和 `copaper_*` 工具
+- Subagents：区分 coordinator、storyline、writer、reviewer、recorder、literature 等角色
+- Skills：覆盖 storyline 构建、相关工作、苏格拉底讨论、实验分析、写作、审阅、LaTeX 终稿等流程
+- 状态文件：用 `.agents/state.json` 和 `.agents/events.jsonl` 保存可审计的工作流状态
+
+### 快速安装
+
+安装 Python CLI：
 
 ```bash
-# 克隆仓库后，在项目根目录执行
 pip install -e .[dev]
 ```
 
-安装完成后可使用两种方式调用 CLI：
+验证：
 
 ```bash
-# 方式一：通过 console script
 copaper --help
-
-# 方式二：通过 Python 模块
 python -m copaper --help
 ```
 
-### 依赖说明
-
-核心依赖（自动安装）：
-- `click >= 8.0`：CLI 框架
-- `pyyaml >= 6.0`：YAML 处理
-- `gitpython >= 3.1`：Git 操作
-
-开发依赖（`[dev]` 选项）：
-- `pytest >= 7.0`
-- `pytest-cov >= 4.0`
-
-## 仓库结构
-
-```
-CoPaper-Skill/
-├── copaper/                  # Python 包：状态管理、CLI、Git 操作等
-│   ├── __init__.py             # 版本号与公共 API
-│   ├── __main__.py             # python -m copaper 入口
-│   ├── cli.py                  # Click CLI 命令定义
-│   ├── scaffold/               # `copaper init` 复制到新项目的脚手架资源
-│   ├── constants.py            # 六阶段定义、状态枚举、依赖图
-│   ├── schema.py               # state.json 的 schema 与默认值
-│   ├── state.py                # StateManager：读写 state.json
-│   ├── eventlog.py             # EventLogger：追加式事件日志
-│   ├── git_ops.py              # GitManager：阶段化提交与回滚
-│   ├── report.py               # 周报与差异报告生成
-│   ├── checker_integration.py  # 7-checker 结果追踪与解析
-│   ├── crossindex.py           # 文献交叉索引
-│   ├── dimensions.py           # 讨论维度定义
-│   └── identity.py             # Git 身份管理
-├── .agents/
-│   ├── skills/                 # Agent Skills 目录
-│   │   ├── storyline-helper/   # 研究主线构建
-│   │   ├── relatedwork-finder/  # 文献检索与阅读
-│   │   ├── socratic-discussion/ # 苏格拉底式讨论
-│   │   ├── experiment-analyzer/ # 实验分析
-│   │   ├── writing-orchestrator/# 写作编排
-│   │   ├── markdown-helper/     # 交互式写作辅助
-│   │   ├── markdown-review/     # 论文审查
-│   │   ├── review-revise/       # 多轮审查修订
-│   │   ├── submission-precheck/ # 提交前检查
-│   │   ├── markdown2latex/      # Markdown 转 LaTeX
-│   │   ├── template-latex-export/ # 基于模板生成最终 LaTeX
-│   │   ├── pdf2paper/           # PDF 初稿逐 section 转 paper.md
-│   │   ├── ppt2storyline/       # PPT/PPTX 转 storyline
-│   │   ├── latex2markdown/      # LaTeX 转 Markdown
-│   │   ├── problem-checker/     # 问题定义检查
-│   │   ├── novelty-checker/     # 新颖度检查
-│   │   ├── technical-depth-checker/ # 技术深度检查
-│   │   ├── logic-checker/       # 逻辑一致性检查
-│   │   ├── clarity-checker/     # 清晰度检查
-│   │   ├── evaluation-protocol-checker/ # 评估协议检查
-│   │   ├── data-checker/        # 数据真实性检查
-│   │   ├── bogus-data-helper/   # 占位数据生成
-│   │   ├── human-comment-helper/ # 人工评审注释
-│   │   ├── humanizer/           # 去 AI 痕迹润色
-│   │   ├── mad-writer/          # 自动写作循环
-│   │   └── copaper-manage/    # CLI 工作流管理
-│   ├── state.json              # 项目状态文件（init 后生成）
-│   └── events.jsonl            # 事件日志（追加式 JSON Lines）
-├── relatedwork/                # 文献存储目录
-│   ├── literature.json         # 相关工作元数据总表（canonical catalog）
-│   ├── paper_list.bib          # BibTeX 引用列表
-│   ├── pdfs/                   # 下载的论文 PDF
-│   └── papers/                 # 每篇论文的 Markdown 摘要
-├── fig/                        # 论文图片目录（JPG/PNG/GIF，≤5MB）
-├── templates/
-│   └── latex/                  # 用户自行放置会议/期刊 LaTeX 模板
-├── tests/                      # 测试目录
-│   ├── test_cli.py             # CLI 命令测试
-│   ├── test_state.py           # 状态管理测试
-│   ├── test_eventlog.py        # 事件日志测试
-│   ├── test_git_ops.py         # Git 操作测试
-│   ├── test_report.py          # 报告生成测试
-│   ├── test_checker_integration.py # Checker 集成测试
-│   ├── test_crossindex.py      # 交叉索引测试
-│   ├── test_dimensions.py      # 维度定义测试
-│   ├── test_identity.py        # 身份管理测试
-│   ├── test_checker_main.py    # Checker 主流程测试
-│   ├── conftest.py             # 测试 fixtures
-│   └── acceptance_checklist.md # 手动验收清单
-├── pyproject.toml              # 包配置
-├── workflow-dataflow.md         # storyline.md / paper.md / skills 数据流分析
-├── writingrules.md              # 写作规范
-├── paper.md                     # 论文主文档模板（`copaper init` 会复制）
-└── storyline.md                 # 研究主线模板（`copaper init` 会复制）
-```
-
-## 六阶段流水线
-
-CoPaper 定义了六个写作阶段，按顺序推进：
-
-| 阶段 | 名称 | 说明 | 推荐前置 | 工具层面可跳过 |
-|------|------|------|----------|----------------|
-| 1 | `storyline` | 定义研究主线与核心 Insight | 无 | 是 |
-| 2 | `literature` | 检索、阅读、交叉索引相关文献 | storyline | 是 |
-| 3 | `discussion` | 多轮苏格拉底式讨论，精炼论证 | storyline, literature | 是 |
-| 4 | `experiments` | 运行实验或跳过并说明理由 | discussion | 是 |
-| 5 | `writing` | 逐节撰写 paper.md | discussion | 是 |
-| 6 | `latex_review` | 转换为 LaTeX 并审查 | writing | 是 |
-
-**依赖关系**：`copaper/constants.py` 中的 `PHASE_DEPENDENCIES` 定义的是**推荐正向推进顺序**，用于状态检查与默认流程编排；它不是对内容工作的硬禁止。实际技能层面允许重入、补跑与部分逆向工作流。
-
-**当前阶段语义**：`current_phase` 不再只是初始化时的默认值。CLI 现在会根据真实 phase 状态自动重算它：优先选择 `in_progress` 的 phase；如果没有，则选择第一个既不是 `complete` 也不是 `skipped` 的 phase。
-
-**跳过规则**：CLI 当前允许对任意有效阶段名执行 `copaper skip <phase>`；`--reason` 是**可选**参数，但强烈建议填写，便于后续追踪。实践上最常跳过的是 `experiments`，但其它阶段在工具层面也都可以跳过、回退后重做或在必要时补做。
-
-## 文档与 Skill 数据流
-
-CoPaper 的核心不是“阶段本身”，而是几个关键工件之间的数据流：`storyline.md`、`paper.md`、`relatedwork/`、`.agents/state.json`。
-
-推荐正向路径是：
-
-1. `storyline.md`：先明确问题、insight、设计与评测思路
-2. `relatedwork/`：根据 storyline 或 paper 补齐相关工作
-3. `paper.md`：把 narrative 转换为正式论文框架与段落
-4. `checkers` / `review-revise`：围绕 `paper.md` 做质量闭环
-5. `latex`：从 `paper.md` 导出投稿格式
-
-但当前实现已经支持若干“非单向”路径：
-
-- `relatedwork-finder` 以 `storyline.md` 为主输入，但缺失时会回退到 `paper.md`
-- `storyline-helper` 可以把已有 `paper.md` 中已经写出的内容反向提炼回 `storyline.md`
-- `socratic-discussion`、`experiment-analyzer`、`review-revise` 会同时读取 `storyline.md` 与 `paper.md`
-- `latex2markdown` 可以把已有 LaTeX 导入到 `paper.md`
-- 多数 skill 都可以重复执行，而不是“一次性过阶段”
-
-更详细的输入/输出矩阵、可跳过/可重入语义，以及当前结构缺陷分析见 `workflow-dataflow.md`。
-
-## CLI 快速上手
-
-### ⚠️ 重要：`--root` 是全局选项
-
-`--root` 必须放在子命令**之前**，不能放在子命令之后：
+安装 OpenCode 插件发布包：
 
 ```bash
-# ✅ 正确
-copaper --root /path/to/project status
-copaper --root ./my-paper init --name "My Paper" --domain SE
-
-# ❌ 错误——--root 在子命令之后会被忽略
-copaper init --root /path/to/project --name "My Paper" --domain SE
+bunx -p @copaper/opencode copaper-opencode init
 ```
 
-### 命令一览
-
-#### `copaper init` — 初始化项目
+使用本仓库本地开发版本：
 
 ```bash
-# 交互式（会提示输入 name 和 domain）
-copaper init
-
-# 非交互式
-copaper init --name "My Paper" --domain "software engineering"
-
-# 指定项目根目录
-copaper --root /path/to/project init --name "My Paper" --domain SE
+cd packages/opencode-plugin
+bun install
+bun run build
+bun run dev:install <target-project>
 ```
 
-创建 `.agents/` 目录、`state.json`、`events.jsonl`，并复制 `.agents/skills/`、`storyline.md`、`paper.md`、`writingrules.md`、`AGENTS.md`。如果 `state.json` 已存在，会提示确认是否重新初始化。
+安装后重启 OpenCode，并在目标项目中运行：
 
-#### `copaper status` — 查看项目状态
+```text
+/copaper-doctor
+/copaper
+```
+
+### 最小使用流程
 
 ```bash
-# 人类可读格式
-copaper status
+# 1. 初始化论文项目
+copaper --root <project-dir> init --name "My Paper" --domain "software engineering"
 
-# JSON 格式（适合脚本解析）
-copaper status --json
+# 2. 查看当前状态
+copaper --root <project-dir> status
+
+# 3. 进入某个阶段
+copaper --root <project-dir> set-phase storyline --status in_progress
+
+# 4. 完成阶段后更新状态
+copaper --root <project-dir> set-phase storyline --status complete
+
+# 5. 查看最近事件
+copaper --root <project-dir> log --last 10
 ```
 
-输出示例：
-```
-Project: My Paper (software engineering)
-Created: 2026-04-09T10:30:00+00:00
-Current Phase: storyline
+在 OpenCode 中，推荐从 `/copaper` 开始查看 Dashboard，再根据任务交给对应 subagent 或 skill。
 
-Phase               Status
-----------------------------
-storyline           [    ] not_started
-literature          [    ] not_started
-discussion          [    ] not_started
-experiments         [    ] not_started
-writing             [    ] not_started
-latex_review        [    ] not_started
+### 推荐写作路径
+
+```text
+初始化项目
+→ 完成 storyline.md
+→ 检索和整理 relatedwork
+→ 做 Socratic discussion
+→ 准备实验或记录跳过原因
+→ 按 section 写 paper.md
+→ 逐节 checker / review-revise
+→ submission precheck
+→ 生成 LaTeX 终稿
 ```
 
-#### `copaper skip` — 跳过阶段
+每个阶段都可以重入。后续发现前面材料不足时，回到对应阶段修正即可。
+
+### 文档
+
+完整用户手册请看 GitHub Pages：
+
+```text
+https://pku-asal.github.io/CoPaper-OpenCode/
+```
+
+仓库内文档入口：
+
+- 中文用户手册：[docs/index.md](docs/index.md)
+- English guide：[docs/en.md](docs/en.md)
+- 完整参考手册：[docs/full-manual.md](docs/full-manual.md)
+- OpenCode 插件文档：[packages/opencode-plugin/README.md](packages/opencode-plugin/README.md)
+- 项目架构地图：[codemap.md](codemap.md)
+
+### 开发与测试
+
+Python 测试：
 
 ```bash
-# 推荐写法：带原因
-copaper skip experiments --reason "纯理论论文，无需实验"
-
-# 也可省略原因（不推荐）
-copaper skip experiments
+.venv/bin/pytest
 ```
 
-**注意**：`skip` 的参数是阶段名称（如 `experiments`），不是阶段字母（如 `D`）。有效名称为：`storyline`、`literature`、`discussion`、`experiments`、`writing`、`latex_review`。
-
-#### `copaper set-phase` — 显式设置阶段状态
+OpenCode 插件测试：
 
 ```bash
-# 将 storyline 标为完成，并自动推进 current_phase
-copaper set-phase storyline --status complete
-
-# 将 discussion 标为进行中；如果推荐前置阶段未完成，会给出 warning 但不会硬阻止
-copaper set-phase discussion --status in_progress
-
-# 将 experiments 标为 skipped
-copaper set-phase experiments --status skipped --reason "纯理论论文"
+cd packages/opencode-plugin
+bun run typecheck
+bun test
+bun run build
 ```
 
-支持的状态值：`not_started`、`in_progress`、`complete`、`skipped`。
-
-这个命令适合 agent/脚本在不手改 `.agents/state.json` 的前提下，显式推进或回退工作流状态。
-
-#### `copaper log` — 查询操作日志
+文档本地预览：
 
 ```bash
-# 查看所有日志
-copaper log
-
-# 按阶段过滤
-copaper log --phase storyline
-
-# 按操作者过滤
-copaper log --operator user
-
-# 查看最近 10 条
-copaper log --last 10
-
-# 按日期过滤
-copaper log --since 2026-04-01
+pip install -r docs/requirements.txt
+mkdocs serve
 ```
 
-#### `copaper report` — 生成周报
+## English Quick Guide
+
+CoPaper is a paper-writing workflow tool for researchers. It does not try to invent a paper for you. Instead, it helps you move through the messy middle: research storyline, related work, `paper.md`, review, and eventually a final LaTeX draft.
+
+It is useful when your material already exists but is scattered across slides, PDFs, experiment notes, drafts, and conversations. CoPaper gives that material a workflow and a state file.
+
+### Before You Use CoPaper
+
+###### Tool Scope
+CoPaper is only an assistant for writing, project management, and research-material organization. The author is still responsible for the academic judgment, experiments, and final paper.
+
+###### Academic Integrity
+Experimental data, figures, metrics, case studies, and conclusions must come from real experiments or verifiable sources. Do not use CoPaper to plagiarize, fabricate data, invent citations, or overstate contributions.
+
+###### Step-by-Step Generation
+Current models still struggle with whole-paper generation. Work section by section, subsection by subsection, or paragraph by paragraph. If you ask for too much at once, the model is more likely to miss constraints, mix contexts, or produce uneven prose.
+
+###### Human Verification
+Anything generated by CoPaper or a language model may contain hallucinations, inaccurate wording, or unverified inferences. Before submission or public use, manually check facts, data, citations, experimental setup, conclusions, and originality.
+
+### Who It Is For
+
+- Researchers writing papers with OpenCode / Oh-My-OpenCode
+- Users who want to manage paper writing through phases such as storyline, literature, discussion, experiments, writing, and latex_review
+- Users who want auditable records for phase status, artifact readiness, checker results, and related-work progress
+- Users who already have slides, a PDF draft, or a LaTeX draft and want to migrate them into structured `storyline.md` / `paper.md` workflows
+
+### Core Capabilities
+
+- `copaper` CLI: initialize projects, inspect status, update phases, query logs, generate reports, and manage related work
+- OpenCode plugin: provides `/copaper`, `/copaper-doctor`, `/copaper-relatedwork`, and `copaper_*` tools
+- Subagents: separates coordinator, storyline, writer, reviewer, recorder, and literature roles
+- Skills: covers storyline building, related work, Socratic discussion, experiment analysis, writing, review, and final LaTeX drafting
+- State files: stores auditable workflow state in `.agents/state.json` and `.agents/events.jsonl`
+
+### Quick Install
+
+Install the Python CLI:
 
 ```bash
-# 输出到终端
-copaper report
-
-# 指定起始日期
-copaper report --since 2026-04-01
-
-# 输出到文件
-copaper report --output report.md
-```
-
-周报包含：阶段进度、Git 提交摘要（按作者分组）、事件日志统计。如果不在 Git 仓库中，Git 部分会显示 "Git repository not available"。
-
-#### `copaper relatedwork` — 管理论文元数据、BibTeX 与 PDF
-
-literature 阶段的所有步骤都封装成 `copaper relatedwork *` 子命令。检索走 Semantic Scholar Graph API；关键词抽取与单篇摘要走任意 OpenAI 兼容的 LLM 端点（默认从 `.env` 读取配置）。
-
-##### 必需环境变量（写到项目根的 `.env`，启动时自动加载）
-
-```bash
-# Semantic Scholar
-S2_API_KEY="..."                          # 推荐配置；不配也能跑（共享匿名池易 429）
-S2_API_BASE="..."                         # 可选：走中转代理时填，未填走官方 https://api.semanticscholar.org/graph/v1
-
-# LLM（keywords + summarize 需要）
-OPENAI_API_KEY="..."                      # 必填
-COPAPER_MODEL="gpt-4o-mini"             # 必填，建议先用便宜模型 smoke
-OPENAI_BASE_URL="https://proxy/v1"        # 可选：走中转代理时填
-```
-
-> `.env` 已加入 `.gitignore`；密钥不会被提交。
-
-##### 端到端 7 步流水线
-
-```bash
-# Step 1 · LLM 从 storyline.md 抽 query → relatedwork/queries.txt
-copaper relatedwork keywords --count 6
-
-# Step 2 · Semantic Scholar 检索 → relatedwork/search_cache.json
-copaper relatedwork search --queries-file relatedwork/queries.txt --limit 5
-
-# Step 3 · 灌进 canonical catalog → relatedwork/literature.json
-copaper relatedwork import --input relatedwork/search_cache.json
-
-# Step 4 · 同步 BibTeX → relatedwork/paper_list.bib
-copaper relatedwork sync-bib
-
-# Step 5 · 下载 OA PDF → relatedwork/pdfs/<paper_id>.pdf
-copaper relatedwork download
-
-# Step 6 · LLM 单篇 summary → relatedwork/papers/<paper_id>.md
-copaper relatedwork summarize --concurrency 4
-
-# Step 7 · 交叉索引 + 覆盖报告 → .agents/cross_index.json
-copaper relatedwork build-index
-
-# 任意时刻看状态
-copaper relatedwork status
-```
-
-##### 每个子命令的常用 flag
-
-```bash
-# keywords —— 从 storyline.md / paper.md 抽搜索短语
-copaper relatedwork keywords --count 8 --model gpt-4o-mini --out relatedwork/queries.txt
-
-# search —— S2 检索 + BibTeX/arXiv/PDF URL/TLDR 自动归一化
-# 默认过滤(可覆盖):--fields-of-study "Computer Science" 默认开启,--open-access 默认关闭
-copaper relatedwork search --queries-file relatedwork/queries.txt \
-    --limit 20 --year 2022-2026 \
-    --venue "CVPR,NeurIPS"
-
-# 只要有 OA PDF 的论文(便于后续 download)
-copaper relatedwork search --queries-file relatedwork/queries.txt --open-access
-
-# 跨学科搜索(关掉默认的 CS 限定)
-copaper relatedwork search --queries-file relatedwork/queries.txt --fields-of-study ""
-
-# 也可不写 queries-file,直接传 query
-copaper relatedwork search --query "streaming vla" --query "robot policy"
-
-# import / sync-bib —— 元数据双向同步
-copaper relatedwork import --input relatedwork/search_cache.json
-copaper relatedwork sync-bib
-
-# download —— urllib + 3 次重试 + %PDF 头校验
-copaper relatedwork download
-copaper relatedwork download --retry-failed
-copaper relatedwork download --paper-id song2025ceed
-
-# summarize —— pypdf 抽文本 + LLM,内部 ThreadPool + 16 QPS token bucket
-copaper relatedwork summarize                       # 全部 downloaded 且无 summary 的
-copaper relatedwork summarize --paper-id <id>       # 只一篇
-copaper relatedwork summarize --force               # 重新做已有 summary
-copaper relatedwork summarize --concurrency 8 --qps 16 --max-pdf-bytes 52428800
-
-# build-index —— 解析 papers/*.md 生成交叉索引 + 覆盖报告
-copaper relatedwork build-index
-
-# register-summary —— 手动登记一篇外部生成的 summary(summarize CLI 已自动调,通常不需要手动)
-copaper relatedwork register-summary --paper-id <id> --summary-path relatedwork/papers/<id>.md
-
-# status —— 总表
-copaper relatedwork status
-copaper relatedwork status --json
-```
-
-##### 关键产物
-
-| 文件 | 写入者 | 内容 |
-|---|---|---|
-| `relatedwork/queries.txt` | `keywords` | 一行一条搜索短语;可手动编辑后再喂 search |
-| `relatedwork/search_cache.json` | `search` | S2 去重 + 归一化后的 paper 列表 |
-| `relatedwork/literature.json` | `import` / `download` / `summarize` 等 | **canonical metadata catalog**(题目、作者、venue、arXiv ID、BibTeX、PDF 路径、summary 路径、状态) |
-| `relatedwork/paper_list.bib` | `sync-bib` | 与 catalog 双向同步的 BibTeX |
-| `relatedwork/pdfs/<paper_id>.pdf` | `download` | OA PDF 原件 |
-| `relatedwork/papers/<paper_id>.md` | `summarize` | 单篇 markdown 总结(按 `.agents/skills/relatedwork-finder/template.md` 模板) |
-| `.agents/cross_index.json` | `build-index` | storyline 技术点 ↔ 论文 反向索引 + 覆盖率 |
-| `.agents/state.json` literature phase | 上述所有命令自动同步 | 聚合计数(`papers_found` / `papers_downloaded` / `download_failures` / `summaries_done` / `cross_index_built`) |
-
-#### `copaper diff` — 阶段间差异对比
-
-```bash
-copaper diff storyline literature
-```
-
-显示两个阶段最后一次提交之间的 Git diff。如果某个阶段没有提交，会提示无 diff 可用。
-
-#### `copaper commit` — 阶段化 Git 提交
-
-```bash
-# 自动检测当前阶段
-copaper commit -m "完成研究主线初稿"
-
-# 指定阶段
-copaper commit --phase storyline -m "完成研究主线初稿"
-
-# 强制提交（即使没有暂存变更）
-copaper commit -m "空提交标记" --force
-```
-
-提交消息格式为 `[phase] message`，并自动添加 `Co-authored-by: CoPaper AI <ai@copaper>` 尾部。**必须在 Git 仓库中运行**。
-
-#### `copaper rollback` — 回滚到某阶段的提交
-
-```bash
-# 交互式确认
-copaper rollback storyline
-
-# 跳过确认
-copaper rollback storyline -y
-```
-
-使用 `git reset --soft` 回滚到指定阶段的最后一次提交，同时将 `state.json` 中该阶段状态重置为 `not_started`。**必须在 Git 仓库中运行**。
-
-### 常见错误
-
-| 错误信息 | 原因 | 解决方法 |
-|----------|------|----------|
-| `No project found. Run 'copaper init' first.` | 当前目录没有 `.agents/state.json` | 先运行 `copaper init` |
-| `--root` 选项不生效 | `--root` 放在了子命令之后 | 将 `--root` 移到子命令之前 |
-| `skip` 报错无效阶段名 | 使用了字母标签如 `A`/`B` 而非阶段名 | 使用完整名称如 `storyline`、`experiments` |
-| `report` 显示 "Git repository not available" | 不在 Git 仓库中 | 在 Git 仓库内运行，或忽略此部分 |
-| `commit`/`rollback` 报错 | 不在 Git 仓库中 | 在 Git 仓库内运行 |
-| `No staged changes to commit` | 没有可提交的变更 | 使用 `--force` 创建空提交，或先修改文件 |
-
-## 状态与事件文件
-
-### `.agents/state.json`
-
-项目初始化后由 `copaper init` 创建，是项目进度的唯一真实来源。结构如下：
-
-```json
-{
-  "project": {
-    "name": "My Paper",
-    "created_at": "2026-04-09T10:30:00+00:00",
-    "domain": "software engineering"
-  },
-  "phases": {
-    "storyline": {
-      "status": "not_started",
-      "completed_at": null,
-      "metadata": {}
-    },
-    "literature": {
-      "status": "not_started",
-      "papers_found": 0,
-      "summaries_done": 0,
-      "cross_index_built": false
-    },
-    "discussion": {
-      "status": "not_started",
-      "rounds": 0,
-      "dimensions_covered": []
-    },
-    "experiments": {
-      "status": "not_started",
-      "skip_reason": null,
-      "data_files": []
-    },
-    "writing": {
-      "status": "not_started",
-      "sections_complete": 0,
-      "sections_total": 0
-    },
-    "latex_review": {
-      "status": "not_started",
-      "review_rounds": 0,
-      "comments_addressed": 0,
-      "comments_total": 0
-    }
-  },
-  "current_phase": "storyline",
-  "event_log_path": ".agents/events.jsonl",
-  "git": {
-    "auto_commit": false,
-    "identity": {
-      "role": "assistant",
-      "git_name": "CoPaper Bot",
-      "git_email": "bot@copaper.dev"
-    }
-  },
-  "checkers": {}
-}
-```
-
-阶段状态取值：`not_started`、`in_progress`、`complete`、`skipped`。
-
-### `.agents/events.jsonl`
-
-追加式 JSON Lines 日志文件，每行一个 JSON 对象。记录所有操作事件：
-
-```json
-{"timestamp":"2026-04-09T10:30:00+00:00","operator":"user","phase":"storyline","action":"init_project","result":"success"}
-{"timestamp":"2026-04-09T10:35:00+00:00","operator":"user","phase":"storyline","action":"skip_phase","result":"success","metadata":{"reason":"纯理论论文"}}
-```
-
-字段说明：
-- `timestamp`：ISO 8601 时间戳
-- `operator`：操作者，取值为 `user`、`ai`、`system`
-- `phase`：关联的阶段
-- `action`：动作名称（如 `init_project`、`skip_phase`、`commit_phase`）
-- `result`：结果（如 `success`、`failure`）
-- `metadata`：可选的附加信息
-
-日志文件超过 10 MB 时自动轮转（重命名为 `.jsonl.1`）。
-
-### Checker 追踪
-
-`state.json` 中的 `checkers` 字段记录 7 个检查器的运行结果：
-
-```json
-{
-  "checkers": {
-    "problem-checker": {
-      "last_run": "2026-04-09T12:00:00+00:00",
-      "issues": {
-        "critical": 0,
-        "major": 2,
-        "minor": 1
-      }
-    }
-  }
-}
-```
-
-7 个检查器名称：`problem-checker`、`novelty-checker`、`technical-depth-checker`、`logic-checker`、`clarity-checker`、`evaluation-protocol-checker`、`data-checker`。
-
-可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
-
-```bash
-copaper --root <project-dir> checkers collect
-copaper --root <project-dir> checkers collect --checker logic --checker clarity
-copaper --root <project-dir> checkers status
-```
-
-harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。
-
-## Skill 使用指南
-
-Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应的 `SKILL.md` 文件分配给 Subagent 执行。以下是主要 Skill 的触发方式与功能说明：
-
-### storyline-helper — 研究主线构建
-
-**触发**：`"help me write storyline"`、`"帮我写 storyline"`、`"构建研究主线"`
-
-- 交互式、逐节引导用户构建 `storyline.md`
-- 不自动生成内容，而是打磨用户输入
-- 输出为 `storyline.md`，作为后续所有写作的最高指导准则
-
-### relatedwork-finder — 文献检索与阅读
-
-**触发**：`"find related work"`
-
-- 编排 `copaper relatedwork keywords / search / import / sync-bib / download` 7 步流水线
-- 关键词抽取与 Semantic Scholar 检索都委派给 `copaper` CLI,**不再调用任何 MCP 搜索工具**
-- 与 `relatedwork-summarizer` 配合完成 PDF 下载 → 单篇 summary → 交叉索引
-
-详见 `copaper relatedwork` 章节。
-
-### socratic-discussion — 苏格拉底式讨论
-
-**触发**：`"discuss my research"`、`"socratic discussion"`
-
-- 围绕 7 个检查维度（问题、新颖度、技术深度、逻辑、清晰度、评估协议、数据）进行批判性提问
-- 帮助用户审视 Insight、方法和论证
-- 讨论结果用于精炼论文论点
-
-### experiment-analyzer — 实验分析
-
-**触发**：`"analyze experiments"`、`"help me understand experiment code"`
-
-- 分析实验代码和结果
-- 审查实验设计
-- 辅助理解实验协议
-
-### writing-orchestrator — 写作编排
-
-**触发**：`"write the paper"`、`"start writing"`
-
-- 扫描 `paper.md` 完成状态，推荐写作顺序
-- 提供精细模式（markdown-helper）和快速模式（mad-writer）
-- 每节完成后自动触发 7-checker 审查
-
-### review-revise — 多轮审查修订
-
-**触发**：`"review and revise"`、`"review-revise"`
-
-- 基于 7-checker 输出进行多轮审查-修订循环
-- 每个问题需要用户确认后才修改
-- 系统性地提升论文质量
-
-### submission-precheck — 提交前检查
-
-**触发**：`"precheck submission"`、`"submission precheck"`
-
-- 全面检查 `paper.md` 的格式、引用、图表、字数、完整性、数据真实性和整体质量
-- 生成结构化预检报告到 `.agents/precheck_report.md`
-
-### markdown2latex — Markdown 转 LaTeX
-
-**触发**：`"convert to latex"`、`"generate latex"`
-
-- 将 `paper.md` 内容转换为高质量 LaTeX 格式
-- 支持用户提供的会议模板进行格式适配
-- 适用于顶级会议和期刊投稿
-
-### template-latex-export — 模板化最终 LaTeX
-
-**触发**：`"generate final latex from paper.md"`、`"use templates/latex"`、`"基于模板生成最终latex论文"`
-
-- 将 `paper.md` 转换为最终 LaTeX 论文项目
-- 使用用户自行放入 `templates/latex/` 的会议或期刊模板
-- 输出写入 `target/latex/`，不覆盖原始模板目录
-- 不自动下载模板；用户需要先把 `.tex`、`.cls`、`.sty`、`.bst` 等模板文件放入 `templates/latex/`
-
-### pdf2paper — PDF 初稿逐 Section 转 Paper
-
-**触发**：`"convert pdf to paper.md"`、`"从PDF初稿生成paper.md"`、`"将位于 <path> 的pdf转变为paper.md"`
-
-- 从已有 `.pdf` 初稿提取内容，按语义映射到 `paper.md` 的既有 section
-- 可以从已有的论文初稿转变为paper.md进行审稿
-- 严格按 section 逐步转换，并在每节写入前走用户确认
-- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `paper.md`，先执行 `copaper --root <project-dir> init ...` 再更新 `writing` phase
-
-### ppt2storyline — PPT/PPTX 转 Storyline
-
-**触发**：`"convert ppt to storyline"`、`"从PPT生成storyline"`、`"将位于 <path> 的pptx文件转变为storyline.md"`
-
-- 从 `.pptx` 提取幻灯片文本并映射到 `storyline.md` 既有 section
-- 可以从小组会ppt直接转变成storyline.md并进行完整的工作流程
-- 以“忠实原文 + 轻量润色”为原则，不新增未在 PPT 出现的研究结论
-- 在项目早期可先检查项目目录；若缺少 `.agents/skills` 或 `storyline.md`，先执行 `copaper --root <project-dir> init ...` 再更新 phase
-
-### humanizer — 去 AI 痕迹润色
-
-**触发**：`"humanize this"`、`"make this sound more human"`、`"remove AI traces"`
-
-- 识别常见 AI 写作痕迹（如宣传腔、空泛归因、过度模板化句式、被动语态堆叠等）
-- 在不改变原始观点和事实的前提下重写表达，使语气更自然、更像真实作者
-- 可按用户样本文风做 voice matching，减少“统一 AI 腔”
-
-### phase-navigation — 阶段跳转
-
-**触发**：`"show current phase"`、`"go to next phase"`、`"go back to previous phase"`、`"jump to writing"`、`"查看当前阶段"`、`"进入下一阶段"`、`"回到上一个阶段"`、`"跳到 experiments 阶段"`
-
-- 通过 `copaper --root . status --json` 读取当前阶段
-- 查看当前阶段时只读状态，不修改 workflow
-- “下一阶段”会把当前 phase 标记为 `complete`，让 CLI 自动推进
-- “回到上一阶段/前面某阶段”会把目标 phase 设为 `in_progress`，并把后续 phase 重置为 `not_started`
-- “跳到某阶段”会用 `copaper --root . set-phase <phase> --status in_progress`
-- 跳转后在同一轮直接打开该阶段对应的 `SKILL.md` 并继续执行，例如 `writing` 打开 `writing-orchestrator`，`literature` 打开 `relatedwork-finder`
-
-## 人工测试指南
-
-### 自动化测试
-
-```bash
-# 运行所有测试
-python -m pytest tests/ -v
-
-# 运行测试并查看覆盖率
-python -m pytest tests/ --cov=copaper --cov-report=term
-```
-
-当前测试状态：**全部通过，覆盖率约 90%**。
-
-测试覆盖的模块：
-- `test_cli.py`：CLI 所有命令的集成测试
-- `test_state.py`：StateManager 读写、阶段状态管理、依赖检查
-- `test_eventlog.py`：EventLogger 追加、查询、轮转
-- `test_git_ops.py`：GitManager 提交、回滚、差异
-- `test_report.py`：周报和差异报告生成
-- `test_checker_integration.py`：CheckerTracker 记录、查询、解析
-- `test_crossindex.py`：交叉索引构建与查询
-- `test_dimensions.py`：讨论维度定义
-- `test_identity.py`：Git 身份检测
-- `test_checker_main.py`：Checker 主流程
-
-### 手动验收测试
-
-使用 `tests/acceptance_checklist.md` 进行手动验收。该清单覆盖以下流程：
-
-**Phase A-F 手动验收流程**：
-
-| 阶段 | Skill | 验收要点 |
-|------|-------|----------|
-| A: Storyline | storyline-helper | 填写 3 个 Level 6 段落，验证 state.json 更新 |
-| B: Literature | relatedwork-finder | 检索论文，验证 `relatedwork/papers/` 和交叉索引 |
-| C: Discussion | socratic-discussion | 讨论 1 个维度，验证讨论日志和 state.json |
-| D: Experiments | experiment-analyzer | 分析实验，验证 state.json |
-| E: Writing | writing-orchestrator | 写 1 节，验证 7-checker 触发 |
-| F: Review | review-revise | 完成 1 轮审查修订，验证 checker 结果驱动修订 |
-
-**CLI/Git 验收流程**：
-
-```bash
-# 1. 初始化项目
-copaper init --name "Test Paper" --domain SE
-
-# 2. 查看状态
-copaper status
-copaper status --json
-
-# 3. 提交
-copaper commit -m "draft"
-
-# 4. 查看日志
-copaper log
-copaper log --phase storyline
-
-# 5. 回滚
-copaper rollback storyline
-
-# 6. 生成报告
-copaper report
-copaper report --since 2026-04-01
-copaper report --output report.md
-
-# 7. 阶段差异
-copaper diff storyline literature
-
-# 8. 跳过阶段
-copaper skip literature --reason "not needed"
-```
-
-**Git 集成验收**：
-- 提交格式为 `[phase] message`
-- 自动添加 Co-author 尾部
-- 回滚使用 `git reset --soft`
-- 身份检测读取 Git 配置
-
-**提交前预检**：
-- 调用 submission-precheck skill
-- 验证 7 项检查覆盖（格式、引用、图表、字数、完整性、数据真实性、质量）
-- 验证预检报告生成于 `.agents/precheck_report.md`
-
-## 故障排除
-
-### `No project found. Run 'copaper init' first.`
-
-当前目录（或 `--root` 指定目录）下没有 `.agents/state.json` 文件。
-
-**解决**：在目标目录运行 `copaper init --name "项目名" --domain "领域"`。
-
-### `--root` 位置错误
-
-`--root` 是 Click 的**全局选项**，必须在子命令之前：
-
-```bash
-# ✅ 正确
-copaper --root /path/to/project status
-
-# ❌ 错误——Click 不会识别子命令之后的全局选项
-copaper status --root /path/to/project
-```
-
-### `skip` 命令需要有效阶段名
-
-`skip` 的参数必须是完整的阶段名称，不是字母标签：
-
-```bash
-# ✅ 正确
-copaper skip experiments --reason "纯理论论文"
-
-# ❌ 错误——D 不是有效阶段名
-copaper skip D --reason "纯理论论文"
-```
-
-有效阶段名：`storyline`、`literature`、`discussion`、`experiments`、`writing`、`latex_review`。
-
-### `report`/`diff` 在非 Git 仓库中的行为
-
-- `report`：可以运行，但 Git 提交摘要部分会显示 "Git repository not available"
-- `diff`：需要两个阶段都有 Git 提交才能显示差异，否则提示无 diff 可用
-
-### `commit`/`rollback` 依赖 Git 仓库
-
-这两个命令必须在 Git 仓库内运行。如果不在 Git 仓库中，会报错。
-
-### `init` 的交互式提示
-
-如果省略 `--name` 或 `--domain`，`init` 命令会交互式提示输入：
-
-```bash
-# 会提示输入 Project name 和 Research domain
-copaper init
-
-# 非交互式——适合脚本
-copaper init --name "My Paper" --domain "SE"
-```
-
-## 建议的首次运行流程
-
-以下是一个完整的人类操作者首次使用流程：
-
-```bash
-# 1. 安装
 pip install -e .[dev]
-
-# 2. 初始化项目（在 Git 仓库中）
-cd /path/to/your/paper-project
-git init  # 如果还不是 Git 仓库
-copaper init --name "My Research" --domain "software engineering"
-
-# 3. 构建研究主线
-#    在 OpenCode 中触发："help me write storyline"
-#    或手动编辑 storyline.md
-
-# 4. 检索文献(纯 CLI 流水线,需先在 .env 中配 OPENAI_API_KEY / COPAPER_MODEL / S2_API_KEY)
-copaper relatedwork keywords --count 6
-copaper relatedwork search --queries-file relatedwork/queries.txt --limit 5
-copaper relatedwork import --input relatedwork/search_cache.json
-copaper relatedwork sync-bib
-copaper relatedwork download
-copaper relatedwork summarize --concurrency 4
-copaper relatedwork build-index
-#    也可以在 OpenCode 中触发 "find related work" 让 skill 编排上述命令
-
-# 5. 苏格拉底式讨论
-#    在 OpenCode 中触发："discuss my research"
-#    精炼论证和 Insight
-
-# 6. 实验分析（或跳过）
-#    在 OpenCode 中触发："analyze experiments"
-#    或跳过：copaper skip experiments --reason "纯理论论文无需实验"
-
-# 7. 写作
-#    在 OpenCode 中触发："write the paper"
-#    逐节撰写 paper.md
-
-# 8. 审查与修订
-#    在 OpenCode 中触发："review and revise"
-#    基于 7-checker 结果系统修订
-
-# 9. 提交前检查
-#    在 OpenCode 中触发："submission precheck"
-#    检查 .agents/precheck_report.md
-
-# 10. 转换 LaTeX
-#     在 OpenCode 中触发："convert to latex"
-#     生成最终投稿版本
-
-# 全程可用 CLI 跟踪进度
-copaper status
-copaper log
-copaper report
 ```
 
-## 写作规范
+Verify:
 
-论文写作遵循 `writingrules.md` 中的结构规范，核心规则：
+```bash
+copaper --help
+python -m copaper --help
+```
 
-- Level 1-5（`#` 到 `#####`）仅用于结构组织
-- Level 6（`######`）是唯一允许写段落内容的层级
-- Level 6 标题（主题句）≤ 50 字符
-- 段落正文 ≤ 500 字符
-- 元数据使用 HTML 注释：`<!-- description: ... -->`
-- 行内公式使用 `$...$`，块级公式使用 `$$...$$`
-- 图片存放于 `fig/` 目录，支持 JPG/PNG/GIF，最大 5MB
+Install the published OpenCode plugin:
+
+```bash
+bunx -p @copaper/opencode copaper-opencode init
+```
+
+Use the local development version from this repository:
+
+```bash
+cd packages/opencode-plugin
+bun install
+bun run build
+bun run dev:install <target-project>
+```
+
+After installation, restart OpenCode and run these commands inside the target project:
+
+```text
+/copaper-doctor
+/copaper
+```
+
+### Minimal Workflow
+
+```bash
+# 1. Initialize a paper project
+copaper --root <project-dir> init --name "My Paper" --domain "software engineering"
+
+# 2. Inspect current status
+copaper --root <project-dir> status
+
+# 3. Enter a phase
+copaper --root <project-dir> set-phase storyline --status in_progress
+
+# 4. Mark a phase complete
+copaper --root <project-dir> set-phase storyline --status complete
+
+# 5. Query recent events
+copaper --root <project-dir> log --last 10
+```
+
+In OpenCode, start with `/copaper` to inspect the Dashboard, then route work to the appropriate subagent or skill.
+
+### Recommended Writing Path
+
+```text
+Initialize project
+-> Complete storyline.md
+-> Find and organize related work
+-> Run Socratic discussion
+-> Prepare experiments or record a skip reason
+-> Write paper.md section by section
+-> Run checker / review-revise section by section
+-> Run submission precheck
+-> Generate the final LaTeX draft
+```
+
+Each phase can be re-entered. If a later step exposes an earlier gap, return to the corresponding phase and fix it.
+
+### Documentation
+
+Full documentation is available on GitHub Pages:
+
+```text
+https://pku-asal.github.io/CoPaper-OpenCode/
+```
+
+Repository documentation:
+
+- Chinese guide: [docs/index.md](docs/index.md)
+- English guide: [docs/en.md](docs/en.md)
+- Full reference manual: [docs/full-manual.md](docs/full-manual.md)
+- OpenCode plugin docs: [packages/opencode-plugin/README.md](packages/opencode-plugin/README.md)
+- Architecture map: [codemap.md](codemap.md)
+
+### Development and Testing
+
+Python tests:
+
+```bash
+.venv/bin/pytest
+```
+
+OpenCode plugin tests:
+
+```bash
+cd packages/opencode-plugin
+bun run typecheck
+bun test
+bun run build
+```
+
+Preview docs locally:
+
+```bash
+pip install -r docs/requirements.txt
+mkdocs serve
+```
+
+## License
+
+MIT

@@ -15,6 +15,7 @@ theme:
 nav:
   - 中文: index.md
   - English: en.md
+  - 完整参考手册: full-manual.md
 
 markdown_extensions:
   - admonition
