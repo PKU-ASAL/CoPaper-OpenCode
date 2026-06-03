@@ -53,7 +53,7 @@ describe("artifact status", () => {
     expect(result.summary.recommendedFocus).toBe("storyline")
     expect(result.recommendation.artifactId).toBe("storyline")
     expect("artifact" in (result.recommendation as unknown as Record<string, unknown>)).toBe(false)
-    expect(markdown).toContain("## VibePaper 工件状态")
+    expect(markdown).toContain("## CoPaper 工件状态")
     const tableSection = markdown.slice(markdown.indexOf("| 工件 |"), markdown.indexOf("### 警告"))
     expect(tableSection).toContain("| 工件 | 状态 | 置信度 | 证据 | 推荐下一步 |")
     expect(tableSection).toContain("| storyline | template | high |")

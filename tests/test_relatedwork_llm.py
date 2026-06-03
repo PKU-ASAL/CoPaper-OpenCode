@@ -11,10 +11,10 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from vibepaper import relatedwork_keywords, relatedwork_summarize
-from vibepaper.cli import main as cli_main
-from vibepaper.literature import LiteratureCatalog
-from vibepaper.llm_client import (
+from copaper import relatedwork_keywords, relatedwork_summarize
+from copaper.cli import main as cli_main
+from copaper.literature import LiteratureCatalog
+from copaper.llm_client import (
     LLMConfigError,
     TokenBucket,
     resolve_api_key,
@@ -78,15 +78,15 @@ def _make_responder(text: str):
 
 class TestLLMResolvers:
     def test_resolve_model_uses_env(self, monkeypatch) -> None:
-        monkeypatch.setenv("VIBEPAPER_MODEL", "gpt-4o-mini")
+        monkeypatch.setenv("COPAPER_MODEL", "gpt-4o-mini")
         assert resolve_model() == "gpt-4o-mini"
 
     def test_resolve_model_explicit_overrides_env(self, monkeypatch) -> None:
-        monkeypatch.setenv("VIBEPAPER_MODEL", "gpt-4o-mini")
+        monkeypatch.setenv("COPAPER_MODEL", "gpt-4o-mini")
         assert resolve_model("custom-model") == "custom-model"
 
     def test_resolve_model_missing_raises(self, monkeypatch) -> None:
-        monkeypatch.delenv("VIBEPAPER_MODEL", raising=False)
+        monkeypatch.delenv("COPAPER_MODEL", raising=False)
         with pytest.raises(LLMConfigError):
             resolve_model()
 
@@ -166,7 +166,7 @@ class TestExtractKeywords:
             encoding="utf-8",
         )
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         responder = _make_responder(
             "streaming vision language action\n"
@@ -198,7 +198,7 @@ class TestExtractKeywords:
     ) -> None:
         (tmp_path / "paper.md").write_text("# Draft\n\nIntro.\n", encoding="utf-8")
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         client = FakeOpenAIClient(_make_responder("only one query\n"))
         outcome = relatedwork_keywords.extract_keywords(
@@ -211,7 +211,7 @@ class TestExtractKeywords:
     ) -> None:
         (tmp_path / "storyline.md").write_text("something\n", encoding="utf-8")
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         client = FakeOpenAIClient(_make_responder("   \n   \n"))
         with pytest.raises(LLMConfigError):
@@ -304,7 +304,7 @@ class TestSummarizePapers:
         _seed_catalog_with_paper(tmp_path)
         _seed_storyline_and_template(tmp_path)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         client = FakeOpenAIClient(
             _make_responder("# Demo Paper\n\n## 1. 文献核心\nFake summary body.\n")
@@ -335,7 +335,7 @@ class TestSummarizePapers:
         _seed_catalog_with_paper(tmp_path)
         _seed_storyline_and_template(tmp_path)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         existing = tmp_path / "relatedwork" / "papers" / "demo2025paper.md"
         existing.parent.mkdir(parents=True, exist_ok=True)
@@ -360,7 +360,7 @@ class TestSummarizePapers:
         _seed_catalog_with_paper(tmp_path)
         _seed_storyline_and_template(tmp_path)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         existing = tmp_path / "relatedwork" / "papers" / "demo2025paper.md"
         existing.parent.mkdir(parents=True, exist_ok=True)
@@ -393,7 +393,7 @@ class TestSummarizePapers:
         _seed_catalog_with_paper(tmp_path)
         _seed_storyline_and_template(tmp_path)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         client = FakeOpenAIClient(_make_responder("should not be called"))
 
@@ -416,7 +416,7 @@ class TestSummarizePapers:
         _seed_catalog_with_paper(tmp_path, paper_id="beta")
         _seed_storyline_and_template(tmp_path)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         client = FakeOpenAIClient(_make_responder("# Only Beta\nBody."))
 
@@ -455,13 +455,13 @@ class TestCli:
         )
         (tmp_path / "storyline.md").write_text("text\n", encoding="utf-8")
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.delenv("VIBEPAPER_MODEL", raising=False)
+        monkeypatch.delenv("COPAPER_MODEL", raising=False)
 
         result = _invoke(
             runner, ["--root", str(tmp_path), "relatedwork", "keywords"]
         )
         assert result.exit_code != 0
-        assert "VIBEPAPER_MODEL" in result.output
+        assert "COPAPER_MODEL" in result.output
 
     def test_summarize_command_missing_api_key_errors(
         self, tmp_path: Path, monkeypatch
@@ -475,7 +475,7 @@ class TestCli:
         _seed_catalog_with_paper(tmp_path)
         _seed_storyline_and_template(tmp_path)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.setenv("VIBEPAPER_MODEL", "fake-model")
+        monkeypatch.setenv("COPAPER_MODEL", "fake-model")
 
         result = _invoke(
             runner, ["--root", str(tmp_path), "relatedwork", "summarize"]

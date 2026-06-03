@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildVibePaperAgentConfig } from "../src/agent-config"
+import { buildCoPaperAgentConfig } from "../src/agent-config"
 import { SCHEMA_VERSION } from "../src/types"
 import { makeTempProject } from "./fixtures"
 
@@ -7,17 +7,17 @@ describe("agent config builder", () => {
   test("missing config injects default agents in order", () => {
     const project = makeTempProject("agent-config-defaults-")
     try {
-      const result = buildVibePaperAgentConfig({ root: project.root, existingAgents: {} })
+      const result = buildCoPaperAgentConfig({ root: project.root, existingAgents: {} })
 
       expect(Object.keys(result.injectedAgents)).toEqual([
-        "vibepaper-coordinator",
-        "vibepaper-storyline",
-        "vibepaper-writer",
-        "vibepaper-reviewer",
-        "vibepaper-recorder",
-        "vibepaper-literature",
+        "copaper-coordinator",
+        "copaper-storyline",
+        "copaper-writer",
+        "copaper-reviewer",
+        "copaper-recorder",
+        "copaper-literature",
       ])
-      expect(result.injectedAgents["vibepaper-writer"]?.permission.edit).toEqual({ "*": "deny", "paper.md": "ask" })
+      expect(result.injectedAgents["copaper-writer"]?.permission.edit).toEqual({ "*": "deny", "paper.md": "ask" })
       expect(result.runtime.agents.map((agent) => agent.name)).toEqual(Object.keys(result.injectedAgents))
       expect(result.runtime.agents.every((agent) => agent.status === "injected")).toBe(true)
     } finally {
@@ -29,7 +29,7 @@ describe("agent config builder", () => {
     const project = makeTempProject("agent-config-overrides-")
     try {
       project.write(
-        ".opencode/vibepaper.json",
+        ".opencode/copaper.json",
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
           locale: "en-US",
@@ -38,7 +38,7 @@ describe("agent config builder", () => {
             temperature: 0.9,
           },
           agents: {
-            "vibepaper-writer": {
+            "copaper-writer": {
               model: "writer-model",
               temperature: 0.2,
               promptAppend: "Use short paragraphs.",
@@ -47,17 +47,17 @@ describe("agent config builder", () => {
         }),
       )
 
-      const result = buildVibePaperAgentConfig({ root: project.root, existingAgents: {} })
+      const result = buildCoPaperAgentConfig({ root: project.root, existingAgents: {} })
 
-      expect(result.injectedAgents["vibepaper-coordinator"]).toMatchObject({
+      expect(result.injectedAgents["copaper-coordinator"]).toMatchObject({
         model: "default-model",
         temperature: 0.9,
       })
-      expect(result.injectedAgents["vibepaper-writer"]).toMatchObject({
+      expect(result.injectedAgents["copaper-writer"]).toMatchObject({
         model: "writer-model",
         temperature: 0.2,
       })
-      expect(result.injectedAgents["vibepaper-writer"]?.prompt).toContain("## Project-specific preferences\nUse short paragraphs.")
+      expect(result.injectedAgents["copaper-writer"]?.prompt).toContain("## Project-specific preferences\nUse short paragraphs.")
     } finally {
       project.cleanup()
     }
@@ -67,19 +67,19 @@ describe("agent config builder", () => {
     const project = makeTempProject("agent-config-disabled-")
     try {
       project.write(
-        ".opencode/vibepaper.json",
+        ".opencode/copaper.json",
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
           agents: {
-            "vibepaper-writer": { enabled: false },
+            "copaper-writer": { enabled: false },
           },
         }),
       )
 
-      const result = buildVibePaperAgentConfig({ root: project.root, existingAgents: {} })
+      const result = buildCoPaperAgentConfig({ root: project.root, existingAgents: {} })
 
-      expect(result.injectedAgents["vibepaper-writer"]).toBeUndefined()
-      expect(result.runtime.agents.find((agent) => agent.name === "vibepaper-writer")).toMatchObject({
+      expect(result.injectedAgents["copaper-writer"]).toBeUndefined()
+      expect(result.runtime.agents.find((agent) => agent.name === "copaper-writer")).toMatchObject({
         status: "disabled",
       })
     } finally {
@@ -97,19 +97,19 @@ describe("agent config builder", () => {
         permission: { read: "allow" as const },
       }
 
-      const result = buildVibePaperAgentConfig({
+      const result = buildCoPaperAgentConfig({
         root: project.root,
-        existingAgents: { "vibepaper-writer": userAgent },
+        existingAgents: { "copaper-writer": userAgent },
       })
 
-      expect(result.injectedAgents["vibepaper-writer"]).toBeUndefined()
+      expect(result.injectedAgents["copaper-writer"]).toBeUndefined()
       expect(userAgent.prompt).toBe("Do not replace me.")
-      expect(result.runtime.agents.find((agent) => agent.name === "vibepaper-writer")).toMatchObject({
+      expect(result.runtime.agents.find((agent) => agent.name === "copaper-writer")).toMatchObject({
         status: "conflicted",
       })
       expect(result.diagnostics.find((diagnostic) => diagnostic.code === "agent-name-conflict")).toMatchObject({
-        path: ".opencode/vibepaper.json",
-        field: "agents.vibepaper-writer",
+        path: ".opencode/copaper.json",
+        field: "agents.copaper-writer",
       })
     } finally {
       project.cleanup()
@@ -120,23 +120,23 @@ describe("agent config builder", () => {
     const project = makeTempProject("agent-config-escalation-")
     try {
       project.write(
-        ".opencode/vibepaper.json",
+        ".opencode/copaper.json",
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
           agents: {
-            "vibepaper-coordinator": { permissionProfile: "paperWrite" },
+            "copaper-coordinator": { permissionProfile: "paperWrite" },
           },
         }),
       )
 
-      const result = buildVibePaperAgentConfig({ root: project.root, existingAgents: {} })
-      const runtimeRow = result.runtime.agents.find((agent) => agent.name === "vibepaper-coordinator")
+      const result = buildCoPaperAgentConfig({ root: project.root, existingAgents: {} })
+      const runtimeRow = result.runtime.agents.find((agent) => agent.name === "copaper-coordinator")
 
-      expect(result.injectedAgents["vibepaper-coordinator"]?.permission.edit).toBe("deny")
+      expect(result.injectedAgents["copaper-coordinator"]?.permission.edit).toBe("deny")
       expect(runtimeRow).toMatchObject({ permissionProfile: "readOnly" })
       expect(result.diagnostics.find((diagnostic) => diagnostic.code === "permission-escalation-denied")).toMatchObject({
-        path: ".opencode/vibepaper.json",
-        field: "agents.vibepaper-coordinator.permissionProfile",
+        path: ".opencode/copaper.json",
+        field: "agents.copaper-coordinator.permissionProfile",
       })
     } finally {
       project.cleanup()
@@ -147,19 +147,19 @@ describe("agent config builder", () => {
     const project = makeTempProject("agent-config-downgrade-")
     try {
       project.write(
-        ".opencode/vibepaper.json",
+        ".opencode/copaper.json",
         JSON.stringify({
           schemaVersion: SCHEMA_VERSION,
           agents: {
-            "vibepaper-writer": { permissionProfile: "readOnly" },
+            "copaper-writer": { permissionProfile: "readOnly" },
           },
         }),
       )
 
-      const result = buildVibePaperAgentConfig({ root: project.root, existingAgents: {} })
+      const result = buildCoPaperAgentConfig({ root: project.root, existingAgents: {} })
 
-      expect(result.injectedAgents["vibepaper-writer"]?.permission.edit).toBe("deny")
-      expect(result.runtime.agents.find((agent) => agent.name === "vibepaper-writer")).toMatchObject({
+      expect(result.injectedAgents["copaper-writer"]?.permission.edit).toBe("deny")
+      expect(result.runtime.agents.find((agent) => agent.name === "copaper-writer")).toMatchObject({
         status: "injected",
         permissionProfile: "readOnly",
       })

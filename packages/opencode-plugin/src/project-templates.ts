@@ -20,9 +20,9 @@ Use heading levels 1-5 only for structure. Place body text under level 6 heading
 
 const agentsTemplate = `# AGENTS.md
 ## OVERVIEW
-###### VibePaper Project Guidance
+###### CoPaper Project Guidance
 <!-- description: Local agent guidance -->
-This project was initialized by VibePaper. Keep shared state in \`.agents/state.json\` and events in \`.agents/events.jsonl\`.
+This project was initialized by CoPaper. Keep shared state in \`.agents/state.json\` and events in \`.agents/events.jsonl\`.
 
 ## CONVENTIONS
 ###### Document Structure
@@ -60,8 +60,8 @@ export function buildProjectState(input: ProjectTemplateInput): ProjectState {
       auto_commit: false,
       identity: {
         role: "assistant",
-        git_name: "VibePaper Bot",
-        git_email: "bot@vibepaper.dev",
+        git_name: "CoPaper Bot",
+        git_email: "bot@copaper.dev",
       },
     },
     checkers: {},

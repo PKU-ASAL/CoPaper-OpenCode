@@ -11,11 +11,11 @@ function temp() { const p = makeTempProject(); projects.push(p); return p }
 
 const cli = join(import.meta.dir, "..", "src", "cli.ts")
 function runCli(args: string[], locale = "") {
-  return spawnSync("bun", [cli, ...args], { encoding: "utf8", env: locale ? cleanEnv({ VIBEPAPER_LANG: locale }) : cleanEnv() })
+  return spawnSync("bun", [cli, ...args], { encoding: "utf8", env: locale ? cleanEnv({ COPAPER_LANG: locale }) : cleanEnv() })
 }
 
 function cleanEnv(extra: NodeJS.ProcessEnv = {}) {
-  const { VIBEPAPER_LANG: _lang, ...env } = process.env
+  const { COPAPER_LANG: _lang, ...env } = process.env
   return { ...env, ...extra }
 }
 
@@ -29,15 +29,15 @@ describe("CLI", () => {
     expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).not.toContain(project.root)
     expect(result.stdout).toContain("重启 OpenCode")
     expect(result.stdout.match(/重启 OpenCode/g)?.length ?? 0).toBe(1)
-    expect(result.stdout).toContain("已安装 VibePaper OpenCode 集成。")
+    expect(result.stdout).toContain("已安装 CoPaper OpenCode 集成。")
   })
 
-  test("init honors VIBEPAPER_LANG for English output", () => {
+  test("init honors COPAPER_LANG for English output", () => {
     const project = temp()
     const result = runCli(["init", "--root", project.root], "en-US")
     expect(result.status).toBe(0)
     expect(result.stdout).toContain("Restart OpenCode")
-    expect(result.stdout).toContain("Installed VibePaper OpenCode integration.")
+    expect(result.stdout).toContain("Installed CoPaper OpenCode integration.")
   })
 
   test("init --dry-run writes nothing", () => {
@@ -45,7 +45,7 @@ describe("CLI", () => {
     const result = runCli(["init", "--root", project.root, "--dry-run"])
     expect(result.status).toBe(0)
     expect(result.stdout).toContain("演练模式")
-    expect(result.stdout).not.toContain("已安装 VibePaper OpenCode 集成。")
+    expect(result.stdout).not.toContain("已安装 CoPaper OpenCode 集成。")
     expect(result.stdout).not.toContain("重启 OpenCode")
     expect(result.stdout).toContain("没有修改任何文件。")
     expect(existsSync(project.path("opencode.json"))).toBe(false)
@@ -63,7 +63,7 @@ describe("CLI", () => {
     const project = temp()
     const result = spawnSync("bun", [cli, "doctor", "--root", project.root], { encoding: "utf8", env: cleanEnv() })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain("VibePaper OpenCode 诊断")
+    expect(result.stdout).toContain("CoPaper OpenCode 诊断")
     expect(result.stdout).toContain("下一步")
   })
 
@@ -71,15 +71,15 @@ describe("CLI", () => {
     const project = temp()
     const result = spawnSync("bun", [cli, "doctor", "--root", project.root, "--locale", "en-US"], { encoding: "utf8", env: cleanEnv() })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain("VibePaper OpenCode Doctor")
+    expect(result.stdout).toContain("CoPaper OpenCode Doctor")
     expect(result.stdout).toContain("Next:")
   })
 
-  test("doctor supports English locale via VIBEPAPER_LANG", () => {
+  test("doctor supports English locale via COPAPER_LANG", () => {
     const project = temp()
-    const result = spawnSync("bun", [cli, "doctor", "--root", project.root], { encoding: "utf8", env: cleanEnv({ VIBEPAPER_LANG: "en-US" }) })
+    const result = spawnSync("bun", [cli, "doctor", "--root", project.root], { encoding: "utf8", env: cleanEnv({ COPAPER_LANG: "en-US" }) })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain("VibePaper OpenCode Doctor")
+    expect(result.stdout).toContain("CoPaper OpenCode Doctor")
   })
 
   test("doctor JSON keeps English field names and enum values with Chinese locale", () => {
@@ -96,7 +96,7 @@ describe("CLI", () => {
     const project = temp()
     const result = spawnSync("bun", [cli, "doctor", "--root", project.root, "--locale", "fr-FR"], { encoding: "utf8", env: cleanEnv() })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain("VibePaper OpenCode 诊断")
+    expect(result.stdout).toContain("CoPaper OpenCode 诊断")
   })
 
   test("init supports English locale via flag", () => {

@@ -1,6 +1,6 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
-import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
-import { setLatestVibePaperAgentRuntimeState } from "./agent-diagnostics"
+import { buildCoPaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
+import { setLatestCoPaperAgentRuntimeState } from "./agent-diagnostics"
 import { recordArtifactReadiness, renderArtifactRecordOutput } from "./artifact-record"
 import { buildArtifactStatus, renderArtifactStatusOutput } from "./artifacts"
 import { recordCheckerResult, renderCheckerRecordOutput } from "./checker-record"
@@ -20,9 +20,9 @@ const packageVersion = "0.1.0"
 
 type PluginConfigInput = Parameters<NonNullable<Awaited<ReturnType<Plugin>>["config"]>>[0]
 
-export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) => {
+export const CoPaperPlugin: Plugin = async ({ directory, worktree, client }) => {
   await client?.app?.log?.({
-    body: { service: "vibepaper", level: "info", message: "VibePaper OpenCode plugin initialized" },
+    body: { service: "copaper", level: "info", message: "CoPaper OpenCode plugin initialized" },
   }).catch(() => undefined)
 
   let managedAgentFingerprints = new Map<string, string>()
@@ -37,22 +37,22 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
         retainedAgents[agentName] = agentConfig as OpenCodeAgentConfig
       }
 
-      const result = buildVibePaperAgentConfig({ root: directory, existingAgents: retainedAgents })
-      setLatestVibePaperAgentRuntimeState(result.runtime, directory)
+      const result = buildCoPaperAgentConfig({ root: directory, existingAgents: retainedAgents })
+      setLatestCoPaperAgentRuntimeState(result.runtime, directory)
       managedAgentFingerprints = new Map(Object.entries(result.injectedAgents).map(([agentName, agentConfig]) => [agentName, agentConfigFingerprint(agentConfig)]))
       input.agent = { ...retainedAgents, ...result.injectedAgents } as PluginConfigInput["agent"]
     },
     tool: {
-      vibepaper_dashboard: tool({
-        description: "Show VibePaper project readiness and init preview. Read-only, does not modify files.",
+      copaper_dashboard: tool({
+        description: "Show CoPaper project readiness and init preview. Read-only, does not modify files.",
         args: {},
         async execute(_args, context) {
           const result = await buildDashboardResult({ cwd: context.directory, worktree: context.worktree, packageVersion })
           return renderDashboardOutput(result)
         },
       }),
-      vibepaper_init_apply: tool({
-        description: "Apply VibePaper project initialization after explicit user confirmation. Writes core files only and refuses conflicts.",
+      copaper_init_apply: tool({
+        description: "Apply CoPaper project initialization after explicit user confirmation. Writes core files only and refuses conflicts.",
         args: {
           name: tool.schema.string().describe("Project name"),
           domain: tool.schema.string().describe("Research domain"),
@@ -62,15 +62,15 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderProjectInitApplyOutput(result)
         },
       }),
-      vibepaper_artifact_status: tool({
-        description: "Show read-only VibePaper artifact readiness, evidence, and recommendation. Does not modify files or workflow state.",
+      copaper_artifact_status: tool({
+        description: "Show read-only CoPaper artifact readiness, evidence, and recommendation. Does not modify files or workflow state.",
         args: {},
         async execute(_args, context) {
           const result = await buildArtifactStatus({ cwd: context.directory, worktree: context.worktree })
           return renderArtifactStatusOutput(result)
         },
       }),
-      vibepaper_paper_structure_status: tool({
+      copaper_paper_structure_status: tool({
         description: "Show read-only paper.md structure completion, Level 5 writing targets, next target, and structural issues. Does not modify files.",
         args: {},
         async execute(_args, context) {
@@ -78,7 +78,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderPaperStructureStatusOutput(result)
         },
       }),
-      vibepaper_storyline_structure_status: tool({
+      copaper_storyline_structure_status: tool({
         description: "Show read-only storyline.md section readiness, next storyline target, and TODO coverage. Does not modify files.",
         args: {},
         async execute(_args, context) {
@@ -86,7 +86,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderStorylineStructureStatusOutput(result)
         },
       }),
-      vibepaper_pdf_extract: tool({
+      copaper_pdf_extract: tool({
         description: "Extract text from a user-specified PDF inside the project. Read-only; does not scan for files or modify project state.",
         args: {
           path: tool.schema.string().describe("Explicit relative or in-project absolute path to the PDF file"),
@@ -97,7 +97,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderPdfExtractOutput(result)
         },
       }),
-      vibepaper_ppt_extract: tool({
+      copaper_ppt_extract: tool({
         description: "Extract slide text from a user-specified PPTX inside the project. Read-only; does not scan for files or modify project state.",
         args: {
           path: tool.schema.string().describe("Explicit relative or in-project absolute path to the PPTX file"),
@@ -109,7 +109,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderPptExtractOutput(result)
         },
       }),
-      vibepaper_checker_status: tool({
+      copaper_checker_status: tool({
         description: "Show read-only checker result status, severity counts, stale signals, and precheck report evidence. Does not run checkers or modify files.",
         args: {},
         async execute(_args, context) {
@@ -117,7 +117,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderCheckerStatusOutput(result)
         },
       }),
-      vibepaper_relatedwork_status: tool({
+      copaper_relatedwork_status: tool({
         description: "Show read-only related-work catalog, BibTeX, PDF, summary, and cross-index status. Does not run search, import, download, summarize, build-index, or modify files.",
         args: {},
         async execute(_args, context) {
@@ -125,7 +125,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkStatusOutput(result)
         },
       }),
-      vibepaper_relatedwork_keywords: tool({
+      copaper_relatedwork_keywords: tool({
         description: "Extract relatedwork keywords via the Python CLI. Writes relatedwork/queries.txt; does not patch literature phase counters.",
         args: {
           source: tool.schema.string().optional().describe("Optional source markdown path (defaults to storyline.md)"),
@@ -136,7 +136,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_search: tool({
+      copaper_relatedwork_search: tool({
         description: "Search related work via Semantic Scholar / arXiv. Writes relatedwork/search_cache.json. Requires explicit user confirmation before invoking.",
         args: {
           queries: tool.schema.array(tool.schema.string()).min(1).describe("List of search query strings"),
@@ -148,7 +148,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_import: tool({
+      copaper_relatedwork_import: tool({
         description: "Import relatedwork/search_cache.json into relatedwork/literature.json. Writes the literature catalog. Requires explicit user confirmation.",
         args: {
           input: tool.schema.string().optional().describe("Optional input cache path (defaults to relatedwork/search_cache.json)"),
@@ -158,7 +158,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_sync_bib: tool({
+      copaper_relatedwork_sync_bib: tool({
         description: "Synchronize relatedwork/paper_list.bib with the literature catalog. Writes the bibliography. Requires explicit user confirmation.",
         args: {},
         async execute(_args, context) {
@@ -166,7 +166,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_download: tool({
+      copaper_relatedwork_download: tool({
         description: "Download related-work PDFs into relatedwork/pdfs/. Writes files. Requires explicit user confirmation.",
         args: {
           paperId: tool.schema.string().optional().describe("Optional paper id to download (defaults to all queued papers)"),
@@ -177,7 +177,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_summarize: tool({
+      copaper_relatedwork_summarize: tool({
         description: "Generate LLM-backed PDF summaries into relatedwork/papers/. Writes markdown summary files. Requires explicit user confirmation.",
         args: {
           paperId: tool.schema.string().optional().describe("Optional paper id to summarize (defaults to all eligible papers)"),
@@ -189,7 +189,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_register_summary: tool({
+      copaper_relatedwork_register_summary: tool({
         description: "Register an existing PDF summary in relatedwork/literature.json. Writes the literature catalog. Requires explicit user confirmation.",
         args: {
           paperId: tool.schema.string().describe("Paper id whose summary path should be registered"),
@@ -200,7 +200,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_build_index: tool({
+      copaper_relatedwork_build_index: tool({
         description: "Build the cross-paper index at .agents/cross_index.json from relatedwork/papers/. Writes the index. Requires explicit user confirmation.",
         args: {},
         async execute(_args, context) {
@@ -208,7 +208,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_relatedwork_clean: tool({
+      copaper_relatedwork_clean: tool({
         description: "Clean stale related-work entries (orphan PDFs/summaries, dropped catalog entries). Writes files. Requires explicit user confirmation.",
         args: {
           dryRun: tool.schema.boolean().optional().describe("Preview cleanup without applying changes"),
@@ -218,7 +218,7 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderRelatedworkToolOutput(result)
         },
       }),
-      vibepaper_checker_record: tool({
+      copaper_checker_record: tool({
         description: "Record a checker run summary after explicit user confirmation. Writes state.checkers and appends an event; does not resolve individual issues.",
         args: {
           checker: tool.schema.enum(CHECKER_RECORD_IDS).describe("Checker id to record"),
@@ -242,8 +242,8 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderCheckerRecordOutput(result)
         },
       }),
-      vibepaper_artifact_record: tool({
-        description: "Record VibePaper artifact readiness after explicit user confirmation. Writes artifact state and appends an event record; does not modify workflow phases.",
+      copaper_artifact_record: tool({
+        description: "Record CoPaper artifact readiness after explicit user confirmation. Writes artifact state and appends an event record; does not modify workflow phases.",
         args: {
           artifact: tool.schema.enum(ARTIFACT_RECORD_IDS).describe("Artifact id to record"),
           status: tool.schema.enum(ARTIFACT_STATUSES).describe("Recorded artifact readiness status"),
@@ -257,16 +257,16 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderArtifactRecordOutput(result)
         },
       }),
-      vibepaper_workflow_status: tool({
-        description: "Show VibePaper workflow progress, phases, and next step recommendation. Read-only, does not modify files.",
+      copaper_workflow_status: tool({
+        description: "Show CoPaper workflow progress, phases, and next step recommendation. Read-only, does not modify files.",
         args: {},
         async execute(_args, context) {
           const result = await buildWorkflowStatus({ cwd: context.directory, worktree: context.worktree })
           return renderWorkflowStatusOutput(result)
         },
       }),
-      vibepaper_workflow_log: tool({
-        description: "Show recent VibePaper workflow event records with optional filters. Read-only, does not modify files.",
+      copaper_workflow_log: tool({
+        description: "Show recent CoPaper workflow event records with optional filters. Read-only, does not modify files.",
         args: {
           lastN: tool.schema.number().int().min(1).max(50).optional().describe("Maximum number of recent records to return, from 1 to 50"),
           phase: tool.schema.string().optional().describe("Optional workflow phase id filter"),
@@ -277,8 +277,8 @@ export const VibePaperPlugin: Plugin = async ({ directory, worktree, client }) =
           return renderWorkflowLogOutput(result)
         },
       }),
-      vibepaper_workflow_set_phase: tool({
-        description: "Set a VibePaper workflow phase status after explicit user confirmation. Writes workflow state and appends an event record.",
+      copaper_workflow_set_phase: tool({
+        description: "Set a CoPaper workflow phase status after explicit user confirmation. Writes workflow state and appends an event record.",
         args: {
           phase: tool.schema.string().describe("Workflow phase id to update"),
           status: tool.schema.enum(WORKFLOW_PHASE_STATUSES).describe("Next workflow phase status"),
@@ -312,4 +312,4 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-export default VibePaperPlugin
+export default CoPaperPlugin

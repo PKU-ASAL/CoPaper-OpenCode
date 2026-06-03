@@ -1,33 +1,33 @@
 import { describe, expect, test } from "bun:test"
 import {
-  VIBEPAPER_AGENT_NAMES,
+  COPAPER_AGENT_NAMES,
   buildDefaultAgentProfiles,
   getDefaultAgentProfile,
-  isVibePaperAgentName,
+  isCoPaperAgentName,
 } from "../src/agent-profiles"
 
 describe("agent profiles", () => {
   test("exports v1 agent names in exact order", () => {
-    expect(VIBEPAPER_AGENT_NAMES).toEqual([
-      "vibepaper-coordinator",
-      "vibepaper-storyline",
-      "vibepaper-writer",
-      "vibepaper-reviewer",
-      "vibepaper-recorder",
-      "vibepaper-literature",
+    expect(COPAPER_AGENT_NAMES).toEqual([
+      "copaper-coordinator",
+      "copaper-storyline",
+      "copaper-writer",
+      "copaper-reviewer",
+      "copaper-recorder",
+      "copaper-literature",
     ])
   })
 
-  test("builds enabled VibePaper subagent profiles", () => {
+  test("builds enabled CoPaper subagent profiles", () => {
     const profiles = buildDefaultAgentProfiles()
 
-    expect(Object.keys(profiles)).toEqual([...VIBEPAPER_AGENT_NAMES])
+    expect(Object.keys(profiles)).toEqual([...COPAPER_AGENT_NAMES])
 
     for (const profile of Object.values(profiles)) {
       expect(profile.enabled).toBe(true)
       expect(profile.mode).toBe("subagent")
       expect(profile.description.length).toBeGreaterThan(0)
-      expect(profile.prompt).toContain("VibePaper")
+      expect(profile.prompt).toContain("CoPaper")
       expect(profile.prompt).toContain("Role Boundary")
       expect(profile.prompt).toContain("Artifact Boundary")
       expect(profile.prompt).toContain("Workflow Rules")
@@ -38,44 +38,44 @@ describe("agent profiles", () => {
   })
 
   test("permission defaults and maximums match built-in roles", () => {
-    expect(getDefaultAgentProfile("vibepaper-coordinator")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-coordinator")).toMatchObject({
       permissionProfile: "readOnly",
       maxPermissionProfile: "readOnly",
     })
-    expect(getDefaultAgentProfile("vibepaper-storyline")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-storyline")).toMatchObject({
       permissionProfile: "storylineWrite",
       maxPermissionProfile: "storylineWrite",
     })
-    expect(getDefaultAgentProfile("vibepaper-writer")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-writer")).toMatchObject({
       permissionProfile: "paperWrite",
       maxPermissionProfile: "paperWrite",
     })
-    expect(getDefaultAgentProfile("vibepaper-reviewer")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-reviewer")).toMatchObject({
       permissionProfile: "readOnly",
       maxPermissionProfile: "readOnly",
     })
-    expect(getDefaultAgentProfile("vibepaper-recorder")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-recorder")).toMatchObject({
       permissionProfile: "stateRecord",
       maxPermissionProfile: "stateRecord",
     })
-    expect(getDefaultAgentProfile("vibepaper-literature")).toMatchObject({
+    expect(getDefaultAgentProfile("copaper-literature")).toMatchObject({
       permissionProfile: "literatureWrite",
       maxPermissionProfile: "literatureWrite",
     })
   })
 
   test("literature prompt enforces relatedwork orchestration rules", () => {
-    const prompt = getDefaultAgentProfile("vibepaper-literature").prompt
+    const prompt = getDefaultAgentProfile("copaper-literature").prompt
 
-    expect(prompt).toContain("vibepaper_relatedwork_status")
-    expect(prompt).toContain("vibepaper_workflow_set_phase")
+    expect(prompt).toContain("copaper_relatedwork_status")
+    expect(prompt).toContain("copaper_workflow_set_phase")
     expect(prompt.toLowerCase()).toContain("restate")
     expect(prompt).toContain("Never auto-advance the literature phase")
-    expect(prompt).toContain("vibe-cli-unavailable")
+    expect(prompt).toContain("copaper-cli-unavailable")
   })
 
   test("writer prompt keeps paper.md and writing-rule boundaries", () => {
-    const prompt = getDefaultAgentProfile("vibepaper-writer").prompt
+    const prompt = getDefaultAgentProfile("copaper-writer").prompt
 
     expect(prompt).toContain("paper.md")
     expect(prompt).toContain("Read storyline.md before drafting")
@@ -89,7 +89,7 @@ describe("agent profiles", () => {
   })
 
   test("storyline and writer prompts include anti-fabrication boundaries", () => {
-    for (const agentName of ["vibepaper-storyline", "vibepaper-writer"] as const) {
+    for (const agentName of ["copaper-storyline", "copaper-writer"] as const) {
       const prompt = getDefaultAgentProfile(agentName).prompt
 
       expect(prompt).toContain("Do not fabricate experiments, data, citations, literature conclusions, or contributions")
@@ -98,34 +98,34 @@ describe("agent profiles", () => {
   })
 
   test("recorder prompt keeps artifact recording boundaries", () => {
-    const prompt = getDefaultAgentProfile("vibepaper-recorder").prompt
+    const prompt = getDefaultAgentProfile("copaper-recorder").prompt
 
-    expect(prompt).toContain("vibepaper_artifact_record")
+    expect(prompt).toContain("copaper_artifact_record")
     expect(prompt).toContain("Do not edit paper.md")
     expect(prompt).toContain("Do not edit storyline.md")
   })
 
   test("reviewer prompt keeps checker review read-only", () => {
-    const prompt = getDefaultAgentProfile("vibepaper-reviewer").prompt
+    const prompt = getDefaultAgentProfile("copaper-reviewer").prompt
 
     expect(prompt).toContain("checker")
     expect(prompt).toContain("Do not edit paper.md")
     expect(prompt).toContain("Do not call state-writing tools")
-    expect(prompt).toContain("vibepaper_checker_status")
-    expect(prompt).toContain("@vibepaper-recorder")
+    expect(prompt).toContain("copaper_checker_status")
+    expect(prompt).toContain("@copaper-recorder")
   })
 
   test("prompts avoid unsupported orchestration and external-operation claims", () => {
-    for (const profile of Object.values(buildDefaultAgentProfiles()).filter((profile) => profile.name !== "vibepaper-reviewer")) {
+    for (const profile of Object.values(buildDefaultAgentProfiles()).filter((profile) => profile.name !== "copaper-reviewer")) {
       expect(profile.prompt).not.toMatch(/automatic handoff|scheduler|web|network|shell|git|checker|report|provider|secret/i)
     }
 
-    expect(getDefaultAgentProfile("vibepaper-reviewer").prompt).not.toMatch(/automatic handoff|scheduler|web|network|shell|git|provider|secret/i)
+    expect(getDefaultAgentProfile("copaper-reviewer").prompt).not.toMatch(/automatic handoff|scheduler|web|network|shell|git|provider|secret/i)
   })
 
-  test("identifies built-in VibePaper agent names", () => {
-    expect(isVibePaperAgentName("vibepaper-writer")).toBe(true)
-    expect(isVibePaperAgentName("writer")).toBe(false)
-    expect(isVibePaperAgentName(null)).toBe(false)
+  test("identifies built-in CoPaper agent names", () => {
+    expect(isCoPaperAgentName("copaper-writer")).toBe(true)
+    expect(isCoPaperAgentName("writer")).toBe(false)
+    expect(isCoPaperAgentName(null)).toBe(false)
   })
 })

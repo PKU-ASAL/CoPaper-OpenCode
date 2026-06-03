@@ -28,7 +28,7 @@ export async function recordCheckerResult(options: CheckerRecordOptions): Promis
     return makeResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root: null, checker: options.checker, errors: [{ code: "root-detection-failed", message: `Failed to detect project root: ${errorMessage(error)}` }] })
   }
 
-  if (options.agent !== undefined && options.agent !== "vibepaper-recorder") {
+  if (options.agent !== undefined && options.agent !== "copaper-recorder") {
     return makeResult({ locale: resolved.locale, localeFallback: resolved.fallback, ok: false, root, checker: options.checker, errors: [{ code: "agent-not-authorized", message: `Agent "${options.agent}" is not authorized to record checker results.` }] })
   }
 

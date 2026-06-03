@@ -1,4 +1,4 @@
-"""Tests for vibepaper.git_ops module (Task 8)."""
+"""Tests for copaper.git_ops module (Task 8)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 import git
 import pytest
 
-from vibepaper.eventlog import EventLogger
-from vibepaper.git_ops import GitManager
+from copaper.eventlog import EventLogger
+from copaper.git_ops import GitManager
 
 
 def _init_repo(tmp_path: Path) -> git.Repo:
@@ -30,7 +30,7 @@ class TestCommitPhaseCreatesFormattedCommit:
         sha = gm.commit_phase("storyline", "add insight section")
         commit = gm.repo.commit(sha)
         assert commit.message.startswith("[storyline]")
-        assert "Co-authored-by: VibePaper AI <ai@vibepaper>" in commit.message
+        assert "Co-authored-by: CoPaper AI <ai@copaper>" in commit.message
         assert "add insight section" in commit.message
 
 

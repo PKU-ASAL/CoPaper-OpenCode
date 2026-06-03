@@ -116,9 +116,9 @@ describe("project init apply", () => {
     const result = await applyProjectInit({ root: project.root, name: "Demo Paper", domain: "software engineering", now: new Date("2026-05-01T10:00:00.000Z"), locale: "zh-CN" })
     const markdown = renderProjectInitApplyOutput(result)
 
-    expect(markdown).toContain("## VibePaper 初始化写入")
+    expect(markdown).toContain("## CoPaper 初始化写入")
     expect(markdown).toContain("已写入")
-    expect(markdown).toContain("重新运行 `/vibe`")
+    expect(markdown).toContain("重新运行 `/copaper`")
     expect(markdown).toContain("```json")
     expect(markdown).toContain('"mode": "apply"')
     expect(markdown).toContain('"changedFiles"')

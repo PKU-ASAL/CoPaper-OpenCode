@@ -14,7 +14,7 @@ describe("filesystem safety helpers", () => {
   test("generates deterministic backup paths inside root", () => {
     const project = temp()
     const path = backupPathFor(project.root, "opencode.json", new Date("2026-04-29T12:00:00Z"))
-    expect(path).toBe(join(project.root, ".opencode", "vibepaper", "backups", "2026-04-29T12-00-00-000Z", "opencode.json"))
+    expect(path).toBe(join(project.root, ".opencode", "copaper", "backups", "2026-04-29T12-00-00-000Z", "opencode.json"))
   })
 
   test("allows in-root names that start with dot dot text", () => {
@@ -50,7 +50,7 @@ describe("filesystem safety helpers", () => {
     projects.push(outside)
     mkdirSync(project.path(".opencode"), { recursive: true })
     symlinkSync(outside.root, project.path(".opencode", "commands"), "dir")
-    expect(() => assertInsideRoot(project.root, project.path(".opencode", "commands", "vibe.md"))).toThrow("outside root")
+    expect(() => assertInsideRoot(project.root, project.path(".opencode", "commands", "copaper.md"))).toThrow("outside root")
     expect(existsSync(project.path(".opencode", "commands"))).toBe(true)
   })
 
@@ -73,16 +73,16 @@ describe("installer", () => {
     expect(JSON.parse(project.read("opencode.json"))).toEqual({ $schema: "https://opencode.ai/config.json" })
     expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toBe(LOCAL_PLUGIN_CONTENT)
     expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).not.toContain(project.root)
-    expect(project.read(".opencode/commands/vibe.md")).toContain("command=vibe")
-    expect(project.read(".opencode/commands/vibe-doctor.md")).toContain("command=vibe-doctor")
+    expect(project.read(".opencode/commands/copaper.md")).toContain("command=copaper")
+    expect(project.read(".opencode/commands/copaper-doctor.md")).toContain("command=copaper-doctor")
   })
 
   test("uses a file URL plugin specifier when the CLI runs from project node_modules", () => {
     const project = temp()
-    const cliPath = project.path("node_modules", "@vibepaper", "opencode", "dist", "cli.js")
-    const indexPath = project.path("node_modules", "@vibepaper", "opencode", "dist", "index.js")
-    project.write("node_modules/@vibepaper/opencode/dist/cli.js", "")
-    project.write("node_modules/@vibepaper/opencode/dist/index.js", "")
+    const cliPath = project.path("node_modules", "@copaper", "opencode", "dist", "cli.js")
+    const indexPath = project.path("node_modules", "@copaper", "opencode", "dist", "index.js")
+    project.write("node_modules/@copaper/opencode/dist/cli.js", "")
+    project.write("node_modules/@copaper/opencode/dist/index.js", "")
 
     expect(resolvePluginSpecifier(project.root, cliPath)).toBe(`file://${indexPath}`)
   })
@@ -90,11 +90,11 @@ describe("installer", () => {
   test("keeps the npm package specifier when the CLI is outside the target project", () => {
     const project = temp()
     const outside = temp()
-    const cliPath = outside.path("node_modules", "@vibepaper", "opencode", "dist", "cli.js")
-    outside.write("node_modules/@vibepaper/opencode/dist/cli.js", "")
-    outside.write("node_modules/@vibepaper/opencode/dist/index.js", "")
+    const cliPath = outside.path("node_modules", "@copaper", "opencode", "dist", "cli.js")
+    outside.write("node_modules/@copaper/opencode/dist/cli.js", "")
+    outside.write("node_modules/@copaper/opencode/dist/index.js", "")
 
-    expect(resolvePluginSpecifier(project.root, cliPath)).toBe("@vibepaper/opencode")
+    expect(resolvePluginSpecifier(project.root, cliPath)).toBe("@copaper/opencode")
   })
 
   test("keeps existing JSON config unchanged when using the local plugin wrapper", async () => {
@@ -109,20 +109,20 @@ describe("installer", () => {
     expect(parsed.plugin).toEqual(["other"])
     expect(project.read("opencode.json")).toBe(original)
     expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toContain(LOCAL_PLUGIN_MARKER)
-    expect(existsSync(project.path(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/opencode.json"))).toBe(false)
+    expect(existsSync(project.path(".opencode/copaper/backups/2026-04-29T12-00-00-000Z/opencode.json"))).toBe(false)
   })
 
   test("merges existing JSON config and backs it up when explicit plugin specifier is requested", async () => {
     const project = temp()
     project.write("opencode.json", JSON.stringify({ model: "x", plugin: ["other"] }, null, 2))
     const original = project.read("opencode.json")
-    const plan = await planInit({ root: project.root, pluginSpecifier: "@vibepaper/opencode", now: new Date("2026-04-29T12:00:00Z") })
+    const plan = await planInit({ root: project.root, pluginSpecifier: "@copaper/opencode", now: new Date("2026-04-29T12:00:00Z") })
     expect(plan.ok).toBe(true)
     await applyInitPlan(plan)
     const parsed = JSON.parse(project.read("opencode.json"))
     expect(parsed.model).toBe("x")
-    expect(parsed.plugin).toEqual(["other", "@vibepaper/opencode"])
-    expect(project.read(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/opencode.json")).toBe(original)
+    expect(parsed.plugin).toEqual(["other", "@copaper/opencode"])
+    expect(project.read(".opencode/copaper/backups/2026-04-29T12-00-00-000Z/opencode.json")).toBe(original)
   })
 
   test("dry-run is read-only", async () => {
@@ -146,7 +146,7 @@ describe("installer", () => {
 
   test("fails on unmanaged command unless force is used", async () => {
     const project = temp()
-    project.write(".opencode/commands/vibe.md", "# user command")
+    project.write(".opencode/commands/copaper.md", "# user command")
     const plan = await planInit({ root: project.root })
     expect(plan.ok).toBe(false)
     expect(plan.error).toContain("unmanaged command")
@@ -154,8 +154,8 @@ describe("installer", () => {
     const forced = await planInit({ root: project.root, force: true, now: new Date("2026-04-29T12:00:00Z") })
     expect(forced.ok).toBe(true)
     await applyInitPlan(forced)
-    expect(project.read(".opencode/commands/vibe.md")).toContain("command=vibe")
-    expect(project.read(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/.opencode/commands/vibe.md")).toBe("# user command")
+    expect(project.read(".opencode/commands/copaper.md")).toContain("command=copaper")
+    expect(project.read(".opencode/copaper/backups/2026-04-29T12-00-00-000Z/.opencode/commands/copaper.md")).toBe("# user command")
   })
 
   test("fails on unmanaged local plugin unless force is used", async () => {
@@ -169,7 +169,7 @@ describe("installer", () => {
     expect(forced.ok).toBe(true)
     await applyInitPlan(forced)
     expect(project.read(LOCAL_PLUGIN_RELATIVE_PATH)).toBe(LOCAL_PLUGIN_CONTENT)
-    expect(project.read(".opencode/vibepaper/backups/2026-04-29T12-00-00-000Z/.opencode/plugins/vibepaper.js")).toBe("# user plugin")
+    expect(project.read(".opencode/copaper/backups/2026-04-29T12-00-00-000Z/.opencode/plugins/copaper.js")).toBe("# user plugin")
   })
 
   test("rejects explicit config paths outside root during planning", async () => {
@@ -193,7 +193,7 @@ describe("installer", () => {
   test("rejects symlinked command paths outside root during dry-run planning", async () => {
     const project = temp()
     const outside = temp()
-    outside.write("vibe.md", renderCommandTemplate("vibe"))
+    outside.write("copaper.md", renderCommandTemplate("copaper"))
     mkdirSync(project.path(".opencode"), { recursive: true })
     symlinkSync(outside.root, project.path(".opencode", "commands"), "dir")
 
@@ -207,7 +207,7 @@ describe("installer", () => {
     const project = temp()
     const outside = temp()
     outside.write("secret.txt", "secret")
-    const backupTo = project.path(".opencode", "vibepaper", "backups", "manual", "secret.txt")
+    const backupTo = project.path(".opencode", "copaper", "backups", "manual", "secret.txt")
     const plan: InitPlan = {
       ok: true,
       root: project.root,

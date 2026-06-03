@@ -50,7 +50,7 @@ describe("artifact record", () => {
     expect(state.workflow.custom).toBe(true)
     expect(events[0].action).toBe("record_artifact_readiness")
     expect(events[0].metadata.artifact).toBe("paper")
-    expect(markdown).toContain("## VibePaper 工件就绪度记录")
+    expect(markdown).toContain("## CoPaper 工件就绪度记录")
     expect(markdown).toContain("paper")
     expect(markdown).toContain("record_artifact_readiness")
     expect(markdown).toContain("```json")

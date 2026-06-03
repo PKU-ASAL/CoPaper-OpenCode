@@ -26,7 +26,7 @@ describe("readiness", () => {
     project.write("writingrules.md", "# Rules\n")
     project.write(".agents/state.json", "{}\n")
     project.write(".agents/events.jsonl", "")
-    project.write("AGENTS.md", "# VibePaper project guide\n")
+    project.write("AGENTS.md", "# CoPaper project guide\n")
 
     const result = inspectReadiness(project.root)
     expect(result.ok).toBe(true)

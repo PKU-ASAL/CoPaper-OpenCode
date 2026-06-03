@@ -86,7 +86,7 @@ async function readStream(stream: ReadableStream<Uint8Array> | null | undefined)
 }
 
 function defaultResolveVenv(root: string): string | null {
-  const candidate = join(root, ".venv", "bin", "vibe")
+  const candidate = join(root, ".venv", "bin", "copaper")
   try {
     assertInsideRoot(root, candidate)
   } catch {
@@ -120,13 +120,13 @@ export async function resolveBridge(root: string, deps: BridgeDeps = {}): Promis
   }
   const uv = (deps.resolveUv ?? defaultResolveUv)()
   if (uv !== null) {
-    return { ok: true, resolution: { kind: "uv-run", path: uv, args: ["run", "--project", root, "vibe"] } }
+    return { ok: true, resolution: { kind: "uv-run", path: uv, args: ["run", "--project", root, "copaper"] } }
   }
   return {
     ok: false,
     error: {
-      code: "vibe-cli-unavailable",
-      message: "vibe CLI not found: no executable at <root>/.venv/bin/vibe and `uv` is not on PATH",
+      code: "copaper-cli-unavailable",
+      message: "copaper CLI not found: no executable at <root>/.venv/bin/copaper and `uv` is not on PATH",
     },
   }
 }
@@ -160,7 +160,7 @@ export async function runBridge(options: BridgeOptions, deps: BridgeDeps = {}): 
       ok: false,
       resolution,
       command,
-      error: { code: "bridge-spawn-failed", message: `Failed to spawn vibe CLI: ${errorMessage(error)}` },
+      error: { code: "bridge-spawn-failed", message: `Failed to spawn copaper CLI: ${errorMessage(error)}` },
       stdout: "",
       stderr: "",
       exitCode: null,
@@ -173,7 +173,7 @@ export async function runBridge(options: BridgeOptions, deps: BridgeDeps = {}): 
       ok: false,
       resolution,
       command,
-      error: { code: "bridge-timeout", message: `vibe CLI exceeded ${timeoutMs}ms timeout` },
+      error: { code: "bridge-timeout", message: `copaper CLI exceeded ${timeoutMs}ms timeout` },
       stdout: spawnResult.stdout,
       stderr: spawnResult.stderr,
       exitCode: spawnResult.exitCode,
@@ -186,7 +186,7 @@ export async function runBridge(options: BridgeOptions, deps: BridgeDeps = {}): 
       ok: false,
       resolution,
       command,
-      error: { code: "vibe-nonzero-exit", message: `vibe CLI exited with code ${exitCode}` },
+      error: { code: "copaper-nonzero-exit", message: `copaper CLI exited with code ${exitCode}` },
       stdout: spawnResult.stdout,
       stderr: spawnResult.stderr,
       exitCode,

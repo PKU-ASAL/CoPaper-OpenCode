@@ -5,7 +5,7 @@
 <!-- description: 本阶段目标 -->
 
 ###### 从 phase cockpit 到 artifact cockpit
-本阶段将 `/vibe` 从 phase 状态视图扩展为 artifact cockpit。项目 ready 后，用户可以看到 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/` 和 checker 结果是否真正可用。
+本阶段将 `/copaper` 从 phase 状态视图扩展为 artifact cockpit。项目 ready 后，用户可以看到 `storyline.md`、`paper.md`、`relatedwork/`、`.agents/skills/` 和 checker 结果是否真正可用。
 
 ###### 判断材料而不是自动推进
 Artifact cockpit 只暴露证据、风险和建议，不自动推进 phase，不运行 relatedwork，不安装 skills，也不运行 checker。它为后续纵向能力提供判断基础。
@@ -14,13 +14,13 @@ Artifact cockpit 只暴露证据、风险和建议，不自动推进 phase，不
 <!-- description: 必须实现的能力 -->
 
 ###### 统一 artifact 状态
-`vibepaper_artifact_status` 读取项目中的关键工件，并为每个工件返回 `missing`、`template`、`partial`、`ready`、`stale` 或 `unknown`。
+`copaper_artifact_status` 读取项目中的关键工件，并为每个工件返回 `missing`、`template`、`partial`、`ready`、`stale` 或 `unknown`。
 
 ###### 证据驱动判断
 每个 artifact 状态必须附带 evidence 和 confidence。Dashboard 不应只因为文件存在就宣称材料 ready，尤其不能把初始化模板误判为实质内容。
 
 ###### Dashboard ready 后增强
-项目 ready 后，`/vibe` 显示 Artifacts 区块，让用户先理解哪些材料可用，再理解 workflow phase 如何推进。
+项目 ready 后，`/copaper` 显示 Artifacts 区块，让用户先理解哪些材料可用，再理解 workflow phase 如何推进。
 
 ###### 为后续能力铺路
 Artifact status 结果要能被后续 relatedwork、skills 安装、checker/report 联动复用，但本阶段不实现这些纵向流程。
@@ -29,7 +29,7 @@ Artifact status 结果要能被后续 relatedwork、skills 安装、checker/repo
 <!-- description: 本阶段明确不做的内容 -->
 
 ###### 不写入 readiness state
-第一版不新增写入型 `vibepaper_artifact_set_readiness`，也不主动写入 `state.artifacts`。若未来 state 中已有 artifact 记录，工具可以读取为辅助证据。
+第一版不新增写入型 `copaper_artifact_set_readiness`，也不主动写入 `state.artifacts`。若未来 state 中已有 artifact 记录，工具可以读取为辅助证据。
 
 ###### 不运行外部流程
 本阶段不下载论文、不同步 BibTeX、不构建 cross-index、不安装 `.agents/skills/`、不运行 checker、不生成 report，也不执行 Git 操作。
@@ -47,7 +47,7 @@ Artifact 状态不自动改变 workflow phase。`paper=ready` 不代表自动把
 当 readiness 为 `ready` 时，Dashboard 展示顺序为 `Readiness`、`Artifacts`、`Workflow`、`Recommendation`。Artifact evidence 用来校准 phase 建议。
 
 ###### Artifact 状态查看
-用户询问“哪些材料准备好了”“storyline 是否可用”“paper 还是模板吗”时，agent 调用 `vibepaper_artifact_status`。
+用户询问“哪些材料准备好了”“storyline 是否可用”“paper 还是模板吗”时，agent 调用 `copaper_artifact_status`。
 
 ###### 保守推荐下一步
 推荐逻辑以 artifact evidence 为主。若 `storyline` 是模板，建议完善研究主线；若 `relatedwork` 缺失，建议后续进入 relatedwork 流程；若 `skills` 缺失，建议显式安装完整 skills。
@@ -58,17 +58,17 @@ Artifact 状态不自动改变 workflow phase。`paper=ready` 不代表自动把
 ## Tool Design
 <!-- description: OpenCode 工具边界 -->
 
-###### `vibepaper_artifact_status`
+###### `copaper_artifact_status`
 该工具只读项目文件。参数为空或仅包含未来兼容的可选显示参数。它使用 OpenCode runtime `ToolContext.directory` 和 `ToolContext.worktree` 做 root detection。
 
 ###### 结构化返回
 返回字段包括 `schemaVersion`、`ok`、`root`、`artifacts`、`summary`、`recommendation`、`warnings` 和 `locale`。失败时仍尽量返回已能读取的 artifact 诊断。
 
 ###### Dashboard 集成
-`vibepaper_dashboard` 在项目 ready 时调用 artifact status 逻辑，并在 JSON block 中加入 `artifactStatus`。artifact status 失败时，Dashboard 隐藏 Markdown 区块但保留 JSON 诊断。
+`copaper_dashboard` 在项目 ready 时调用 artifact status 逻辑，并在 JSON block 中加入 `artifactStatus`。artifact status 失败时，Dashboard 隐藏 Markdown 区块但保留 JSON 诊断。
 
 ###### 命令模板
-`/vibe` slash command 应说明 artifact status 是只读工具。agent 可用它回答材料状态问题，但不得基于 artifact 结果直接写 state 或推进 phase。
+`/copaper` slash command 应说明 artifact status 是只读工具。agent 可用它回答材料状态问题，但不得基于 artifact 结果直接写 state 或推进 phase。
 
 ## Data Model
 <!-- description: 稳定结果模型 -->
@@ -122,7 +122,7 @@ Artifact 状态不自动改变 workflow phase。`paper=ready` 不代表自动把
 `metadata.provenance` 可记录 `file`、`state`、`event_log` 或 `heuristic`。第一版只展示简短来源，不建立完整 lineage graph。
 
 ## Dashboard Integration
-<!-- description: `/vibe` 展示变化 -->
+<!-- description: `/copaper` 展示变化 -->
 
 ###### Artifacts 区块
 Ready Dashboard 增加 `Artifacts` 区块。每行展示 artifact ID、status、confidence、关键 evidence 和下一步建议。
@@ -158,7 +158,7 @@ Workflow 区块继续显示 phase 状态。若 artifact evidence 与 phase 直�
 验证 ready 项目显示 Artifacts 区块，未 ready 项目仍优先显示初始化预览。验证 artifact status 异常时隐藏 Markdown 区块但保留 JSON 诊断。
 
 ###### Tool registration tests
-验证插件注册 `vibepaper_artifact_status`，并验证它使用 runtime `ToolContext` root，而不是插件初始化时捕获的 root。
+验证插件注册 `copaper_artifact_status`，并验证它使用 runtime `ToolContext` root，而不是插件初始化时捕获的 root。
 
 ###### Localization tests
 验证中文默认输出、英文输出和稳定英文 JSON 字段。状态值、confidence 值和 artifact ID 不随 locale 变化。
@@ -170,7 +170,7 @@ Workflow 区块继续显示 phase 状态。若 artifact evidence 与 phase 直�
 <!-- description: 完成判定 -->
 
 ###### 用户可理解材料状态
-用户运行 `/vibe` 后，可以清楚看到哪些材料缺失、哪些只是模板、哪些已有实质内容、哪些结果可能过期。
+用户运行 `/copaper` 后，可以清楚看到哪些材料缺失、哪些只是模板、哪些已有实质内容、哪些结果可能过期。
 
 ###### Dashboard 不误导
 默认初始化后的 `storyline.md` 和 `paper.md` 不应被误判为 ready。Dashboard 推荐必须基于 evidence，而不是只看文件存在。

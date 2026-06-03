@@ -40,40 +40,40 @@ export async function runRelatedworkKeywords(options: RelatedworkKeywordsOptions
   const args: string[] = ["relatedwork", "keywords"]
   if (typeof options.source === "string" && options.source.trim() !== "") args.push("--from", options.source.trim())
   if (typeof options.count === "number" && Number.isFinite(options.count)) args.push("--count", String(Math.max(1, Math.min(30, Math.trunc(options.count)))))
-  return invoke({ subcommand: "keywords", toolId: "vibepaper_relatedwork_keywords", args, options, deps })
+  return invoke({ subcommand: "keywords", toolId: "copaper_relatedwork_keywords", args, options, deps })
 }
 
 export async function runRelatedworkSearch(options: RelatedworkSearchOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   if (!Array.isArray(options.queries) || options.queries.length === 0) {
-    return immediateError("vibepaper_relatedwork_search", "invalid-args", "queries must be a non-empty array of strings", options)
+    return immediateError("copaper_relatedwork_search", "invalid-args", "queries must be a non-empty array of strings", options)
   }
   const args: string[] = ["relatedwork", "search"]
   for (const query of options.queries) {
     if (typeof query !== "string" || query.trim() === "") {
-      return immediateError("vibepaper_relatedwork_search", "invalid-args", "Every query must be a non-empty string", options)
+      return immediateError("copaper_relatedwork_search", "invalid-args", "Every query must be a non-empty string", options)
     }
     args.push("--query", query)
   }
   if (typeof options.queriesFile === "string" && options.queriesFile.trim() !== "") args.push("--queries-file", options.queriesFile.trim())
   if (typeof options.limit === "number" && Number.isFinite(options.limit)) args.push("--limit", String(Math.max(1, Math.trunc(options.limit))))
-  return invoke({ subcommand: "search", toolId: "vibepaper_relatedwork_search", args, options, deps })
+  return invoke({ subcommand: "search", toolId: "copaper_relatedwork_search", args, options, deps })
 }
 
 export async function runRelatedworkImport(options: RelatedworkImportOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "import"]
   if (typeof options.input === "string" && options.input.trim() !== "") args.push("--input", options.input.trim())
-  return invoke({ subcommand: "import", toolId: "vibepaper_relatedwork_import", args, options, deps })
+  return invoke({ subcommand: "import", toolId: "copaper_relatedwork_import", args, options, deps })
 }
 
 export async function runRelatedworkSyncBib(options: RelatedworkSyncBibOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "sync-bib"]
-  return invoke({ subcommand: "sync-bib", toolId: "vibepaper_relatedwork_sync_bib", args, options, deps })
+  return invoke({ subcommand: "sync-bib", toolId: "copaper_relatedwork_sync_bib", args, options, deps })
 }
 
 export async function runRelatedworkDownload(options: RelatedworkDownloadOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "download"]
   if (typeof options.paperId === "string" && options.paperId.trim() !== "") args.push("--paper-id", options.paperId.trim())
-  return invoke({ subcommand: "download", toolId: "vibepaper_relatedwork_download", args, options, deps })
+  return invoke({ subcommand: "download", toolId: "copaper_relatedwork_download", args, options, deps })
 }
 
 export async function runRelatedworkSummarize(options: RelatedworkSummarizeOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
@@ -81,23 +81,23 @@ export async function runRelatedworkSummarize(options: RelatedworkSummarizeOptio
   if (typeof options.paperId === "string" && options.paperId.trim() !== "") args.push("--paper-id", options.paperId.trim())
   if (typeof options.storyline === "string" && options.storyline.trim() !== "") args.push("--storyline", options.storyline.trim())
   if (typeof options.template === "string" && options.template.trim() !== "") args.push("--template", options.template.trim())
-  return invoke({ subcommand: "summarize", toolId: "vibepaper_relatedwork_summarize", args, options, deps })
+  return invoke({ subcommand: "summarize", toolId: "copaper_relatedwork_summarize", args, options, deps })
 }
 
 export async function runRelatedworkRegisterSummary(options: RelatedworkRegisterSummaryOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   if (typeof options.paperId !== "string" || options.paperId.trim() === "") {
-    return immediateError("vibepaper_relatedwork_register_summary", "invalid-args", "paperId is required", options)
+    return immediateError("copaper_relatedwork_register_summary", "invalid-args", "paperId is required", options)
   }
   if (typeof options.path !== "string" || options.path.trim() === "") {
-    return immediateError("vibepaper_relatedwork_register_summary", "invalid-args", "path is required", options)
+    return immediateError("copaper_relatedwork_register_summary", "invalid-args", "path is required", options)
   }
   const args: string[] = ["relatedwork", "register-summary", "--paper-id", options.paperId.trim(), "--summary-path", options.path.trim()]
-  return invoke({ subcommand: "register-summary", toolId: "vibepaper_relatedwork_register_summary", args, options, deps })
+  return invoke({ subcommand: "register-summary", toolId: "copaper_relatedwork_register_summary", args, options, deps })
 }
 
 export async function runRelatedworkBuildIndex(options: RelatedworkBuildIndexOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
   const args: string[] = ["relatedwork", "build-index"]
-  return invoke({ subcommand: "build-index", toolId: "vibepaper_relatedwork_build_index", args, options, deps })
+  return invoke({ subcommand: "build-index", toolId: "copaper_relatedwork_build_index", args, options, deps })
 }
 
 export async function runRelatedworkClean(options: RelatedworkCleanOptions, deps: RelatedworkToolDeps = {}): Promise<RelatedworkToolResult> {
@@ -107,7 +107,7 @@ export async function runRelatedworkClean(options: RelatedworkCleanOptions, deps
   } else {
     args.push("--yes")
   }
-  return invoke({ subcommand: "clean", toolId: "vibepaper_relatedwork_clean", args, options, deps })
+  return invoke({ subcommand: "clean", toolId: "copaper_relatedwork_clean", args, options, deps })
 }
 
 async function invoke(input: PreparedInvocation): Promise<RelatedworkToolResult> {

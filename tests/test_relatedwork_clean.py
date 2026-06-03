@@ -1,4 +1,4 @@
-"""Tests for `vibe relatedwork clean`."""
+"""Tests for `copaper relatedwork clean`."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from vibepaper import relatedwork_clean
-from vibepaper.cli import main as cli_main
-from vibepaper.literature import LiteratureCatalog
-from vibepaper.relatedwork_clean import (
+from copaper import relatedwork_clean
+from copaper.cli import main as cli_main
+from copaper.literature import LiteratureCatalog
+from copaper.relatedwork_clean import (
     CleanOutcome,
     clean_relatedwork,
     plan_targets,

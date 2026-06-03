@@ -1,14 +1,14 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { parse, type ParseError } from "jsonc-parser"
-import { buildVibePaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
+import { buildCoPaperAgentConfig, type OpenCodeAgentConfig } from "./agent-config"
 import { agentRuntimeToDoctorChecks } from "./agent-diagnostics"
 import { assertInsideRoot } from "./fs-utils"
 import { detectRoot } from "./root"
 import { resolveBridge, type BridgeDeps } from "./python-bridge"
 import { hasManagedMarker, MANAGED_COMMAND_NAMES, type CommandName } from "./templates"
 import { t } from "./i18n"
-import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isVibePaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, VIBE_COMMAND, type DoctorCheck, type DoctorResult, type Locale } from "./types"
+import { BUNX_CLI_COMMAND, DEFAULT_LOCALE, isCoPaperPluginSpecifier, PACKAGE_NAME, SCHEMA_VERSION, COPAPER_COMMAND, type DoctorCheck, type DoctorResult, type Locale } from "./types"
 import { LOCAL_PLUGIN_IMPORT, LOCAL_PLUGIN_MARKER, LOCAL_PLUGIN_RELATIVE_PATH } from "./installer"
 
 const INIT_REMEDIATION = `Run: ${BUNX_CLI_COMMAND} init`
@@ -51,7 +51,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       } else {
         checks.push({ id: "config.parse", status: "pass", severity: "error", message: "OpenCode config parsed successfully", remediation: null })
         const plugins = parsedConfig.plugin
-        const configuredByPackage = Array.isArray(plugins) && plugins.some(isVibePaperPluginSpecifier)
+        const configuredByPackage = Array.isArray(plugins) && plugins.some(isCoPaperPluginSpecifier)
         const localPlugin = readManagedLocalPlugin(root)
         const configured = configuredByPackage || localPlugin.ok
         checks.push({
@@ -73,10 +73,10 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   for (const command of MANAGED_COMMAND_NAMES) {
     addCommandChecks(root, checks, command)
   }
-  await addVibeCliCheck(root, checks, options.bridgeDeps)
+  await addCoPaperCliCheck(root, checks, options.bridgeDeps)
   checks.push(...buildAgentChecks(root, existingAgents))
   const ok = checks.every((check) => !(check.severity === "error" && check.status === "fail"))
-  return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /vibe"] : [INIT_REMEDIATION, "Restart OpenCode, then run /vibe-doctor"] }
+  return { schemaVersion: SCHEMA_VERSION, ok, root, rootReason: detection.reason, packageVersion: options.packageVersion, checks, nextSteps: ok ? ["Restart OpenCode if you just installed, then run /copaper"] : [INIT_REMEDIATION, "Restart OpenCode, then run /copaper-doctor"] }
 }
 
 export function renderDoctorJson(result: DoctorResult): string {
@@ -163,7 +163,7 @@ function addCommandChecks(root: string, checks: DoctorCheck[], command: CommandN
   const path = join(root, ".opencode", "commands", `${command}.md`)
   const presentId = `commands.${command}.present`
   const managedId = `commands.${command}.managed`
-  const severity = command === VIBE_COMMAND ? "error" : "warning"
+  const severity = command === COPAPER_COMMAND ? "error" : "warning"
   if (!existsSync(path)) {
     checks.push({ id: presentId, status: "fail", severity, message: `${path} not found`, remediation: INIT_REMEDIATION })
     checks.push({ id: managedId, status: "warn", severity: "warning", message: `${command} command marker missing because command file is missing`, remediation: INIT_REMEDIATION })
@@ -178,34 +178,34 @@ function addCommandChecks(root: string, checks: DoctorCheck[], command: CommandN
   const content = commandRead.content
   checks.push({ id: presentId, status: "pass", severity, message: `${path} exists`, remediation: null })
   const managed = hasManagedMarker(content, command)
-  checks.push({ id: managedId, status: managed ? "pass" : "warn", severity: "warning", message: managed ? `${command} command is VibePaper-managed` : `${command} command exists but is not VibePaper-managed`, remediation: managed ? null : "Review the command file or rerun init with --force" })
+  checks.push({ id: managedId, status: managed ? "pass" : "warn", severity: "warning", message: managed ? `${command} command is CoPaper-managed` : `${command} command exists but is not CoPaper-managed`, remediation: managed ? null : "Review the command file or rerun init with --force" })
 }
 
-const VIBE_CLI_REMEDIATION = "Install the VibePaper Python CLI via `uv pip install -e .` in the project root."
+const COPAPER_CLI_REMEDIATION = "Install the CoPaper Python CLI via `uv pip install -e .` in the project root."
 
-async function addVibeCliCheck(root: string, checks: DoctorCheck[], bridgeDeps?: BridgeDeps): Promise<void> {
+async function addCoPaperCliCheck(root: string, checks: DoctorCheck[], bridgeDeps?: BridgeDeps): Promise<void> {
   const resolved = await resolveBridge(root, bridgeDeps ?? {})
   if (!resolved.ok) {
     checks.push({
-      id: "vibe-cli.available",
+      id: "copaper-cli.available",
       status: "fail",
       severity: "warning",
       message: resolved.error.message,
-      remediation: VIBE_CLI_REMEDIATION,
+      remediation: COPAPER_CLI_REMEDIATION,
     })
     return
   }
   checks.push({
-    id: "vibe-cli.available",
+    id: "copaper-cli.available",
     status: "pass",
     severity: "warning",
-    message: `vibe CLI resolved via ${resolved.resolution.kind} (${resolved.resolution.path})`,
+    message: `copaper CLI resolved via ${resolved.resolution.kind} (${resolved.resolution.path})`,
     remediation: null,
   })
 }
 
 function buildAgentChecks(root: string, existingAgents: Record<string, OpenCodeAgentConfig>): DoctorCheck[] {
-  const result = buildVibePaperAgentConfig({ root, existingAgents })
+  const result = buildCoPaperAgentConfig({ root, existingAgents })
   const permissionProfiles = new Map(result.runtime.agents.map((agent) => [`agents.${agent.name}`, agent.permissionProfile]))
   return agentRuntimeToDoctorChecks(result.runtime).map((check) => {
     const permissionProfile = permissionProfiles.get(check.id)

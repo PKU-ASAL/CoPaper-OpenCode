@@ -7,12 +7,12 @@ describe("i18n", () => {
     expect(resolveLocale(undefined, {}).fallback).toBe(false)
   })
 
-  test("uses VIBEPAPER_LANG when explicit locale is absent", () => {
-    expect(resolveLocale(undefined, { VIBEPAPER_LANG: "en-US" }).locale).toBe("en-US")
+  test("uses COPAPER_LANG when explicit locale is absent", () => {
+    expect(resolveLocale(undefined, { COPAPER_LANG: "en-US" }).locale).toBe("en-US")
   })
 
-  test("explicit locale takes precedence over VIBEPAPER_LANG", () => {
-    expect(resolveLocale("zh-CN", { VIBEPAPER_LANG: "en-US" }).locale).toBe("zh-CN")
+  test("explicit locale takes precedence over COPAPER_LANG", () => {
+    expect(resolveLocale("zh-CN", { COPAPER_LANG: "en-US" }).locale).toBe("zh-CN")
   })
 
   test("falls back to zh-CN for unsupported locale values", () => {

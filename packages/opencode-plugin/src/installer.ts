@@ -8,12 +8,12 @@ import { detectRoot } from "./root"
 import { hasManagedMarker, MANAGED_COMMAND_NAMES, renderCommandTemplate, type CommandName } from "./templates"
 import { DEFAULT_LOCALE, PACKAGE_NAME, type Locale } from "./types"
 
-export const LOCAL_PLUGIN_RELATIVE_PATH = ".opencode/plugins/vibepaper.js" as const
-export const LOCAL_PLUGIN_MARKER = "VibePaper managed local plugin: @vibepaper/opencode" as const
-export const LOCAL_PLUGIN_IMPORT = "../../node_modules/@vibepaper/opencode/dist/index.js" as const
+export const LOCAL_PLUGIN_RELATIVE_PATH = ".opencode/plugins/copaper.js" as const
+export const LOCAL_PLUGIN_MARKER = "CoPaper managed local plugin: @copaper/opencode" as const
+export const LOCAL_PLUGIN_IMPORT = "../../node_modules/@copaper/opencode/dist/index.js" as const
 export const LOCAL_PLUGIN_CONTENT = `// ${LOCAL_PLUGIN_MARKER}
 // Loaded by OpenCode from .opencode/plugins/ without absolute paths.
-export { VibePaperPlugin, default } from "${LOCAL_PLUGIN_IMPORT}"
+export { CoPaperPlugin, default } from "${LOCAL_PLUGIN_IMPORT}"
 `
 
 export interface InitOptions {
@@ -111,7 +111,7 @@ export function resolvePluginSpecifier(root: string, cliEntryPath?: string): str
   if (!cliEntryPath) return PACKAGE_NAME
   const indexPath = join(dirname(cliEntryPath), "index.js")
   if (!existsSync(indexPath)) return PACKAGE_NAME
-  if (!indexPath.endsWith(join("node_modules", "@vibepaper", "opencode", "dist", "index.js"))) return PACKAGE_NAME
+  if (!indexPath.endsWith(join("node_modules", "@copaper", "opencode", "dist", "index.js"))) return PACKAGE_NAME
   try {
     assertInsideRoot(root, indexPath)
     return pathToFileURL(indexPath).href

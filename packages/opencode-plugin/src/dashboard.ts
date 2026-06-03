@@ -102,10 +102,10 @@ function integrationFromDoctor(checks: { id: string; status: string }[]): Dashbo
     configPresent: check("config.present"),
     configParseable: check("config.parse"),
     pluginConfigured: check("plugin.configured"),
-    vibeCommandPresent: check("commands.vibe.present"),
-    vibeDoctorCommandPresent: check("commands.vibe-doctor.present"),
-    vibeCommandManaged: check("commands.vibe.managed"),
-    vibeDoctorCommandManaged: check("commands.vibe-doctor.managed"),
+    copaperCommandPresent: check("commands.copaper.present"),
+    copaperDoctorCommandPresent: check("commands.copaper-doctor.present"),
+    copaperCommandManaged: check("commands.copaper.managed"),
+    copaperDoctorCommandManaged: check("commands.copaper-doctor.managed"),
   }
 }
 

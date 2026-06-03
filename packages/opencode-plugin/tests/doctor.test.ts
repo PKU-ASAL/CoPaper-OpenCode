@@ -21,13 +21,13 @@ describe("doctor", () => {
     expect(result.ok).toBe(true)
     expect(result.checks.map((check) => check.id)).toContain("plugin.configured")
     expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
-    expect(renderDoctorText(result)).toContain("VibePaper OpenCode 诊断 v0.1.0")
-    expect(renderDoctorText(result, "en-US")).toContain("VibePaper OpenCode Doctor v0.1.0")
+    expect(renderDoctorText(result)).toContain("CoPaper OpenCode 诊断 v0.1.0")
+    expect(renderDoctorText(result, "en-US")).toContain("CoPaper OpenCode Doctor v0.1.0")
     expect(renderDoctorMarkdown(result)).toContain("| 检查项 | 状态 | 说明 |")
     expect(renderDoctorMarkdown(result, "en-US")).toContain("| Check | Status | Message |")
-    expect(result.checks.find((check) => check.id === "agents.vibepaper-coordinator")?.status).toBe("pass")
-    expect(result.checks.find((check) => check.id === "agents.vibepaper-writer")?.message).toContain("paperWrite")
-    expect(renderDoctorMarkdown(result)).toContain("agents.vibepaper-writer")
+    expect(result.checks.find((check) => check.id === "agents.copaper-coordinator")?.status).toBe("pass")
+    expect(result.checks.find((check) => check.id === "agents.copaper-writer")?.message).toContain("paperWrite")
+    expect(renderDoctorMarkdown(result)).toContain("agents.copaper-writer")
     expect(JSON.parse(renderDoctorJson(result)).ok).toBe(true)
   })
 
@@ -37,11 +37,11 @@ describe("doctor", () => {
     if (!plan.ok) throw new Error(plan.error)
     await applyInitPlan(plan)
     project.write(
-      ".opencode/vibepaper.json",
+      ".opencode/copaper.json",
       JSON.stringify({
         schemaVersion: SCHEMA_VERSION,
         agents: {
-          "vibepaper-coordinator": { permissionProfile: "paperWrite" },
+          "copaper-coordinator": { permissionProfile: "paperWrite" },
         },
       }),
     )
@@ -49,7 +49,7 @@ describe("doctor", () => {
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
 
     expect(result.ok).toBe(true)
-    expect(result.checks.find((check) => check.id === "agents.vibepaper-coordinator")?.message).toContain("readOnly")
+    expect(result.checks.find((check) => check.id === "agents.copaper-coordinator")?.message).toContain("readOnly")
     expect(result.checks.find((check) => check.id === "agents.diagnostic.permission-escalation-denied")?.status).toBe("warn")
   })
 
@@ -61,9 +61,9 @@ describe("doctor", () => {
     project.write(
       "opencode.json",
       JSON.stringify({
-        plugin: ["@vibepaper/opencode"],
+        plugin: ["@copaper/opencode"],
         agent: {
-          "vibepaper-writer": { prompt: "user writer" },
+          "copaper-writer": { prompt: "user writer" },
         },
       }),
     )
@@ -71,7 +71,7 @@ describe("doctor", () => {
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
 
     expect(result.ok).toBe(true)
-    expect(result.checks.find((check) => check.id === "agents.vibepaper-writer")?.status).toBe("fail")
+    expect(result.checks.find((check) => check.id === "agents.copaper-writer")?.status).toBe("fail")
     expect(result.checks.find((check) => check.id === "agents.diagnostic.agent-name-conflict")?.status).toBe("warn")
   })
 
@@ -96,7 +96,7 @@ describe("doctor", () => {
   test("reports ambiguous config files without throwing", async () => {
     const project = temp()
     mkdirSync(project.path("opencode.json"))
-    project.write("opencode.jsonc", `{"plugin":["@vibepaper/opencode"]}\n`)
+    project.write("opencode.jsonc", `{"plugin":["@copaper/opencode"]}\n`)
 
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
     expect(result.ok).toBe(false)
@@ -111,7 +111,7 @@ describe("doctor", () => {
     const plan = await planInit({ root: project.root })
     if (!plan.ok) throw new Error(plan.error)
     await applyInitPlan(plan)
-    project.write("opencode.jsonc", `{"plugin":["@vibepaper/opencode"]}\n`)
+    project.write("opencode.jsonc", `{"plugin":["@copaper/opencode"]}\n`)
 
     const result = await runDoctor({ root: project.root, config: "opencode.jsonc", packageVersion: "0.1.0" })
     expect(result.ok).toBe(true)
@@ -122,9 +122,9 @@ describe("doctor", () => {
 
   test("accepts a local file URL plugin specifier", async () => {
     const project = temp()
-    project.write("opencode.json", JSON.stringify({ plugin: [`file://${project.path("node_modules", "@vibepaper", "opencode", "dist", "index.js")}`] }))
-    project.write(".opencode/commands/vibe.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->\n")
-    project.write(".opencode/commands/vibe-doctor.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe-doctor; schemaVersion=1 -->\n")
+    project.write("opencode.json", JSON.stringify({ plugin: [`file://${project.path("node_modules", "@copaper", "opencode", "dist", "index.js")}`] }))
+    project.write(".opencode/commands/copaper.md", "<!-- CoPaper managed: @copaper/opencode; command=copaper; schemaVersion=1 -->\n")
+    project.write(".opencode/commands/copaper-doctor.md", "<!-- CoPaper managed: @copaper/opencode; command=copaper-doctor; schemaVersion=1 -->\n")
 
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
     expect(result.checks.find((check) => check.id === "plugin.configured")?.status).toBe("pass")
@@ -133,14 +133,14 @@ describe("doctor", () => {
   test("accepts a managed project-local plugin wrapper", async () => {
     const project = temp()
     project.write("opencode.json", JSON.stringify({ $schema: "https://opencode.ai/config.json" }))
-    project.write(".opencode/plugins/vibepaper.js", [
-      "// VibePaper managed local plugin: @vibepaper/opencode",
+    project.write(".opencode/plugins/copaper.js", [
+      "// CoPaper managed local plugin: @copaper/opencode",
       "// Loaded by OpenCode from .opencode/plugins/ without absolute paths.",
-      'export { VibePaperPlugin, default } from "../../node_modules/@vibepaper/opencode/dist/index.js"',
+      'export { CoPaperPlugin, default } from "../../node_modules/@copaper/opencode/dist/index.js"',
       "",
     ].join("\n"))
-    project.write(".opencode/commands/vibe.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe; schemaVersion=1 -->\n")
-    project.write(".opencode/commands/vibe-doctor.md", "<!-- VibePaper managed: @vibepaper/opencode; command=vibe-doctor; schemaVersion=1 -->\n")
+    project.write(".opencode/commands/copaper.md", "<!-- CoPaper managed: @copaper/opencode; command=copaper; schemaVersion=1 -->\n")
+    project.write(".opencode/commands/copaper-doctor.md", "<!-- CoPaper managed: @copaper/opencode; command=copaper-doctor; schemaVersion=1 -->\n")
 
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
 
@@ -152,7 +152,7 @@ describe("doctor", () => {
   test("rejects explicit config paths outside root without throwing", async () => {
     const project = temp()
     const outside = temp()
-    outside.write("opencode.json", `{"plugin":["@vibepaper/opencode"]}\n`)
+    outside.write("opencode.json", `{"plugin":["@copaper/opencode"]}\n`)
 
     const result = await runDoctor({ root: project.root, config: `../${basename(outside.root)}/opencode.json`, packageVersion: "0.1.0" })
     expect(result.ok).toBe(false)
@@ -160,7 +160,7 @@ describe("doctor", () => {
     const parse = result.checks.find((check) => check.id === "config.parse")
     expect(present?.status).toBe("fail")
     expect(parse?.status).toBe("fail")
-    expect(present?.remediation ?? parse?.remediation).toBe("Run: bunx -p @vibepaper/opencode vibepaper-opencode init")
+    expect(present?.remediation ?? parse?.remediation).toBe("Run: bunx -p @copaper/opencode copaper-opencode init")
   })
 
   test("reports directory config as parse failure without throwing", async () => {
@@ -177,13 +177,13 @@ describe("doctor", () => {
     const plan = await planInit({ root: project.root })
     if (!plan.ok) throw new Error(plan.error)
     await applyInitPlan(plan)
-    rmSync(project.path(".opencode", "commands", "vibe.md"))
-    mkdirSync(project.path(".opencode", "commands", "vibe.md"))
+    rmSync(project.path(".opencode", "commands", "copaper.md"))
+    mkdirSync(project.path(".opencode", "commands", "copaper.md"))
 
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
     expect(result.ok).toBe(false)
-    expect(result.checks.find((check) => check.id === "commands.vibe.present")?.status).toBe("fail")
-    expect(result.checks.find((check) => check.id === "commands.vibe.managed")?.status).toBe("warn")
+    expect(result.checks.find((check) => check.id === "commands.copaper.present")?.status).toBe("fail")
+    expect(result.checks.find((check) => check.id === "commands.copaper.managed")?.status).toBe("warn")
   })
 
   test("reports top-level array config as parse failure", async () => {
@@ -200,7 +200,7 @@ describe("doctor", () => {
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
     const ids = result.checks
       .map((check) => check.id)
-      .filter((id) => !id.startsWith("agents.") && !id.startsWith("commands.") && id !== "vibe-cli.available")
+      .filter((id) => !id.startsWith("agents.") && !id.startsWith("commands.") && id !== "copaper-cli.available")
       .join("\n")
     expect(ids).not.toContain("paper")
     expect(ids).not.toContain("storyline")
@@ -211,8 +211,8 @@ describe("doctor", () => {
     const project = temp()
     const result = await runDoctor({ root: project.root, packageVersion: "0.1.0" })
     const text = renderDoctorText(result)
-    expect(text).toContain("VibePaper OpenCode 诊断 v0.1.0")
+    expect(text).toContain("CoPaper OpenCode 诊断 v0.1.0")
     expect(text).toContain("config.present")
-    expect(text).toContain("bunx -p @vibepaper/opencode vibepaper-opencode init")
+    expect(text).toContain("bunx -p @copaper/opencode copaper-opencode init")
   })
 })

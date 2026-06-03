@@ -3,7 +3,7 @@ import { join, relative } from "node:path"
 import { tmpdir } from "node:os"
 import { createHash } from "node:crypto"
 
-export function makeTempProject(prefix = "vibepaper-opencode-") {
+export function makeTempProject(prefix = "copaper-opencode-") {
   const root = mkdtempSync(join(tmpdir(), prefix))
   return {
     root,

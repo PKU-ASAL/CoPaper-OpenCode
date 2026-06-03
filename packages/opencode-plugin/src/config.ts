@@ -1,5 +1,5 @@
 import { applyEdits, findNodeAtLocation, getNodeValue, modify, parse, parseTree, type ParseError } from "jsonc-parser"
-import { isVibePaperPluginSpecifier, PACKAGE_NAME } from "./types"
+import { isCoPaperPluginSpecifier, PACKAGE_NAME } from "./types"
 
 export type MergeResult =
   | { ok: true; changed: boolean; output: string }
@@ -28,7 +28,7 @@ export function mergePluginConfig(input: string, pluginSpecifier: string = PACKA
     return { ok: false, changed: false, error: "OpenCode config field plugin must be an array" }
   }
 
-  const currentPluginIndex = current.findIndex(isVibePaperPluginSpecifier)
+  const currentPluginIndex = current.findIndex(isCoPaperPluginSpecifier)
   if (currentPluginIndex >= 0) {
     if (current[currentPluginIndex] === pluginSpecifier) return { ok: true, changed: false, output: input }
     const edits = modify(input, ["plugin", currentPluginIndex], pluginSpecifier, { formattingOptions: { insertSpaces: true, tabSize: 2 } })

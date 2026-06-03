@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { resolveBridge, runBridge, type BridgeDeps, type SpawnFn, type SpawnResult } from "../src/python-bridge"
 
-const ROOT = "/tmp/vibepaper-bridge-test"
+const ROOT = "/tmp/copaper-bridge-test"
 
 function fakeNow(): { tick: () => number; reset: () => void } {
   let n = 0
@@ -18,13 +18,13 @@ function recordingSpawn(result: SpawnResult): { spawn: SpawnFn; calls: Array<{ c
 }
 
 describe("python-bridge", () => {
-  test("resolveBridge prefers .venv/bin/vibe when present", async () => {
-    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/vibe", resolveUv: () => "/usr/bin/uv" }
+  test("resolveBridge prefers .venv/bin/copaper when present", async () => {
+    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/copaper", resolveUv: () => "/usr/bin/uv" }
     const resolved = await resolveBridge(ROOT, deps)
     expect(resolved.ok).toBe(true)
     if (resolved.ok) {
       expect(resolved.resolution.kind).toBe("venv-bin")
-      expect(resolved.resolution.path).toBe("/venv/bin/vibe")
+      expect(resolved.resolution.path).toBe("/venv/bin/copaper")
       expect(resolved.resolution.args).toEqual([])
     }
   })
@@ -36,27 +36,27 @@ describe("python-bridge", () => {
     if (resolved.ok) {
       expect(resolved.resolution.kind).toBe("uv-run")
       expect(resolved.resolution.path).toBe("/usr/bin/uv")
-      expect(resolved.resolution.args).toEqual(["run", "--project", ROOT, "vibe"])
+      expect(resolved.resolution.args).toEqual(["run", "--project", ROOT, "copaper"])
     }
   })
 
-  test("resolveBridge fails with vibe-cli-unavailable when nothing found", async () => {
+  test("resolveBridge fails with copaper-cli-unavailable when nothing found", async () => {
     const deps: BridgeDeps = { resolveVenv: () => null, resolveUv: () => null }
     const resolved = await resolveBridge(ROOT, deps)
     expect(resolved.ok).toBe(false)
     if (!resolved.ok) {
-      expect(resolved.error.code).toBe("vibe-cli-unavailable")
+      expect(resolved.error.code).toBe("copaper-cli-unavailable")
     }
   })
 
   test("runBridge spawns venv binary with --root and forwards args", async () => {
     const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "hello\n", stderr: "", timedOut: false })
     const clock = fakeNow()
-    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/vibe", resolveUv: () => null, spawn, now: clock.tick }
+    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/copaper", resolveUv: () => null, spawn, now: clock.tick }
     const result = await runBridge({ root: ROOT, args: ["relatedwork", "status", "--json"] }, deps)
     expect(result.ok).toBe(true)
     expect(calls.length).toBe(1)
-    expect(calls[0].command).toEqual(["/venv/bin/vibe", "--root", ROOT, "relatedwork", "status", "--json"])
+    expect(calls[0].command).toEqual(["/venv/bin/copaper", "--root", ROOT, "relatedwork", "status", "--json"])
     expect(calls[0].cwd).toBe(ROOT)
     if (result.ok) {
       expect(result.command).toContain("relatedwork status --json")
@@ -70,16 +70,16 @@ describe("python-bridge", () => {
     const { spawn, calls } = recordingSpawn({ exitCode: 0, stdout: "", stderr: "", timedOut: false })
     const deps: BridgeDeps = { resolveVenv: () => null, resolveUv: () => "/usr/bin/uv", spawn, now: fakeNow().tick }
     await runBridge({ root: ROOT, args: ["relatedwork", "keywords"] }, deps)
-    expect(calls[0].command).toEqual(["/usr/bin/uv", "run", "--project", ROOT, "vibe", "--root", ROOT, "relatedwork", "keywords"])
+    expect(calls[0].command).toEqual(["/usr/bin/uv", "run", "--project", ROOT, "copaper", "--root", ROOT, "relatedwork", "keywords"])
   })
 
   test("runBridge surfaces non-zero exit", async () => {
     const { spawn } = recordingSpawn({ exitCode: 2, stdout: "", stderr: "boom\n", timedOut: false })
-    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/vibe", resolveUv: () => null, spawn, now: fakeNow().tick }
+    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/copaper", resolveUv: () => null, spawn, now: fakeNow().tick }
     const result = await runBridge({ root: ROOT, args: ["relatedwork", "import"] }, deps)
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.error.code).toBe("vibe-nonzero-exit")
+      expect(result.error.code).toBe("copaper-nonzero-exit")
       expect(result.stderr).toBe("boom\n")
       expect(result.exitCode).toBe(2)
     }
@@ -87,7 +87,7 @@ describe("python-bridge", () => {
 
   test("runBridge surfaces bridge-timeout when spawn reports timedOut", async () => {
     const { spawn } = recordingSpawn({ exitCode: null, stdout: "", stderr: "", timedOut: true })
-    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/vibe", resolveUv: () => null, spawn, now: fakeNow().tick }
+    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/copaper", resolveUv: () => null, spawn, now: fakeNow().tick }
     const result = await runBridge({ root: ROOT, args: ["relatedwork", "download"], timeoutMs: 1_000 }, deps)
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -99,7 +99,7 @@ describe("python-bridge", () => {
     const spawn: SpawnFn = async () => {
       throw new Error("EACCES")
     }
-    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/vibe", resolveUv: () => null, spawn, now: fakeNow().tick }
+    const deps: BridgeDeps = { resolveVenv: () => "/venv/bin/copaper", resolveUv: () => null, spawn, now: fakeNow().tick }
     const result = await runBridge({ root: ROOT, args: ["relatedwork", "status"] }, deps)
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -108,7 +108,7 @@ describe("python-bridge", () => {
     }
   })
 
-  test("runBridge returns vibe-cli-unavailable without spawning when resolution fails", async () => {
+  test("runBridge returns copaper-cli-unavailable without spawning when resolution fails", async () => {
     let invoked = false
     const spawn: SpawnFn = async () => {
       invoked = true
@@ -118,6 +118,6 @@ describe("python-bridge", () => {
     const result = await runBridge({ root: ROOT, args: ["relatedwork", "status"] }, deps)
     expect(invoked).toBe(false)
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error.code).toBe("vibe-cli-unavailable")
+    if (!result.ok) expect(result.error.code).toBe("copaper-cli-unavailable")
   })
 })

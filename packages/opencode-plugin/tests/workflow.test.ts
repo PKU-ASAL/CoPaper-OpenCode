@@ -73,7 +73,7 @@ describe("workflow", () => {
       discussion_evidence_mapping: ["discussion_problem_framing"],
     })
     expect(result.warnings).toEqual([])
-    expect(markdown).toContain("## VibePaper 工作流状态")
+    expect(markdown).toContain("## CoPaper 工作流状态")
     expect(markdown).toContain("discussion_problem_framing")
     expect(markdown).toContain("```json")
     expect(hashTree(project.root)).toBe(before)
@@ -111,7 +111,7 @@ describe("workflow", () => {
     expect(result.events[0]?.operator).toBe("user")
     expect(result.skippedMalformed).toBe(1)
     expect(result.warnings).toContain("malformed-events-skipped")
-    expect(markdown).toContain("## VibePaper 工作流日志")
+    expect(markdown).toContain("## CoPaper 工作流日志")
     expect(markdown).toContain("discussion_problem_framing")
     expect(markdown).toContain("```json")
   })
@@ -284,7 +284,7 @@ describe("workflow", () => {
     const result = await setWorkflowPhase({ root: project.root, locale: "zh-CN", phase: "discussion_problem_framing", status: "complete", now: new Date("2026-05-01T19:00:00.000Z") })
     const markdown = renderWorkflowSetPhaseOutput(result)
 
-    expect(markdown).toContain("## VibePaper 阶段状态更新")
+    expect(markdown).toContain("## CoPaper 阶段状态更新")
     expect(markdown).toContain("discussion_problem_framing")
     expect(markdown).toContain("complete")
     expect(markdown).toContain('"eventAppended": true')

@@ -18,7 +18,7 @@ export function backupPathFor(root: string, relativePath: string, now = new Date
     throw new Error(`Refusing to create backup outside backup directory: ${relativePath}`)
   }
   const stamp = now.toISOString().replace(/[:.]/g, "-")
-  const backupBase = resolve(root, ".opencode", "vibepaper", "backups", stamp)
+  const backupBase = resolve(root, ".opencode", "copaper", "backups", stamp)
   const backupPath = resolve(backupBase, relativePath)
   if (!isInsideOrSame(backupBase, backupPath)) {
     throw new Error(`Refusing to create backup outside backup directory: ${relativePath}`)

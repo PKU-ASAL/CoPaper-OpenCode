@@ -1,10 +1,10 @@
-export const PACKAGE_NAME = "@vibepaper/opencode" as const
-export const CLI_NAME = "vibepaper-opencode" as const
+export const PACKAGE_NAME = "@copaper/opencode" as const
+export const CLI_NAME = "copaper-opencode" as const
 export const BUNX_CLI_COMMAND = `bunx -p ${PACKAGE_NAME} ${CLI_NAME}` as const
 export const SCHEMA_VERSION = 1 as const
-export const VIBE_COMMAND = "vibe" as const
-export const VIBE_DOCTOR_COMMAND = "vibe-doctor" as const
-export const VIBE_RELATEDWORK_COMMAND = "vibe-relatedwork" as const
+export const COPAPER_COMMAND = "copaper" as const
+export const COPAPER_DOCTOR_COMMAND = "copaper-doctor" as const
+export const COPAPER_RELATEDWORK_COMMAND = "copaper-relatedwork" as const
 export const DEFAULT_LOCALE = "zh-CN" as const
 export const SUPPORTED_LOCALES = ["zh-CN", "en-US"] as const
 export type Locale = typeof SUPPORTED_LOCALES[number]
@@ -21,8 +21,8 @@ export type ArtifactConfidence = typeof ARTIFACT_CONFIDENCE[number]
 export type ArtifactId = typeof ARTIFACT_IDS[number]
 export type ArtifactRecordId = typeof ARTIFACT_RECORD_IDS[number]
 
-export function isVibePaperPluginSpecifier(value: unknown): value is string {
-  return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@vibepaper/opencode/dist/index.js")))
+export function isCoPaperPluginSpecifier(value: unknown): value is string {
+  return typeof value === "string" && (value === PACKAGE_NAME || (value.startsWith("file://") && value.includes("/@copaper/opencode/dist/index.js")))
 }
 
 export type CheckStatus = "pass" | "warn" | "fail" | "info"
@@ -56,10 +56,10 @@ export interface DashboardInstallation {
   configPresent: boolean
   configParseable: boolean
   pluginConfigured: boolean
-  vibeCommandPresent: boolean
-  vibeDoctorCommandPresent: boolean
-  vibeCommandManaged: boolean
-  vibeDoctorCommandManaged: boolean
+  copaperCommandPresent: boolean
+  copaperDoctorCommandPresent: boolean
+  copaperCommandManaged: boolean
+  copaperDoctorCommandManaged: boolean
 }
 
 export type DashboardRecommendationMessageKey = "recommendation.repairInstallation" | "recommendation.previewInit" | "recommendation.ready"
@@ -323,8 +323,8 @@ export interface ProjectState {
     auto_commit: false
     identity: {
       role: "assistant"
-      git_name: "VibePaper Bot"
-      git_email: "bot@vibepaper.dev"
+      git_name: "CoPaper Bot"
+      git_email: "bot@copaper.dev"
     }
   }
   checkers: Record<string, never>
@@ -893,7 +893,7 @@ export interface BridgeResolution {
   args: string[]
 }
 
-export type BridgeErrorCode = "vibe-cli-unavailable" | "bridge-timeout" | "bridge-spawn-failed" | "vibe-nonzero-exit"
+export type BridgeErrorCode = "copaper-cli-unavailable" | "bridge-timeout" | "bridge-spawn-failed" | "copaper-nonzero-exit"
 
 export interface BridgeError {
   code: BridgeErrorCode

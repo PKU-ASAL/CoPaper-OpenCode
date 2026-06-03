@@ -1,4 +1,4 @@
-"""Tests for vibepaper.cli module (Task 6)."""
+"""Tests for copaper.cli module (Task 6)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from click.testing import CliRunner, Result
 
-from vibepaper.cli import main
+from copaper.cli import main
 
 
 def _invoke(runner: CliRunner, args: list[str]) -> Result:
@@ -16,7 +16,7 @@ def _invoke(runner: CliRunner, args: list[str]) -> Result:
 
 
 class TestInit:
-    """Tests for the 'vibe init' command."""
+    """Tests for the 'copaper init' command."""
 
     def test_init_creates_project(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -48,7 +48,7 @@ class TestInit:
         assert (skills_dir / "AGENTS.md").exists()
         assert (skills_dir / "storyline-helper").is_dir()
         assert (skills_dir / "markdown-helper").is_dir()
-        assert (skills_dir / "vibepaper-manage").is_dir()
+        assert (skills_dir / "copaper-manage").is_dir()
 
         assert (tmp_path / "storyline.md").exists()
         assert (tmp_path / "paper.md").exists()
@@ -87,7 +87,7 @@ class TestInit:
 
 
 class TestStatus:
-    """Tests for the 'vibe status' command."""
+    """Tests for the 'copaper status' command."""
 
     def test_status_shows_phases(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -155,7 +155,7 @@ class TestStatus:
         assert result.exit_code != 0
         assert (
             "No project found" in result.output
-            or "Run 'vibe init' first" in result.output
+            or "Run 'copaper init' first" in result.output
         )
 
 
@@ -213,7 +213,7 @@ Checker: problem-checker
 
 
 class TestSkip:
-    """Tests for the 'vibe skip' command."""
+    """Tests for the 'copaper skip' command."""
 
     def test_skip_phase_updates_state(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -265,7 +265,7 @@ class TestSkip:
 
 
 class TestSetPhase:
-    """Tests for the 'vibe set-phase' command."""
+    """Tests for the 'copaper set-phase' command."""
 
     def test_set_phase_complete_advances_current_phase(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -309,7 +309,7 @@ class TestSetPhase:
 
 
 class TestLog:
-    """Tests for the 'vibe log' command."""
+    """Tests for the 'copaper log' command."""
 
     def test_log_shows_entries(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -329,7 +329,7 @@ class TestLog:
 
 
 class TestCommit:
-    """Tests for the 'vibe commit' command."""
+    """Tests for the 'copaper commit' command."""
 
     def test_commit_creates_phase_commit(self, tmp_path: Path) -> None:
         import git
@@ -399,7 +399,7 @@ class TestCommit:
 
 
 class TestRollback:
-    """Tests for the 'vibe rollback' command."""
+    """Tests for the 'copaper rollback' command."""
 
     def test_rollback_to_phase(self, tmp_path: Path) -> None:
         import git
@@ -469,10 +469,10 @@ class TestRollback:
 
 
 class TestReport:
-    """Tests for the 'vibe report' command."""
+    """Tests for the 'copaper report' command."""
 
     def test_report_generates_output(self, tmp_path: Path) -> None:
-        """Test that 'vibe report' generates markdown output."""
+        """Test that 'copaper report' generates markdown output."""
         runner = CliRunner()
         _ = _invoke(
             runner,
@@ -514,7 +514,7 @@ class TestReport:
 
 
 class TestDiff:
-    """Tests for the 'vibe diff' command."""
+    """Tests for the 'copaper diff' command."""
 
     def test_diff_no_git_repo(self, tmp_path: Path) -> None:
         """Test diff command when no git repo exists."""
@@ -537,7 +537,7 @@ class TestDiff:
 
 
 class TestRelatedwork:
-    """Tests for the 'vibe relatedwork' command group."""
+    """Tests for the 'copaper relatedwork' command group."""
 
     def test_relatedwork_import_updates_catalog_and_state(self, tmp_path: Path) -> None:
         runner = CliRunner()

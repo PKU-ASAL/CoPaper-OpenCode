@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import type { ToolContext } from "@opencode-ai/plugin"
 import { existsSync, writeFileSync } from "node:fs"
-import type { VibePaperAgentRuntimeState } from "../src/agent-config"
-import { agentRuntimeToDoctorChecks, getLatestVibePaperAgentRuntimeState, setLatestVibePaperAgentRuntimeState } from "../src/agent-diagnostics"
+import type { CoPaperAgentRuntimeState } from "../src/agent-config"
+import { agentRuntimeToDoctorChecks, getLatestCoPaperAgentRuntimeState, setLatestCoPaperAgentRuntimeState } from "../src/agent-diagnostics"
 import { applyInitPlan, planInit } from "../src/installer"
-import { VibePaperPlugin } from "../src/index"
+import { CoPaperPlugin } from "../src/index"
 import { hashTree, makeTempProject } from "./fixtures"
 
 type PluginConfigInput = {
@@ -14,7 +14,7 @@ type PluginConfigInput = {
 type PluginConfigHook = (input: PluginConfigInput) => void | PluginConfigInput | Promise<void | PluginConfigInput>
 
 async function buildHooks(root: string) {
-  return VibePaperPlugin({
+  return CoPaperPlugin({
     project: {},
     directory: root,
     worktree: root,
@@ -124,7 +124,7 @@ function makeZip(files: Record<string, string>): Buffer {
 }
 
 describe("OpenCode plugin", () => {
-  test("config hook injects VibePaper subagents into empty agent config", async () => {
+  test("config hook injects CoPaper subagents into empty agent config", async () => {
     const project = makeTempProject("plugin-config-empty-")
     try {
       const hooks = await buildHooks(project.root)
@@ -133,12 +133,12 @@ describe("OpenCode plugin", () => {
       await configHook(hooks)(input)
 
       expect(Object.keys(input.agent ?? {})).toEqual([
-        "vibepaper-coordinator",
-        "vibepaper-storyline",
-        "vibepaper-writer",
-        "vibepaper-reviewer",
-        "vibepaper-recorder",
-        "vibepaper-literature",
+        "copaper-coordinator",
+        "copaper-storyline",
+        "copaper-writer",
+        "copaper-reviewer",
+        "copaper-recorder",
+        "copaper-literature",
       ])
     } finally {
       project.cleanup()
@@ -154,14 +154,14 @@ describe("OpenCode plugin", () => {
         prompt: "Do not replace me.",
         permission: { read: "allow" },
       }
-      const input: PluginConfigInput = { agent: { "vibepaper-writer": userAgent } }
+      const input: PluginConfigInput = { agent: { "copaper-writer": userAgent } }
       const hooks = await buildHooks(project.root)
 
       await configHook(hooks)(input)
 
-      expect(input.agent?.["vibepaper-writer"]).toBe(userAgent)
-      expect(input.agent?.["vibepaper-coordinator"]).toBeDefined()
-      expect(Object.keys(input.agent ?? {})).not.toContain("vibepaper-writer-copy")
+      expect(input.agent?.["copaper-writer"]).toBe(userAgent)
+      expect(input.agent?.["copaper-coordinator"]).toBeDefined()
+      expect(Object.keys(input.agent ?? {})).not.toContain("copaper-writer-copy")
     } finally {
       project.cleanup()
     }
@@ -178,14 +178,14 @@ describe("OpenCode plugin", () => {
       await configure(input)
 
       expect(Object.keys(input.agent ?? {})).toEqual([
-        "vibepaper-coordinator",
-        "vibepaper-storyline",
-        "vibepaper-writer",
-        "vibepaper-reviewer",
-        "vibepaper-recorder",
-        "vibepaper-literature",
+        "copaper-coordinator",
+        "copaper-storyline",
+        "copaper-writer",
+        "copaper-reviewer",
+        "copaper-recorder",
+        "copaper-literature",
       ])
-      expect(getLatestVibePaperAgentRuntimeState(project.root).agents.every((agent) => agent.status !== "conflicted")).toBe(true)
+      expect(getLatestCoPaperAgentRuntimeState(project.root).agents.every((agent) => agent.status !== "conflicted")).toBe(true)
     } finally {
       project.cleanup()
     }
@@ -200,11 +200,11 @@ describe("OpenCode plugin", () => {
 
       await configure(input)
       const userWriter = { prompt: "user writer" }
-      input.agent = { ...input.agent, "vibepaper-writer": userWriter }
+      input.agent = { ...input.agent, "copaper-writer": userWriter }
       await configure(input)
 
-      expect(input.agent?.["vibepaper-writer"]).toBe(userWriter)
-      expect(getLatestVibePaperAgentRuntimeState(project.root).agents.find((agent) => agent.name === "vibepaper-writer")?.status).toBe("conflicted")
+      expect(input.agent?.["copaper-writer"]).toBe(userWriter)
+      expect(getLatestCoPaperAgentRuntimeState(project.root).agents.find((agent) => agent.name === "copaper-writer")?.status).toBe("conflicted")
     } finally {
       project.cleanup()
     }
@@ -214,24 +214,24 @@ describe("OpenCode plugin", () => {
     const firstProject = makeTempProject("runtime-state-first-")
     const secondProject = makeTempProject("runtime-state-second-")
     const missingProject = makeTempProject("runtime-state-missing-")
-    const firstRuntime: VibePaperAgentRuntimeState = {
-      agents: [{ name: "vibepaper-coordinator", status: "injected", description: "First root", permissionProfile: "readOnly", temperature: 0.2 }],
+    const firstRuntime: CoPaperAgentRuntimeState = {
+      agents: [{ name: "copaper-coordinator", status: "injected", description: "First root", permissionProfile: "readOnly", temperature: 0.2 }],
       diagnostics: [],
     }
-    const secondRuntime: VibePaperAgentRuntimeState = {
-      agents: [{ name: "vibepaper-writer", status: "disabled", description: "Second root", permissionProfile: "paperWrite", temperature: 0.4 }],
+    const secondRuntime: CoPaperAgentRuntimeState = {
+      agents: [{ name: "copaper-writer", status: "disabled", description: "Second root", permissionProfile: "paperWrite", temperature: 0.4 }],
       diagnostics: [],
     }
 
     try {
-      setLatestVibePaperAgentRuntimeState(firstRuntime, firstProject.root)
-      expect(getLatestVibePaperAgentRuntimeState(missingProject.root)).toEqual({ agents: [], diagnostics: [] })
+      setLatestCoPaperAgentRuntimeState(firstRuntime, firstProject.root)
+      expect(getLatestCoPaperAgentRuntimeState(missingProject.root)).toEqual({ agents: [], diagnostics: [] })
 
-      setLatestVibePaperAgentRuntimeState(secondRuntime, secondProject.root)
+      setLatestCoPaperAgentRuntimeState(secondRuntime, secondProject.root)
 
-      expect(getLatestVibePaperAgentRuntimeState(firstProject.root)).toBe(firstRuntime)
-      expect(getLatestVibePaperAgentRuntimeState(secondProject.root)).toBe(secondRuntime)
-      expect(getLatestVibePaperAgentRuntimeState()).toBe(secondRuntime)
+      expect(getLatestCoPaperAgentRuntimeState(firstProject.root)).toBe(firstRuntime)
+      expect(getLatestCoPaperAgentRuntimeState(secondProject.root)).toBe(secondRuntime)
+      expect(getLatestCoPaperAgentRuntimeState()).toBe(secondRuntime)
     } finally {
       firstProject.cleanup()
       secondProject.cleanup()
@@ -242,9 +242,9 @@ describe("OpenCode plugin", () => {
   test("agent runtime maps to doctor checks and skips config missing", () => {
     const checks = agentRuntimeToDoctorChecks({
       agents: [
-        { name: "vibepaper-coordinator", status: "injected", description: "Coordinator", permissionProfile: "readOnly", temperature: 0.2 },
-        { name: "vibepaper-storyline", status: "disabled", description: "Storyline", permissionProfile: "readOnly", temperature: 0.4 },
-        { name: "vibepaper-writer", status: "conflicted", description: "Writer", permissionProfile: "paperWrite", temperature: 0.4 },
+        { name: "copaper-coordinator", status: "injected", description: "Coordinator", permissionProfile: "readOnly", temperature: 0.2 },
+        { name: "copaper-storyline", status: "disabled", description: "Storyline", permissionProfile: "readOnly", temperature: 0.4 },
+        { name: "copaper-writer", status: "conflicted", description: "Writer", permissionProfile: "paperWrite", temperature: 0.4 },
       ],
       diagnostics: [
         { severity: "info", code: "config-missing", message: "Project config is missing; defaults are used." },
@@ -255,39 +255,39 @@ describe("OpenCode plugin", () => {
 
     expect(checks).toEqual([
       {
-        id: "agents.vibepaper-coordinator",
+        id: "agents.copaper-coordinator",
         status: "pass",
         severity: "info",
-        message: "VibePaper agent \"vibepaper-coordinator\" is injected",
+        message: "CoPaper agent \"copaper-coordinator\" is injected",
         remediation: null,
       },
       {
-        id: "agents.vibepaper-storyline",
+        id: "agents.copaper-storyline",
         status: "warn",
         severity: "warning",
-        message: "VibePaper agent \"vibepaper-storyline\" is disabled",
-        remediation: "Set agents.vibepaper-storyline.enabled to true in .opencode/vibepaper.json",
+        message: "CoPaper agent \"copaper-storyline\" is disabled",
+        remediation: "Set agents.copaper-storyline.enabled to true in .opencode/copaper.json",
       },
       {
-        id: "agents.vibepaper-writer",
+        id: "agents.copaper-writer",
         status: "fail",
         severity: "warning",
-        message: "VibePaper agent \"vibepaper-writer\" conflicts with an existing OpenCode agent",
-        remediation: "Rename the existing agent or disable agents.vibepaper-writer in .opencode/vibepaper.json",
+        message: "CoPaper agent \"copaper-writer\" conflicts with an existing OpenCode agent",
+        remediation: "Rename the existing agent or disable agents.copaper-writer in .opencode/copaper.json",
       },
       {
         id: "agent-config.unsupported-field.defaults.extra",
         status: "warn",
         severity: "warning",
         message: "Unsupported field is ignored.",
-        remediation: "Fix .opencode/vibepaper.json, then restart OpenCode",
+        remediation: "Fix .opencode/copaper.json, then restart OpenCode",
       },
       {
         id: "agent-config.config-read-failed",
         status: "fail",
         severity: "error",
         message: "Project config could not be read.",
-        remediation: "Fix .opencode/vibepaper.json, then restart OpenCode",
+        remediation: "Fix .opencode/copaper.json, then restart OpenCode",
       },
     ])
   })
@@ -309,20 +309,20 @@ describe("OpenCode plugin", () => {
 
   test("registers dashboard init apply artifact checker and workflow tools", async () => {
     const hooks = await buildHooks(process.cwd())
-    expect(hooks.tool.vibepaper_dashboard).toBeDefined()
-    expect(hooks.tool.vibepaper_init_apply).toBeDefined()
-    expect(hooks.tool.vibepaper_artifact_status).toBeDefined()
-    expect(hooks.tool.vibepaper_paper_structure_status).toBeDefined()
-    expect(hooks.tool.vibepaper_storyline_structure_status).toBeDefined()
-    expect(hooks.tool.vibepaper_pdf_extract).toBeDefined()
-    expect(hooks.tool.vibepaper_ppt_extract).toBeDefined()
-    expect(hooks.tool.vibepaper_checker_status).toBeDefined()
-    expect(hooks.tool.vibepaper_relatedwork_status).toBeDefined()
-    expect(hooks.tool.vibepaper_checker_record).toBeDefined()
-    expect(hooks.tool.vibepaper_artifact_record).toBeDefined()
-    expect(hooks.tool.vibepaper_workflow_status).toBeDefined()
-    expect(hooks.tool.vibepaper_workflow_log).toBeDefined()
-    expect(hooks.tool.vibepaper_workflow_set_phase).toBeDefined()
+    expect(hooks.tool.copaper_dashboard).toBeDefined()
+    expect(hooks.tool.copaper_init_apply).toBeDefined()
+    expect(hooks.tool.copaper_artifact_status).toBeDefined()
+    expect(hooks.tool.copaper_paper_structure_status).toBeDefined()
+    expect(hooks.tool.copaper_storyline_structure_status).toBeDefined()
+    expect(hooks.tool.copaper_pdf_extract).toBeDefined()
+    expect(hooks.tool.copaper_ppt_extract).toBeDefined()
+    expect(hooks.tool.copaper_checker_status).toBeDefined()
+    expect(hooks.tool.copaper_relatedwork_status).toBeDefined()
+    expect(hooks.tool.copaper_checker_record).toBeDefined()
+    expect(hooks.tool.copaper_artifact_record).toBeDefined()
+    expect(hooks.tool.copaper_workflow_status).toBeDefined()
+    expect(hooks.tool.copaper_workflow_log).toBeDefined()
+    expect(hooks.tool.copaper_workflow_set_phase).toBeDefined()
   })
 
   test("init apply tool writes files when called with name and domain", async () => {
@@ -332,9 +332,9 @@ describe("OpenCode plugin", () => {
       if (!plan.ok) throw new Error(plan.error)
       await applyInitPlan(plan)
       const hooks = await buildHooks(project.root)
-      const output = await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute({ name: "Demo Paper", domain: "software engineering" }, toolContext(project.root))
+      const output = await (hooks.tool.copaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute({ name: "Demo Paper", domain: "software engineering" }, toolContext(project.root))
 
-      expect(output).toContain("## VibePaper 初始化写入")
+      expect(output).toContain("## CoPaper 初始化写入")
       expect(output).toContain("paper.md")
       expect(JSON.parse(project.read(".agents/state.json")).project.name).toBe("Demo Paper")
       expect(JSON.parse(project.read(".agents/state.json")).project.domain).toBe("software engineering")
@@ -348,7 +348,7 @@ describe("OpenCode plugin", () => {
     const runtimeProject = makeTempProject()
     try {
       const hooks = await buildHooks(capturedProject.root)
-      await (hooks.tool.vibepaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute(
+      await (hooks.tool.copaper_init_apply as { execute(args: { name: string; domain: string }, context: ToolContext): Promise<string> }).execute(
         { name: "Demo Paper", domain: "software engineering" },
         toolContext(runtimeProject.root),
       )
@@ -368,7 +368,7 @@ describe("OpenCode plugin", () => {
     const runtimeProject = makeTempProject()
     try {
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_dashboard as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_dashboard as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).not.toContain(capturedProject.root)
@@ -383,7 +383,7 @@ describe("OpenCode plugin", () => {
     const runtimeProject = makeTempProject()
     try {
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_artifact_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_artifact_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("storyline")
@@ -401,7 +401,7 @@ describe("OpenCode plugin", () => {
     try {
       runtimeProject.write("paper.md", "# Runtime Paper\n## Intro\n##### Problem\n###### Runtime context\nA short paragraph.\n")
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_paper_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_paper_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("Problem")
@@ -419,7 +419,7 @@ describe("OpenCode plugin", () => {
     try {
       runtimeProject.write("storyline.md", "# Storyline\n##### 问题描述\nConcrete problem.\n##### Insights\nTODO\n")
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_storyline_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_storyline_structure_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("Insights")
@@ -439,8 +439,8 @@ describe("OpenCode plugin", () => {
       writeFileSync(runtimeProject.path("slides.pptx"), makeTinyPptx())
       const hooks = await buildHooks(capturedProject.root)
 
-      const pdfOutput = await (hooks.tool.vibepaper_pdf_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "draft.pdf" }, toolContext(runtimeProject.root))
-      const pptOutput = await (hooks.tool.vibepaper_ppt_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "slides.pptx" }, toolContext(runtimeProject.root))
+      const pdfOutput = await (hooks.tool.copaper_pdf_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "draft.pdf" }, toolContext(runtimeProject.root))
+      const pptOutput = await (hooks.tool.copaper_ppt_extract as { execute(args: { path: string }, context: ToolContext): Promise<string> }).execute({ path: "slides.pptx" }, toolContext(runtimeProject.root))
 
       expect(pdfOutput).toContain("Runtime PDF text")
       expect(pdfOutput).toContain(runtimeProject.root)
@@ -470,7 +470,7 @@ describe("OpenCode plugin", () => {
         },
       }, null, 2)}\n`)
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_checker_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_checker_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("problem-checker")
@@ -501,7 +501,7 @@ describe("OpenCode plugin", () => {
       runtimeProject.write("relatedwork/pdfs/runtime2026paper.pdf", "%PDF-1.4\n")
       runtimeProject.write("relatedwork/papers/runtime2026paper.md", "# Runtime Related Work\n")
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_relatedwork_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const output = await (hooks.tool.copaper_relatedwork_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
 
       expect(output).toContain(runtimeProject.root)
       expect(output).toContain("runtime2026paper")
@@ -522,9 +522,9 @@ describe("OpenCode plugin", () => {
       runtimeProject.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
       runtimeProject.write(".agents/events.jsonl", "")
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+      const output = await (hooks.tool.copaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
-        toolContext(runtimeProject.root, "vibepaper-recorder"),
+        toolContext(runtimeProject.root, "copaper-recorder"),
       )
 
       expect(output).toContain(runtimeProject.root)
@@ -546,9 +546,9 @@ describe("OpenCode plugin", () => {
       const beforeState = project.read(".agents/state.json")
       const hooks = await buildHooks(project.root)
 
-      const output = await (hooks.tool.vibepaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+      const output = await (hooks.tool.copaper_artifact_record as { execute(args: { artifact: string; status: string; confidence: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { artifact: "paper", status: "ready", confidence: "high", evidence: ["manual-review"], reason: "runtime root confirmed" },
-        toolContext(project.root, "vibepaper-writer"),
+        toolContext(project.root, "copaper-writer"),
       )
 
       expect(output).toContain("agent-not-authorized")
@@ -566,9 +566,9 @@ describe("OpenCode plugin", () => {
       runtimeProject.write(".agents/state.json", `${JSON.stringify(workflowState(), null, 2)}\n`)
       runtimeProject.write(".agents/events.jsonl", "")
       const hooks = await buildHooks(capturedProject.root)
-      const output = await (hooks.tool.vibepaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+      const output = await (hooks.tool.copaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { checker: "logic-checker", status: "issues_found", critical: 0, major: 1, minor: 0, summary: "One logic issue remains.", evidence: ["markdown-review-output"], reason: "runtime root confirmed" },
-        toolContext(runtimeProject.root, "vibepaper-recorder"),
+        toolContext(runtimeProject.root, "copaper-recorder"),
       )
 
       expect(output).toContain(runtimeProject.root)
@@ -590,9 +590,9 @@ describe("OpenCode plugin", () => {
       const beforeState = project.read(".agents/state.json")
       const hooks = await buildHooks(project.root)
 
-      const output = await (hooks.tool.vibepaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
+      const output = await (hooks.tool.copaper_checker_record as { execute(args: { checker: string; status: string; critical: number; major: number; minor: number; summary: string; evidence: string[]; reason: string }, context: ToolContext): Promise<string> }).execute(
         { checker: "logic-checker", status: "clean", critical: 0, major: 0, minor: 0, summary: "No logic issues.", evidence: ["markdown-review-output"], reason: "runtime root confirmed" },
-        toolContext(project.root, "vibepaper-writer"),
+        toolContext(project.root, "copaper-writer"),
       )
 
       expect(output).toContain("agent-not-authorized")
@@ -611,8 +611,8 @@ describe("OpenCode plugin", () => {
       runtimeProject.write(".agents/events.jsonl", `${JSON.stringify({ timestamp: "2026-05-01T11:00:00.000Z", phase: "custom_phase", operator: "user", action: "create", result: "ok" })}\n`)
       const hooks = await buildHooks(capturedProject.root)
 
-      const statusOutput = await (hooks.tool.vibepaper_workflow_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
-      const setPhaseOutput = await (hooks.tool.vibepaper_workflow_set_phase as { execute(args: { phase: string; status: string; reason?: string }, context: ToolContext): Promise<string> }).execute(
+      const statusOutput = await (hooks.tool.copaper_workflow_status as { execute(args: Record<string, never>, context: ToolContext): Promise<string> }).execute({}, toolContext(runtimeProject.root))
+      const setPhaseOutput = await (hooks.tool.copaper_workflow_set_phase as { execute(args: { phase: string; status: string; reason?: string }, context: ToolContext): Promise<string> }).execute(
         { phase: "custom_phase", status: "in_progress" },
         toolContext(runtimeProject.root),
       )

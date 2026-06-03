@@ -29,3 +29,5 @@ bun.lock
 package.json
 .pytest_cache/
 plan.md
+usage.md
+usage-en.md

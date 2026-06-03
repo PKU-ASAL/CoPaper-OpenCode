@@ -40,10 +40,10 @@ async function main(): Promise<void> {
   if (!skipBuild) await run(["bun", "run", "build"], PLUGIN_DIR, "build")
 
   await run(["bun", "link"], PLUGIN_DIR, "link-plugin")
-  await run(["bun", "link", "@vibepaper/opencode"], target, "link-target")
+  await run(["bun", "link", "@copaper/opencode"], target, "link-target")
 
   if (!skipInit) {
-    const cliPath = join(target, "node_modules", ".bin", "vibepaper-opencode")
+    const cliPath = join(target, "node_modules", ".bin", "copaper-opencode")
     if (!existsSync(cliPath)) {
       throw new Error(`Linked CLI not found at ${cliPath}. bun link may have failed; rerun and inspect the link-target step output.`)
     }
@@ -63,8 +63,8 @@ async function main(): Promise<void> {
   console.log("")
   console.log("Done. Next steps:")
   console.log(`  1. Restart OpenCode inside ${target}.`)
-  console.log("  2. Run /vibe-doctor to verify the install (look for vibe-cli.available and commands.vibe-relatedwork.present).")
-  console.log("  3. Run /vibe-relatedwork to drive the relatedwork workflow.")
+  console.log("  2. Run /copaper-doctor to verify the install (look for copaper-cli.available and commands.copaper-relatedwork.present).")
+  console.log("  3. Run /copaper-relatedwork to drive the relatedwork workflow.")
 }
 
 function parseArgs(argv: string[]): Args | { error: string } {
@@ -107,7 +107,7 @@ function ensureTargetPackageJson(target: string): void {
 }
 
 function pickStubName(target: string): string {
-  const base = target.split("/").filter((part) => part.length > 0).pop() ?? "vibepaper-target"
+  const base = target.split("/").filter((part) => part.length > 0).pop() ?? "copaper-target"
   return base.toLowerCase().replace(/[^a-z0-9._-]/g, "-")
 }
 

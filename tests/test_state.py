@@ -1,4 +1,4 @@
-"""Tests for vibepaper.state module (Task 3)."""
+"""Tests for copaper.state module (Task 3)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from vibepaper.constants import Phase, PhaseStatus
-from vibepaper.state import StateFileError, StateManager
+from copaper.constants import Phase, PhaseStatus
+from copaper.state import StateFileError, StateManager
 
 
 class TestInitProject:
