@@ -1,4 +1,4 @@
-# Copaper - 你的论文助手
+# Copaper - CS学术论文助手
 
 <p align="right">
   <a href="README.en.md">English</a> | <strong>中文</strong>
@@ -8,9 +8,12 @@
 
 ## 中文快速指南
 
+
 CoPaper 是给研究者用的论文写作工作流工具。它不会替你“想出一篇论文”，而是把写作过程拆开：先理清 research storyline，再补 related work，接着写 `paper.md`，最后再进入 LaTeX 草稿。
 
 它适合那种材料已经有一些、但容易散在 PPT、PDF、实验记录、草稿和对话里的项目。CoPaper 做的事比较朴素：帮你把这些材料放到一个可追踪的流程里。
+
+本项目提炼自北京大学操作系统实验室的论文写作工作流。
 
 ### 使用前须知
 
