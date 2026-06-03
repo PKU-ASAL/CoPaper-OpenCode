@@ -570,9 +570,9 @@ copaper rollback storyline -y
 可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
 
 ```bash
-vibe --root <project-dir> checkers collect
-vibe --root <project-dir> checkers collect --checker logic --checker clarity
-vibe --root <project-dir> checkers status
+copaper --root <project-dir> checkers collect
+copaper --root <project-dir> checkers collect --checker logic --checker clarity
+copaper --root <project-dir> checkers status
 ```
 
 harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。

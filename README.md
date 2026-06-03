@@ -556,9 +556,9 @@ copaper rollback storyline -y
 可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
 
 ```bash
-vibe --root <project-dir> checkers collect
-vibe --root <project-dir> checkers collect --checker logic --checker clarity
-vibe --root <project-dir> checkers status
+copaper --root <project-dir> checkers collect
+copaper --root <project-dir> checkers collect --checker logic --checker clarity
+copaper --root <project-dir> checkers status
 ```
 
 harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。
@@ -671,11 +671,11 @@ Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应�
 
 **触发**：`"show current phase"`、`"go to next phase"`、`"go back to previous phase"`、`"jump to writing"`、`"查看当前阶段"`、`"进入下一阶段"`、`"回到上一个阶段"`、`"跳到 experiments 阶段"`
 
-- 通过 `vibe --root . status --json` 读取当前阶段
+- 通过 `copaper --root . status --json` 读取当前阶段
 - 查看当前阶段时只读状态，不修改 workflow
 - “下一阶段”会把当前 phase 标记为 `complete`，让 CLI 自动推进
 - “回到上一阶段/前面某阶段”会把目标 phase 设为 `in_progress`，并把后续 phase 重置为 `not_started`
-- “跳到某阶段”会用 `vibe --root . set-phase <phase> --status in_progress`
+- “跳到某阶段”会用 `copaper --root . set-phase <phase> --status in_progress`
 - 跳转后在同一轮直接打开该阶段对应的 `SKILL.md` 并继续执行，例如 `writing` 打开 `writing-orchestrator`，`literature` 打开 `relatedwork-finder`
 
 ## 人工测试指南
