@@ -9,6 +9,7 @@ from vibepaper.scaffold import (
     copy_paper,
     copy_skills,
     copy_storyline,
+    copy_templates,
     copy_writingrules,
     scaffold_project,
 )
@@ -138,6 +139,7 @@ class TestScaffoldProject:
         assert (tmp_path / "paper.md").exists()
         assert (tmp_path / "writingrules.md").exists()
         assert (tmp_path / "AGENTS.md").exists()
+        assert (tmp_path / "templates" / "latex" / "README.md").exists()
 
         scaffold_skills_dir = (
             Path(__file__).resolve().parent.parent / "vibepaper" / "scaffold" / "skills"

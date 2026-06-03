@@ -151,7 +151,7 @@ def init(ctx: click.Context, name: str, domain: str) -> None:
 
     click.echo(f"Project '{name}' ({domain}) initialised at {sm._state_file}")
     click.echo(
-        "Scaffolded: .agents/skills/, storyline.md, paper.md, writingrules.md, AGENTS.md"
+        "Scaffolded: .agents/skills/, storyline.md, paper.md, writingrules.md, AGENTS.md, templates/latex/"
     )
 
 
@@ -193,6 +193,86 @@ def status(ctx: click.Context, as_json: bool) -> None:
         phase_status = PhaseStatus(phase_status_str)
         marker = _STATUS_DISPLAY.get(phase_status, "[?]")
         click.echo(f"{phase_name:<20}{marker} {phase_status_str}")
+
+
+@main.group(name="checkers")
+@click.pass_context
+def checkers_group(ctx: click.Context) -> None:
+    """Collect and inspect checker harness results."""
+
+
+@checkers_group.command(name="collect")
+@click.option(
+    "--paper",
+    "paper_path",
+    default="paper.md",
+    help="Paper file to parse for AI checker comments.",
+    show_default=True,
+)
+@click.option(
+    "--checker",
+    "checkers",
+    multiple=True,
+    help="Checker to collect; may be repeated. Accepts full names or aliases.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def checkers_collect(
+    ctx: click.Context,
+    paper_path: str,
+    checkers: tuple[str, ...],
+    as_json: bool,
+) -> None:
+    """Collect checker issue counts from paper AI comments."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+
+    from vibepaper.checker_integration import CheckerHarness
+
+    harness = CheckerHarness(root, paper_path=paper_path, event_logger=el)
+    try:
+        results = harness.collect(list(checkers) or None, write_state=True)
+    except (FileNotFoundError, ValueError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    payload = {name: result.as_dict() for name, result in results.items()}
+    if as_json:
+        click.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+
+    click.echo(f"Collected checker results from {paper_path}.")
+    click.echo(f"{'Checker':<34}{'Critical':<10}{'Major':<8}{'Minor':<8}{'Total'}")
+    click.echo("-" * 68)
+    for name, result in results.items():
+        issues = result.issues
+        click.echo(
+            f"{name:<34}"
+            f"{issues.get('critical', 0):<10}"
+            f"{issues.get('major', 0):<8}"
+            f"{issues.get('minor', 0):<8}"
+            f"{result.total}"
+        )
+
+
+@checkers_group.command(name="status")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def checkers_status(ctx: click.Context, as_json: bool) -> None:
+    """Show the latest checker harness results."""
+    root = ctx.obj["root"]
+    _ = _load_state_manager_or_exit(root)
+
+    from vibepaper.checker_integration import CheckerTracker, format_checker_results
+
+    tracker = CheckerTracker(root)
+    results = tracker.get_checker_status()
+    if as_json:
+        click.echo(json.dumps(results, indent=2, ensure_ascii=False))
+        return
+    click.echo(format_checker_results(results))
 
 
 @main.group(name="relatedwork")

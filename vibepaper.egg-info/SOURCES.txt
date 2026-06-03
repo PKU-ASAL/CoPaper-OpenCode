@@ -45,6 +45,7 @@ vibepaper/scaffold/paper.md
 vibepaper/scaffold/storyline.md
 vibepaper/scaffold/writingrules.md
 vibepaper/scaffold/skills/AGENTS.md
+vibepaper/scaffold/skills/auto-init/SKILL.md
 vibepaper/scaffold/skills/bogus-data-helper/SKILL.md
 vibepaper/scaffold/skills/clarity-checker/SKILL.md
 vibepaper/scaffold/skills/clarity-checker/examples.md
