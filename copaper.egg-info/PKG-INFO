@@ -567,6 +567,16 @@ copaper rollback storyline -y
 
 7 个检查器名称：`problem-checker`、`novelty-checker`、`technical-depth-checker`、`logic-checker`、`clarity-checker`、`evaluation-protocol-checker`、`data-checker`。
 
+可以使用 checker harness 从 `paper.md` 中的标准 AI comment 收集结果并写入状态：
+
+```bash
+vibe --root <project-dir> checkers collect
+vibe --root <project-dir> checkers collect --checker logic --checker clarity
+vibe --root <project-dir> checkers status
+```
+
+harness 只解析 checker skills 已插入的 `<!-- AI Comments: ... -->` 块，不会伪装成自动执行 AI 审稿。带有 `Checker: <name>` 标记的评论会归档到对应 checker；没有标记时，评论会归入本次指定收集的 checker。
+
 ## Skill 使用指南
 
 Agent Skills 通过自然语言触发，OpenCode 会自动发现并加载对应的 `SKILL.md` 文件分配给 Subagent 执行。以下是主要 Skill 的触发方式与功能说明：

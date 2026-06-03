@@ -31,6 +31,7 @@ WRITINGRULES_REQUIRED_SKILLS = {
     "submission-precheck",
     "markdown2latex",
     "latex2markdown",
+    "template-latex-export",
 }
 
 SKILLS_WITH_EXAMPLES = set(CHECKER_NAMES)

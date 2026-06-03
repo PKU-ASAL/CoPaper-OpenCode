@@ -9,8 +9,10 @@ import pytest
 
 from copaper.checker_integration import (
     CHECKER_NAMES,
+    CheckerHarness,
     CheckerTracker,
     format_checker_results,
+    normalize_checker_name,
     parse_checker_output,
 )
 
@@ -80,6 +82,65 @@ More text"""
 
     def test_parse_empty_text(self) -> None:
         assert parse_checker_output("no comments here") == []
+
+    def test_parse_checker_marker(self) -> None:
+        text = """<!-- AI Comments:
+Checker: logic-checker
+[MAJOR] Claim contradicts the evaluation table.
+-->"""
+        issues = parse_checker_output(text)
+        assert issues[0]["checker"] == "logic-checker"
+        assert "logic-checker" in issues[0]["raw_block"]
+
+
+class TestCheckerHarness:
+    def test_normalize_checker_alias(self) -> None:
+        assert normalize_checker_name("novelty") == "novelty-checker"
+        assert normalize_checker_name("logic_checker") == "logic-checker"
+
+    def test_collect_records_issue_list(self, tmp_path: Path) -> None:
+        _init_state(tmp_path)
+        paper = tmp_path / "paper.md"
+        paper.write_text(
+            """# Paper
+<!-- AI Comments:
+Checker: clarity-checker
+[CRITICAL] The main term is undefined.
+[MINOR] One paragraph is too long.
+-->""",
+            encoding="utf-8",
+        )
+
+        harness = CheckerHarness(str(tmp_path))
+        results = harness.collect(["clarity"], write_state=True)
+
+        result = results["clarity-checker"]
+        assert result.issues == {"critical": 1, "major": 0, "minor": 1}
+        assert len(result.issue_list) == 2
+
+        state = json.loads(
+            (tmp_path / ".agents" / "state.json").read_text(encoding="utf-8")
+        )
+        saved = state["checkers"]["clarity-checker"]
+        assert saved["issues"]["critical"] == 1
+        assert saved["source"]["paper_path"] == "paper.md"
+        assert len(saved["issue_list"]) == 2
+
+    def test_collect_without_checker_markers_applies_to_selected_checker(
+        self, tmp_path: Path
+    ) -> None:
+        _init_state(tmp_path)
+        (tmp_path / "paper.md").write_text(
+            """<!-- AI Comments:
+[MAJOR] Missing baseline.
+-->""",
+            encoding="utf-8",
+        )
+
+        harness = CheckerHarness(str(tmp_path))
+        results = harness.collect(["novelty"], write_state=False)
+
+        assert results["novelty-checker"].issues["major"] == 1
 
 
 class TestMarkIssueResolved:

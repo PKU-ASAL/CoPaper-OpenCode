@@ -117,6 +117,31 @@ def copy_agents_md(project_root: str | Path) -> Path:
     return dst
 
 
+def copy_templates(project_root: str | Path) -> Path:
+    """Copy bundled template guidance into ``<project_root>/templates/``.
+
+    Existing template files are not overwritten. This creates the
+    ``templates/latex/`` drop-in directory where users place venue
+    templates before LaTeX export.
+    """
+    src = _scaffold_dir() / "templates"
+    dst = Path(project_root) / "templates"
+
+    if not src.exists():
+        return dst
+
+    for item in sorted(src.rglob("*")):
+        if item.is_dir():
+            (dst / item.relative_to(src)).mkdir(parents=True, exist_ok=True)
+            continue
+        target = dst / item.relative_to(src)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists():
+            shutil.copy2(str(item), str(target))
+
+    return dst
+
+
 def scaffold_project(project_root: str | Path) -> None:
     """Run the full scaffold: skills and starter markdown files."""
     copy_skills(project_root)
@@ -124,3 +149,4 @@ def scaffold_project(project_root: str | Path) -> None:
     copy_paper(project_root)
     copy_writingrules(project_root)
     copy_agents_md(project_root)
+    copy_templates(project_root)
