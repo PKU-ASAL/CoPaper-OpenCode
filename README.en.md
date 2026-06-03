@@ -1,4 +1,4 @@
-# Copaper - Your Paper Assistant
+# Copaper -  Paper Assistant for CS
 
 <p align="right">
   <strong>English</strong> | <a href="README.md">中文</a>
