@@ -32,9 +32,10 @@ This skill is an orchestrator, not a direct replacement for drafting or revision
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | Step 1 (scan completion status) | Primary target; scan Level 2-5 headings for empty/filled sections |
+| `paper.md` | **Required** | Step 1 (structure status) | Primary target; inspect through `vibepaper_paper_structure_status` for Level 2-5 completion and Level 5 writing targets |
 | `storyline.md` | Conditional | When recommending writing order | Research narrative for dependency-aware section ordering |
-| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Current phase status, checker results, writing progress |
+| Checker status | Conditional | Step 6 and Step 7 | Use `vibepaper_checker_status` for read-only checker run status, stale signals, and severity counts |
+| `.agents/state.json` | Conditional | Step 8 (progress tracking) | Workflow phase status via `vibepaper_workflow_set_phase`; arbitrary writing metadata only if a dedicated tool exists |
 | `.agents/cross_index.json` | Conditional | When routing to markdown-helper or mad-writer | Paper-technique mappings; pass to downstream skills for literature context |
 | `relatedwork/papers/*.md` | Conditional | When routing to markdown-helper or mad-writer | Individual literature summaries; pass to downstream skills, not read directly by orchestrator |
 | `fig/` | Conditional | When routing to markdown-helper or mad-writer | Available figures; pass to downstream skills for visual references |
@@ -45,11 +46,15 @@ If some sources are missing, continue with available context and state what is m
 
 ## Completion Scan Rules
 
-The orchestrator must scan `paper.md` from top to bottom and inspect every Level 2 to Level 5 heading.
+The orchestrator must call `vibepaper_paper_structure_status` to inspect `paper.md` completion instead of manually scanning headings when the plugin tool is available.
 
-Use the core rule below:
-- **Complete**: the node has at least one Level 6 child
-- **Incomplete**: the node has no Level 6 child
+This tool is read-only. It does not write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+
+Use the tool output as the source of truth:
+- `headings`: Level 2-5 structure with `complete`, `partial`, or `incomplete` status
+- `level5Targets`: primary operational writing targets
+- `nextTarget`: first incomplete Level 5 writing target
+- `violations`: structural problems such as body text under Level 2-5 headings or Level 6 length violations
 
 Reporting refinement:
 - Use **partial** for parent nodes whose descendants are mixed.
@@ -58,13 +63,12 @@ Reporting refinement:
 
 ## Workflow
 
-### Step 1: Read `paper.md` and scan all Level 2-5 sections
+### Step 1: Call `vibepaper_paper_structure_status`
 
-1. Read `paper.md`.
-2. Identify every Level 2, Level 3, Level 4, and Level 5 heading.
-3. For each node, detect whether Level 6 children exist beneath it.
-4. Mark each node as `complete`, `incomplete`, or `partial`.
-5. If `paper.md` does not exist, stop and tell the user the framework file is required first.
+1. Call `vibepaper_paper_structure_status`.
+2. Use the returned `headings`, `level5Targets`, `nextTarget`, `summary`, and `violations`.
+3. If the tool reports missing or invalid `paper.md`, stop and tell the user the framework file is required first.
+4. Do not reproduce this scan manually, shell out to parse markdown, or infer completion from ad hoc file reads when the plugin tool is available.
 
 ### Step 2: Display structure overview and progress summary
 
@@ -154,6 +158,7 @@ Requirements:
 
 After the selected section is complete, automatically invoke `markdown-review`.
 This review is mandatory after every completed section.
+When `@vibepaper-reviewer` is available, route checker-result summarization and issue explanation to that read-only subagent. It must not edit `paper.md`; writing fixes still go through the normal confirmed writing/revision path.
 
 The required checker order is:
 1. `problem-checker`
@@ -169,39 +174,39 @@ Never skip this review stage.
 ### Step 6: Show seven-checker results and suggest revision path
 
 After review:
-1. show a compact seven-checker summary
-2. separate Critical, Major, and Minor issues
-3. explain which issues matter most for the finished section
-4. ask whether modifications are needed
-5. if yes, suggest `review-revise`
+1. call `vibepaper_checker_status` to read the current checker status, severity counts, stale signals, and precheck evidence
+2. use `@vibepaper-reviewer` when available to produce a compact seven-checker summary from the review output plus the tool status
+3. separate Critical, Major, and Minor issues
+4. explain which issues matter most for the finished section
+5. if the user wants durable checker summaries, restate the checker record details and route the confirmed action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`
+6. ask whether modifications are needed
+7. if yes, suggest `review-revise`
 
 Do not fabricate checker results.
-Use real review output or persisted state.
+Use real review output or `vibepaper_checker_status`; do not read `.agents/state.json` directly just to infer checker status when the plugin tool is available.
 
 ### Step 7: Run a final full review after all sections are complete
 
 When the scan shows no incomplete writing targets remain:
 1. announce that the framework is fully populated
 2. run one final full `markdown-review`
-3. present the final seven-checker summary
-4. suggest `review-revise` if unresolved issues remain
+3. call `vibepaper_checker_status` to verify status freshness and severity counts
+4. present the final seven-checker summary
+5. suggest `review-revise` if unresolved issues remain
 
 This final pass checks whole-paper consistency instead of only local section quality.
 
-### Step 8: Update `.agents/state.json` with writing progress
+### Step 8: Update workflow phase with plugin tools
 
-At the end of each cycle, update `.agents/state.json`.
+At the end of each cycle, update workflow phase status through the OpenCode plugin tool when appropriate.
 
-Track at least:
-- current mode (`fine` or `fast`)
-- selected section path
-- latest completion snapshot
-- complete / partial / incomplete counts
-- latest seven-checker run reference or summary
-- whether final full review has been run
+Use `vibepaper_workflow_set_phase`:
+- after accepted writing edits, set `phase: "writing"` and `status: "in_progress"`
+- after all writing targets and the final full review are complete, set `phase: "writing"` and `status: "complete"`
 
-If `.agents/state.json` does not exist yet, create the needed structure carefully.
-Preserve unrelated fields when updating.
+Before calling the tool, restate the phase/status update and wait for explicit user confirmation. The `vibepaper_workflow_set_phase` call writes `.agents/state.json` and appends `.agents/events.jsonl`; do not replace it with prompt-only status text.
+
+The current OpenCode plugin does not expose a dedicated tool for arbitrary writing metadata such as current mode, selected section path, completion snapshot, or review-revise history. It can record confirmed checker run summaries through `vibepaper_checker_record`. Do not manually edit `.agents/state.json` for unsupported fields when using the plugin-based workflow; report the limitation instead.
 
 ## Writing Order Recommendation
 
@@ -236,7 +241,7 @@ Use this comparison when the user is choosing a mode.
 
 Mode guidance: Fine Mode is best for fluid paragraph-by-paragraph arguments; Strict Mode is essential for rigorous, RAG-heavy writing where hallucination must be zero; Fast Mode is better for large baseline sections where structural bulk drafting is acceptable.
 
-The interaction loop must remain section-by-section: scan, summarize, recommend, let the user pick a section and mode, invoke the downstream skill, run `markdown-review`, report results, update `.agents/state.json`, and return to the overview. Do not silently expand into full-paper auto-writing.
+The interaction loop must remain section-by-section: scan, summarize, recommend, let the user pick a section and mode, invoke the downstream skill, run `markdown-review`, report results, update workflow phase through `vibepaper_workflow_set_phase` when appropriate, and return to the overview. Do not silently expand into full-paper auto-writing.
 
 ## Must NOT Do
 
@@ -246,7 +251,7 @@ The interaction loop must remain section-by-section: scan, summarize, recommend,
 - **NEVER** modify Level 2-5 framework headings during orchestration
 - **NEVER** fabricate completion state without reading `paper.md`
 - **NEVER** fabricate checker results instead of invoking or reading `markdown-review`
-- **NEVER** destroy unrelated fields in `.agents/state.json`
+- **NEVER** manually edit `.agents/state.json` for workflow phase updates when `vibepaper_workflow_set_phase` is available
 
 ## End Condition
 

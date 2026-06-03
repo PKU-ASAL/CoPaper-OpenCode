@@ -19,7 +19,7 @@ This skill identifies clarity issues in academic paper drafts following the Vibe
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target |
-| `.agents/state.json` | Write-only | Final step | Persist checker results |
+| `.agents/state.json` | Tool gap | Final step | Checker-result persistence is not currently exposed by the OpenCode plugin; do not edit state directly in plugin-based workflows |
 
 Do NOT read `writingrules.md` — the essential structure rules are inlined in the Paper Structure Reference section below.
 

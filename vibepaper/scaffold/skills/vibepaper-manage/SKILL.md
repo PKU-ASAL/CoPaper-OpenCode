@@ -1,105 +1,155 @@
 ---
 name: vibepaper-manage
-description: Teaches agents how to manage a VibePaper project through the `vibe` CLI, including project initialization, status checks, phase skipping, event log inspection, reports, and Git-backed phase operations. Use this skill whenever the task is about workflow/state management rather than direct paper writing.
+description: Teaches agents how to manage a VibePaper project through the OpenCode plugin tools, including dashboard, initialization, artifact readiness, workflow status, event log inspection, and phase updates. Use this skill whenever the task is about workflow/state management rather than direct paper writing.
 ---
 
 # VibePaper-Manage Skill
 
-This skill tells an agent how to manage a VibePaper project through the `vibe` CLI instead of manually editing workflow files.
+This skill tells an agent how to manage a VibePaper project through the OpenCode plugin tools instead of shell commands, prompt-only instructions, or manual edits to workflow files.
 
-Use this skill when the task is about project lifecycle management, scaffold initialization, workflow status, phase control, reports, or Git-backed phase operations.
+Use this skill when the task is about project lifecycle management, initialization, workflow status, phase control, artifact readiness, or event log inspection.
 
 ## When to Use This Skill
 
 Use this skill when the user asks to:
 
-- initialize a VibePaper project in any folder
+- initialize a VibePaper project from OpenCode
 - check current workflow status
-- skip a phase with a reason
-- inspect the event log
-- generate a weekly/progress report
-- compare two phase snapshots
-- create a phase-aware commit
-- rollback to the latest commit of a phase
-- automate project setup for a new paper repository
+- inspect recent workflow history
+- mark a phase as `not_started`, `in_progress`, `complete`, or `skipped`
+- check artifact readiness
+- record artifact readiness after confirmation
+- check checker status, severity counts, stale signals, and precheck evidence
+- record checker run summaries after confirmation
+- understand what to do next in the VibePaper workflow
 
 Typical triggers:
 
-- `initialize a vibepaper project`
-- `用 vibe 初始化论文项目`
-- `check vibe status`
+- `check workflow status`
+- `show VibePaper dashboard`
 - `skip experiments for this project`
-- `generate a vibe report`
-- `manage this paper with vibe cli`
+- `record artifact readiness`
+- `manage this paper with OpenCode`
 
 ## Input Files
 
-This skill primarily uses `vibe` CLI commands and does NOT directly read project files for content. The CLI handles file access internally.
+| File | Required | When to Read | Purpose |
+|------|----------|-------------|---------|
+| `.agents/state.json` | Tool-managed | Status, phase, artifact-record, and initialization flows | Access only through plugin tools when possible; contains workflow phases and artifact records |
+| `.agents/events.jsonl` | Tool-managed | Workflow history inspection | Access through `vibepaper_workflow_log`; do not read or append directly |
+| `storyline.md` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
+| `paper.md` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
+| `relatedwork/` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
+| `.agents/cross_index.json` | Optional | Artifact readiness inspection | Checked by `vibepaper_artifact_status` as part of read-only evidence |
+| Checker status | Optional | Checker inspection | Access through `vibepaper_checker_status`; do not inspect `.agents/state.json` directly just to infer checker status |
+| Relatedwork status | Optional | Literature workflow inspection | Access through `vibepaper_relatedwork_status`; do not run CLI status or read `literature.json` directly just to summarize progress |
 
-| File | Direct Read? | How Accessed | Purpose |
-|------|--------------|-------------|---------|
-| `.agents/state.json` | No | Via `vibe status`, `vibe set-phase`, `vibe skip` | Project state, phase statuses, progress counters |
-| `.agents/events.jsonl` | No | Via `vibe log` | Event log for history queries |
-| `relatedwork/` artifacts | No | Via `vibe relatedwork` subcommands | Literature metadata, BibTeX, PDFs, summaries, cross-index |
+## OpenCode Plugin Tools
 
-This skill does NOT read `paper.md`, `storyline.md`, `writingrules.md`, or `relatedwork/papers/*.md` directly. It delegates content work to other skills.
+Prefer these plugin tools whenever they are available:
 
-## Core Principle
+| User intent | Plugin tool |
+|---|---|
+| Show project dashboard / init preview | `vibepaper_dashboard` |
+| Initialize core VibePaper files after confirmation | `vibepaper_init_apply` |
+| Read artifact readiness | `vibepaper_artifact_status` |
+| Record artifact readiness after confirmation | `vibepaper_artifact_record` |
+| Read workflow phase status and next step | `vibepaper_workflow_status` |
+| Read recent workflow events | `vibepaper_workflow_log` |
+| Update a workflow phase after confirmation | `vibepaper_workflow_set_phase` |
+| Read checker run status and stale signals | `vibepaper_checker_status` |
+| Record checker run summary after confirmation | `vibepaper_checker_record` |
+| Read relatedwork catalog, PDF, summary, BibTeX, and cross-index status | `vibepaper_relatedwork_status` |
 
-Prefer the `vibe` CLI for workflow management.
-
-Do **not** hand-edit these files when the CLI already supports the action:
+Do not hand-edit:
 
 - `.agents/state.json`
 - `.agents/events.jsonl`
 
-The CLI is the supported automation surface and keeps workflow state, event logs, and Git-backed operations consistent.
+The plugin tools are the supported automation surface for the workflow state they cover.
 
-## Command Surface
+## Tool Boundaries
 
-The currently supported commands are:
+The current OpenCode plugin does not yet expose tools for:
 
-- `init`
-- `status`
-- `set-phase`
-- `commit`
-- `rollback`
-- `log`
-- `skip`
+- write-capable `relatedwork import`
+- write-capable `relatedwork sync-bib`
+- write-capable `relatedwork download`
+- write-capable `relatedwork register-summary`
+- write-capable `relatedwork build-index`
 - `report`
-- `diff`
-- `relatedwork status`
-- `relatedwork import`
-- `relatedwork sync-bib`
-- `relatedwork download`
-- `relatedwork register-summary`
-- `relatedwork build-index`
+- Git-backed `commit`, `rollback`, or `diff`
+- checker issue-resolution writes
+- arbitrary metadata updates inside `.agents/state.json`
 
-Use `python -m vibepaper ...` only when `vibe` is not available on PATH.
+When a requested action needs one of those missing capabilities, state that no plugin tool currently exists for it. Use a terminal command only if the user explicitly asks for a CLI fallback.
 
-## Critical CLI Rules
+## Initialization Workflow
 
-### Rule 1: `--root` is a global option
+Use `vibepaper_dashboard` first to check whether initialization is needed.
 
-`--root` must appear **before** the subcommand.
+If initialization is needed:
 
-Correct:
+1. Ask for the project name and research domain.
+2. Restate the initialization target, project name, and domain.
+3. Wait for explicit confirmation.
+4. Call `vibepaper_init_apply` with `name` and `domain`.
+5. Show the tool output to the user.
 
-```bash
-vibe --root /path/to/project status
-vibe --root /path/to/project init --name "My Paper" --domain "software engineering"
+The tool call, not a prompt-only instruction, initializes the OpenCode-managed VibePaper core files and refuses conflicts. Do not manually create those core files when the plugin tool is available.
+
+The plugin initialization writes only the core files defined by the plugin, such as `paper.md`, `storyline.md`, `writingrules.md`, `AGENTS.md`, `.agents/state.json`, and `.agents/events.jsonl`. Do not claim it installs `.agents/skills/` unless the tool output says so.
+
+## Status and Inspection
+
+Use `vibepaper_workflow_status` for read-only inspection of workflow phase status, current phase, phase table, and next-step recommendation. Do not read `.agents/state.json` directly for phase state when this plugin tool is available.
+
+Use `vibepaper_workflow_log` for read-only inspection of `.agents/events.jsonl`. Do not read the event log file directly when this plugin tool is available.
+
+Supported filters:
+
+- `lastN`
+- `phase`
+- `operator`
+
+Use `vibepaper_artifact_status` for read-only inspection of artifact readiness, evidence, confidence, and recommendation. Do not manually infer readiness from files or `.agents/state.json` when this plugin tool is available.
+
+It inspects artifacts such as `storyline.md`, `paper.md`, `relatedwork/`, `.agents/skills/`, `.agents/cross_index.json`, and checker results.
+
+Use `vibepaper_checker_status` for read-only inspection of checker run status, Critical/Major/Minor counts, stale signals, and `.agents/precheck_report.md` evidence. This tool does not run checkers, write checker results, mark issues resolved, update workflow phases, or record artifact readiness.
+
+Use `vibepaper_checker_record` only after a checker has actually run and the user explicitly confirms the summary to persist. This tool writes the `checkers` area in `.agents/state.json` and appends a `record_checker_result` event to `.agents/events.jsonl`. It does not run checker skills, mark individual issues resolved, update workflow phases, or record artifact readiness.
+
+Use `vibepaper_relatedwork_status` for read-only inspection of relatedwork catalog, BibTeX, PDF files, paper summaries, search cache, queries, aggregate summary, and `.agents/cross_index.json`. This tool does not run `relatedwork search`, `import`, `sync-bib`, `download`, `summarize`, `register-summary`, or `build-index`; it also does not write `.agents/state.json` or append events.
+
+## Phase Control
+
+Use `vibepaper_workflow_set_phase` when a phase should be explicitly marked as:
+
+- `not_started`
+- `in_progress`
+- `complete`
+- `skipped`
+
+Before calling the tool:
+
+1. Restate the target phase and next status.
+2. If status is `skipped`, restate the reason.
+3. Wait for explicit user confirmation.
+
+Then call:
+
+```text
+vibepaper_workflow_set_phase({
+  phase: "<phase>",
+  status: "<status>",
+  reason: "<reason if skipped>"
+})
 ```
 
-Incorrect:
+The tool call, not a prompt-only instruction, updates `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
 
-```bash
-vibe status --root /path/to/project
-vibe init --root /path/to/project --name "My Paper" --domain "software engineering"
-```
-
-### Rule 2: Use real phase names
-
-Valid phase names are:
+Valid phase names are project-defined and should come from `vibepaper_workflow_status`. Common defaults are:
 
 - `storyline`
 - `literature`
@@ -110,243 +160,83 @@ Valid phase names are:
 
 Do not use stage letters such as `A`, `B`, or `D`.
 
-### Rule 3: Know which commands need Git
+## Artifact Readiness
 
-- `commit` requires a Git repository
-- `rollback` requires a Git repository
-- `diff` requires phase commits in Git
-- `report` can run without Git, but will report the missing Git repository in the output
+Use `vibepaper_artifact_status` for read-only readiness, evidence, confidence, and recommendation before deciding whether an artifact should be recorded. This tool does not modify files or workflow state.
 
-## Initialization Workflow
+When the user explicitly asks to record readiness:
 
-### `vibe init`
+1. Restate artifact, status, confidence, evidence, and reason.
+2. Wait for explicit confirmation.
+3. Route the confirmed record action to `@vibepaper-recorder`.
+4. The recorder calls `vibepaper_artifact_record`.
 
-Use this to initialize a VibePaper project in the target directory.
+The tool call, not a prompt-only instruction, writes the `artifacts` area in `.agents/state.json` and appends the readiness event to `.agents/events.jsonl`.
+It records artifact readiness only. It does not automatically advance phases.
+The plugin rejects readiness recording from other agents.
 
-Example:
+Use only plugin-supported record values:
 
-```bash
-vibe --root /path/to/project init --name "My Paper" --domain "software engineering"
-```
+- `artifact`: `storyline`, `paper`, `relatedwork`, `cross_index`, or `checker_results`
+- `status`: `missing`, `template`, `partial`, `ready`, `stale`, or `unknown`
+- `confidence`: `low`, `medium`, or `high`
+- `evidence`: one or more concrete evidence strings
+- `reason`: a non-empty human-readable reason
 
-This creates:
+## Checker Result Recording
 
-- `.agents/state.json`
-- `.agents/events.jsonl`
-- `.agents/skills/` with the bundled skills
-- `storyline.md`
-- `paper.md`
-- `writingrules.md`
-- `AGENTS.md`
+Use `vibepaper_checker_status` first when you need to inspect existing checker freshness or counts.
 
-Initialization behavior:
+When the user explicitly asks to record a checker result:
 
-- works in any independent folder
-- does not overwrite existing `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, or already-existing skill directories
-- prompts before reinitializing when `.agents/state.json` already exists
+1. Verify the result came from actual checker output, such as `markdown-review` or an individual checker skill.
+2. Restate checker, status, Critical/Major/Minor counts, summary, evidence, issue list if provided, and reason.
+3. Wait for explicit confirmation.
+4. Route the confirmed record action to `@vibepaper-recorder`.
+5. The recorder calls `vibepaper_checker_record`.
 
-If `vibe` is not on PATH, use:
+Use only plugin-supported checker record values:
 
-```bash
-python -m vibepaper --root /path/to/project init --name "My Paper" --domain "software engineering"
-```
-
-## Status and Inspection
-
-### `vibe status`
-
-Use this to inspect the project workflow state.
-
-Human-readable:
-
-```bash
-vibe --root /path/to/project status
-```
-
-JSON output for scripting:
-
-```bash
-vibe --root /path/to/project status --json
-```
-
-Use `--json` when another tool or agent needs to parse the current phase or phase statuses.
-
-The CLI recomputes `current_phase` from actual phase statuses during `status`, and phase-mutating commands also keep `current_phase` aligned with the real workflow state.
-
-### `vibe set-phase`
-
-Use this when a phase should be explicitly marked `not_started`, `in_progress`, `complete`, or `skipped` without hand-editing `.agents/state.json`.
-
-Examples:
-
-```bash
-vibe --root /path/to/project set-phase storyline --status complete
-vibe --root /path/to/project set-phase discussion --status in_progress
-vibe --root /path/to/project set-phase experiments --status skipped --reason "the paper is theoretical"
-```
-
-Notes:
-
-- supported statuses are `not_started`, `in_progress`, `complete`, `skipped`
-- if you set a later phase to `in_progress` or `complete` before its recommended dependencies, the CLI warns but does not hard-block the update
-- `current_phase` is recomputed after the update
-
-### `vibe log`
-
-Use this to inspect workflow history from `.agents/events.jsonl`.
-
-Examples:
-
-```bash
-vibe --root /path/to/project log
-vibe --root /path/to/project log --phase storyline
-vibe --root /path/to/project log --operator user
-vibe --root /path/to/project log --last 10
-vibe --root /path/to/project log --since 2026-04-01
-```
-
-Use this when you need to understand what actions were already performed.
-
-## Phase Control
-
-### `vibe skip`
-
-Use this when a phase should be intentionally skipped.
-
-Example:
-
-```bash
-vibe --root /path/to/project skip experiments --reason "the paper is theoretical and does not require experiments"
-```
-
-Notes:
-
-- `--reason` is optional in the implementation, but recommended
-- the phase argument must be a full phase name
-- the skip action is recorded in the event log
-- `current_phase` is recomputed after the skip
-
-## Reporting
-
-### `vibe report`
-
-Use this to generate a progress report.
-
-Examples:
-
-```bash
-vibe --root /path/to/project report
-vibe --root /path/to/project report --since 2026-04-01
-vibe --root /path/to/project report --output progress.md
-```
-
-Use this when the user asks for a weekly summary, progress snapshot, or a handoff-style report.
-
-### `vibe diff`
-
-Use this to compare two phase snapshots when commits exist.
-
-Example:
-
-```bash
-vibe --root /path/to/project diff storyline writing
-```
-
-Use this only when the relevant phases already have commits.
-
-## Git-Backed Phase Operations
-
-### `vibe commit`
-
-Use this to create a phase-aware commit.
-
-Examples:
-
-```bash
-vibe --root /path/to/project commit -m "finish storyline draft"
-vibe --root /path/to/project commit --phase storyline -m "finish storyline draft"
-vibe --root /path/to/project commit --phase writing -m "section draft" --force
-```
-
-Behavior:
-
-- if `--phase` is omitted, the CLI tries to read `current_phase` from `.agents/state.json`
-- commit message is prefixed with the phase
-- Git repository is required
-
-### `vibe rollback`
-
-Use this to rollback to the latest commit associated with a phase.
-
-Examples:
-
-```bash
-vibe --root /path/to/project rollback storyline
-vibe --root /path/to/project rollback storyline -y
-```
-
-Behavior:
-
-- Git repository is required
-- the CLI asks for confirmation unless `-y` is used
-- phase state is reset after rollback when possible, and `current_phase` is recomputed
+- `checker`: `problem-checker`, `novelty-checker`, `technical-depth-checker`, `logic-checker`, `clarity-checker`, `evaluation-protocol-checker`, or `data-checker`
+- `status`: `clean`, `issues_found`, or `unknown`
+- `critical`, `major`, `minor`: non-negative integer issue counts
+- `summary`: a non-empty summary from actual checker output
+- `evidence`: one or more concrete evidence strings
+- `reason`: a non-empty human-readable reason
+- `issues`: optional normalized issue list; this is for recording only and does not mark issues resolved
 
 ## Recommended Automation Patterns
 
-### Pattern 1: Bootstrap a new project
+### Pattern 1: Dashboard
 
-1. Create or choose the target directory
-2. Run `vibe --root <dir> init --name ... --domain ...`
-3. Run `vibe --root <dir> status`
-4. Verify scaffolded files exist
+1. Call `vibepaper_dashboard`.
+2. If ready, call `vibepaper_artifact_status` to inspect artifact readiness, evidence, confidence, and recommendation.
+3. Then call `vibepaper_workflow_status`.
+4. Optionally call `vibepaper_workflow_log`.
 
-### Pattern 2: Safe workflow inspection
+### Pattern 2: Safe Workflow Inspection
 
-1. Run `vibe --root <dir> status --json`
-2. Run `vibe --root <dir> log --operator user --last 20`
-3. Decide whether to skip/report/commit based on the actual state
+1. Call `vibepaper_workflow_status` to get the current phase, phase table, and next-step recommendation.
+2. Call `vibepaper_workflow_log` with `lastN` or optional `phase`/`operator` filters to query `.agents/events.jsonl` read-only.
+3. Decide the next action from the returned state.
 
-### Pattern 3: Skip a non-applicable phase
+### Pattern 3: Skip a Non-Applicable Phase
 
-1. Confirm the phase is genuinely not needed
-2. Run `vibe --root <dir> skip <phase> --reason "..."`
-3. Re-run `status` to verify the result
-
-### Pattern 4: Git-backed checkpointing
-
-1. Ensure the directory is a Git repository
-2. Make the content changes first
-3. Run `vibe --root <dir> commit --phase <phase> -m "..."`
-4. Use `vibe --root <dir> diff <phase-a> <phase-b>` or `git log` for confirmation
-
-## Decision Rules
-
-Use the CLI action that matches the user intent:
-
-- user wants a project created → `init`
-- user wants current progress → `status`
-- user wants to explicitly move a phase to `in_progress` / `complete` / `not_started` / `skipped` → `set-phase`
-- user wants workflow history → `log`
-- user wants related-work metadata status → `relatedwork status`
-- user wants related-work metadata imported from search cache → `relatedwork import`
-- user wants BibTeX and literature metadata reconciled → `relatedwork sync-bib`
-- user wants related-work PDFs downloaded → `relatedwork download`
-- user wants a paper summary registered after a subagent run → `relatedwork register-summary`
-- user wants `.agents/cross_index.json` rebuilt from paper summaries → `relatedwork build-index`
-- user wants to skip a phase → `skip`
-- user wants a progress summary → `report`
-- user wants phase-to-phase comparison → `diff`
-- user wants a tracked milestone commit → `commit`
-- user wants to move back to an earlier phase checkpoint → `rollback`
+1. Confirm the phase is genuinely not needed.
+2. Ask for or restate the skip reason.
+3. Wait for confirmation.
+4. Call `vibepaper_workflow_set_phase` with `status: "skipped"`.
+5. Call `vibepaper_workflow_status` to verify the result.
 
 ## Must NOT Do
 
-- **NEVER** put `--root` after the subcommand
-- **NEVER** use stage letters instead of real phase names
-- **NEVER** hand-edit `.agents/state.json` for actions the CLI already supports
-- **NEVER** tell the user that `report` requires Git
-- **NEVER** run `commit`, `rollback`, or `diff` as if they will work without Git context
-- **NEVER** describe outdated init behavior; it now scaffolds skills and starter files
+- **NEVER** hand-edit `.agents/state.json` for actions covered by plugin tools.
+- **NEVER** append to `.agents/events.jsonl` for workflow phase changes covered by plugin tools.
+- **NEVER** read `.agents/events.jsonl` directly for workflow history when `vibepaper_workflow_log` is available.
+- **NEVER** update phases without explicit user confirmation.
+- **NEVER** use shell `vibe` commands when an equivalent plugin tool exists.
+- **NEVER** claim unsupported plugin capabilities exist.
+- **NEVER** read `.agents/state.json` directly just to infer checker status when `vibepaper_checker_status` is available.
 
 ## End Condition
 
@@ -354,7 +244,7 @@ Stop when the requested management action is complete and verified.
 
 Always report:
 
-- which `vibe` command was used
-- which project root it targeted
+- which plugin tool was used
+- which project root it targeted, if shown by the tool output
 - what files or workflow state changed
-- any Git-related limitation that affected the command
+- any missing plugin capability that affected the request

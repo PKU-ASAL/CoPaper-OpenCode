@@ -33,10 +33,9 @@ The paper follows VibePaper structure. Key rules for this skill:
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | Conditional | Step 1 and Step 8 | Target framework; if missing, initialize project first |
-| `*.pdf` | **Required** | Step 2 | Source draft content |
-| `writingrules.md` | Conditional | Step 3 | Optional structure validation if available |
-| `.agents/state.json` | Optional | Step 9 | Update writing phase status |
+| `paper.md` | Conditional | Step 1 and Step 8 | Target framework; inspect through `vibepaper_paper_structure_status` if present |
+| `*.pdf` | **Required** | Step 2 | Source draft content; extract and validate through `vibepaper_pdf_extract` |
+| `.agents/state.json` | Optional | Step 9 | Updated only through `vibepaper_workflow_set_phase` |
 | `fig/` | Optional | Step 5 | Keep references to figure files mentioned in PDF |
 
 Preferred source example:
@@ -62,21 +61,23 @@ Path safety rule:
 
 ## Supported Formats
 
-- Text-based `pdf`: supported
-- Scanned/image-only `pdf`: supported with OCR fallback, but must explicitly mark low-confidence extraction
+- Text-based `pdf`: supported through `vibepaper_pdf_extract`
+- Scanned/image-only `pdf`: not OCRed by this skill; if `vibepaper_pdf_extract` reports low confidence or little/no text, stop and ask the user for a text-based PDF or extracted text
 
 ## Extraction Strategy
 
-Use this fallback order:
+Call `vibepaper_pdf_extract` for source extraction when the OpenCode plugin tool is available.
 
-1. Prefer `pdftotext` or equivalent text extraction.
-2. If extraction quality is poor, use OCR fallback.
-3. Keep page numbers for traceability.
+This tool is read-only and requires an explicit `.pdf` path. It validates path safety, file existence, supported extension, file size, and readable text operators. It does not scan directories, guess source files, write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
-For each extracted chunk, capture:
+Use the tool output to capture:
 - page range
-- candidate section meaning (intro/method/experiments/etc.)
-- key claims, numbers, and citations
+- extracted text
+- page count
+- extraction confidence
+- source hash for traceability
+
+If the tool reports low confidence or no text operators, disclose that limitation to the user and ask for a better source. Do not replace `vibepaper_pdf_extract` with prompt-only extraction instructions, shell existence checks, shell `pdftotext`, OCR, or directory scans when the plugin tool is available.
 
 ## Mapping Rules (PDF -> paper.md)
 
@@ -101,26 +102,29 @@ If one PDF paragraph supports multiple destinations, split conservatively and ke
    - `请提供要转换的 PDF 文件路径（例如：target/example_project/draft.pdf）。`
 3. Do not scan the filesystem for PDF candidates when the path is missing.
 4. Wait for user-provided absolute or relative path.
-5. Confirm source `.pdf` exists.
-6. If missing, stop and report exact missing path.
-7. Check whether `paper.md` exists:
+5. Do not run a separate shell/file existence check for the `.pdf`; `vibepaper_pdf_extract` performs this validation in Step 2.
+6. Check whether `paper.md` exists through `vibepaper_paper_structure_status` in Step 3:
    - if yes, continue normal mapping and in-place update flow
    - if no, continue conversion in draft mode and initialize project at Step 8 before final write
 
 ### Step 2: Extract PDF content
 
-1. Extract text in reading order.
-2. Build an intermediate traceable note with page indices.
-3. Mark extraction confidence:
+1. Call `vibepaper_pdf_extract` with the explicit user-provided `.pdf` path.
+2. If the tool returns an error, stop and report the error; do not retry by scanning directories, running `pdftotext`, or doing OCR.
+3. Use the returned text, page count, confidence, warnings, and source hash.
+4. Build an intermediate traceable note with available page information.
+5. Mark extraction confidence:
    - `high`: direct text extraction
    - `medium`: mixed quality
-   - `low`: OCR-heavy and error-prone
+   - `low`: too little reliable text; ask the user for a text-based PDF or extracted text before continuing
 
 ### Step 3: Scan target framework
 
-1. Read `paper.md` structure (`#` to `#####`) and descriptions.
-2. If available, use `writingrules.md` for additional structure constraints.
-3. Build a target section map for insertion planning.
+1. Call `vibepaper_paper_structure_status` to inspect `paper.md` structure and Level 5 writing targets.
+2. If the tool reports missing `paper.md`, keep accepted conversion content in draft mode and initialize project at Step 8 before final write.
+3. If the tool reports an unsafe path or unreadable file, stop and report the tool error.
+4. Use the embedded Paper Structure Reference above for structure constraints.
+5. Build a target section map for insertion planning from the tool's `headings`, `level5Targets`, and `violations`.
 
 ### Step 4: Build section evidence map
 
@@ -166,16 +170,19 @@ Then validate:
 1. `<project-dir>/.agents/skills/` exists and is non-empty
 2. `<project-dir>/paper.md` exists
 
-If either check fails:
+If `paper.md` is missing:
 
 1. Ask for:
    - project `name`
    - project `domain`
-2. Run initialization first:
-```bash
-vibe --root <project-dir> init --name "<name>" --domain "<domain>"
-```
-3. Then apply the accepted converted content into initialized `paper.md`.
+2. Restate the project directory, project `name`, and project `domain`.
+3. Wait for explicit user confirmation.
+4. Call `vibepaper_init_apply` with `name` and `domain`; the tool initializes OpenCode-managed VibePaper core files and refuses conflicts.
+5. Then apply the accepted converted content into initialized `paper.md`.
+
+Do not manually create `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, `.agents/state.json`, or `.agents/events.jsonl` when `vibepaper_init_apply` is available.
+
+If only `.agents/skills/` is missing or incomplete, report that the current OpenCode plugin initialization writes core project files only and does not install the skill library. Do not claim `vibepaper_init_apply` can repair missing skills. Continue only if `paper.md` exists and the current skill instructions are available in the active agent context.
 
 ### Step 9: Update workflow status
 
@@ -183,13 +190,9 @@ After accepted edits:
 - If at least one writing section is filled, set `writing` phase to `in_progress`.
 - If all intended conversion sections are materially filled, set `writing` phase to `complete`.
 
-Prefer CLI updates:
-```bash
-vibe --root <project-dir> set-phase writing --status in_progress
-vibe --root <project-dir> set-phase writing --status complete
-```
+Use `vibepaper_workflow_set_phase` for this update. Before calling it, restate the target phase and status and wait for explicit user confirmation. The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
 
-If CLI is unavailable, update `.agents/state.json` carefully and preserve unrelated fields.
+Do not run `vibe set-phase` and do not manually edit `.agents/state.json` when the OpenCode plugin tool is available.
 
 ## Output Requirements
 
@@ -215,7 +218,7 @@ Each inserted paragraph should be:
 - **NEVER** invent experiment numbers, datasets, or baselines
 - **NEVER** modify Level 1-5 structure in `paper.md`
 - **NEVER** rewrite the full paper in one blind pass
-- **NEVER** hide low-confidence OCR extraction; disclose it
+- **NEVER** pretend OCR was performed by this skill; disclose low-confidence or missing text from `vibepaper_pdf_extract`
 - **NEVER** treat this as autonomous writing without user confirmation
 
 ## Recommended Default Invocation

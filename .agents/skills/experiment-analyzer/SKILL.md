@@ -104,19 +104,18 @@ This mode is for users who already have experimental data and want to skip the e
 
 1. **Confirm intent**: Ask the user to confirm they want to skip the experiment phase. Warn them that skipping means no code understanding, result analysis, or protocol review will be performed.
 2. **Collect data path**: Ask the user for the path to their existing data file(s). These will be referenced in `paper.md` but not analyzed by this skill.
-3. **Update state**: Update `.agents/state.json` to record that the experiment phase was skipped. Set the experiment status to `"skipped"` and record the data path provided by the user.
+3. **Update workflow phase**: Restate the skip reason and wait for explicit user confirmation. Then call `vibepaper_workflow_set_phase` with `phase: "experiments"`, `status: "skipped"`, and the confirmed `reason`; the tool writes `.agents/state.json` and appends `.agents/events.jsonl`.
 4. **Inform user**: Tell the user that the experiment phase has been marked as skipped. Suggest that they may still want to use Result Analysis mode later if they need help interpreting their data.
 
-### Step 3: Update State
+### Step 3: Update Workflow State
 
-After completing any mode (except Skip, which updates state in Step 2d), update `.agents/state.json`:
+After completing any mode (except Skip, which updates workflow state in Step 2d), update workflow phase status through the OpenCode plugin tool:
 
-1. Read the current `.agents/state.json` file.
-2. Update the `experiment` section with:
-   - `"status": "completed"` (or `"skipped"` for Skip mode)
-   - `"mode_used": "<mode_name>"` (e.g., "code_understanding", "result_analysis", "protocol_review", "skip")
-   - `"last_updated": "<current_date>"`
-3. Write the updated state back to `.agents/state.json`.
+1. Restate the intended phase update to the user.
+2. Wait for explicit confirmation.
+3. Call `vibepaper_workflow_set_phase` with `phase: "experiments"` and `status: "complete"` after code/result/protocol analysis is complete; the tool writes `.agents/state.json` and appends `.agents/events.jsonl`.
+4. Do not manually edit `.agents/state.json` when the plugin tool is available.
+5. The current plugin does not expose a dedicated tool for storing experiment metadata such as `mode_used`, `last_updated`, or `data_files`; mention this limitation instead of writing those fields directly.
 
 ## Input Files
 
@@ -124,7 +123,7 @@ After completing any mode (except Skip, which updates state in Step 2d), update 
 |------|----------|-------------|---------|
 | `storyline.md` | **Required** | Step 2a/2b (mapping experiments to RQs) | Research narrative for mapping code/results to research questions |
 | `paper.md` | **Required** | Step 2a/2b (understanding evaluation needs) | Paper structure and evaluation section requirements |
-| `.agents/state.json` | Read/write | Step 3 (end) and Step 2d (skip mode) | Update experiment phase status; read `data_files` and `experiments` status |
+| `.agents/state.json` | Tool-managed | Step 3 (end) and Step 2d (skip mode) | Update experiment phase via `vibepaper_workflow_set_phase`; do not edit directly |
 | User-provided experiment code path | Conditional | Step 2a (Code Understanding mode) | Directory of experiment code to analyze |
 | User-provided result file paths | Conditional | Step 2b (Result Analysis mode) | CSV/JSON/TXT/log files with experimental results |
 
@@ -146,6 +145,6 @@ Do NOT read `writingrules.md` — this skill does not need paper structure rules
 1. **Read-only analysis**: This skill reads code and data but never modifies them. All suggestions are presented to the user for review.
 2. **RQ alignment is critical**: Every analysis mode should cross-reference results or code with the stated research questions in `storyline.md` and `paper.md`.
 3. **Protocol review delegates to evaluation-protocol-checker**: The Protocol Review mode does not duplicate the checker's logic. It invokes the checker and then discusses results with the user.
-4. **State tracking**: Always update `.agents/state.json` after completing a mode to maintain workflow continuity.
+4. **State tracking**: Use `vibepaper_workflow_set_phase` after completing a mode to maintain workflow continuity.
 5. **Bilingual support**: Trigger words and user-facing prompts should accommodate both English and Chinese inputs.
 6. **Data formats**: Result Analysis mode supports CSV, JSON, TXT, and common log file formats. If the user provides an unsupported format, ask them to convert it first.

@@ -58,7 +58,7 @@ Do not reorder the sequence unless the user explicitly asks to jump.
 |------|----------|-------------|---------|
 | `storyline.md` | **Required** | Step 1 (start) | Research narrative, insight, method outline |
 | `paper.md` | **Required** | Step 1 (start) | Current paper state and claim wording |
-| `.agents/state.json` | Optional | Step 2 (if checker-driven discussion) | Checker results and workflow state; read `checkers` field for unresolved issues |
+| Checker status | Optional | Step 2 (if checker-driven discussion) | Use `vibepaper_checker_status` for read-only checker family status, severity counts, stale signals, and precheck evidence |
 | `relatedwork/papers/*.md` | Optional | Step 1 (as needed) | Prior-work summaries for contrast questions |
 | `.agents/cross_index.json` | Optional | Step 1 (as needed) | Paper-technique mappings for targeted questioning |
 | `.agents/discussion_log.json` | Optional | Step 3 (to find covered dimensions) | Prior discussion history |
@@ -76,11 +76,12 @@ If some files do not exist yet, continue with the available context instead of b
 Goal: understand the user's problem, insight, method, and evidence situation before asking questions.
 
 ### Step 2: Integrate Checker Results
-1. Read `.agents/state.json` if it exists.
-2. Detect which of the 7 checker families have run.
-3. Extract unresolved issues, issue IDs, checker names, and descriptions.
-4. Map unresolved issues to dimensions using `checker_name` and issue meaning.
-5. Mark those dimensions as priority dimensions.
+1. Call `vibepaper_workflow_status` if workflow phase status, current phase, phase table, or next-step recommendation is needed.
+2. Call `vibepaper_checker_status` to detect which of the 7 checker families have run, whether results are stale, and the Critical/Major/Minor counts.
+3. Use the tool output to prioritize checker families with stale or non-clean statuses.
+4. If detailed issue text is needed and is not present in the current conversation, ask the user to run or provide `markdown-review`; do not read `.agents/state.json` directly just to infer checker status.
+5. Map available unresolved issues to dimensions using `checker_name` and issue meaning.
+6. Mark those dimensions as priority dimensions.
 If checker results exist, explicitly tell the user that checker-flagged dimensions will be prioritized first.
 
 ### Step 3: Determine Uncovered Dimensions
@@ -191,13 +192,11 @@ After showing the dimension summary, ask whether the user:
 Write the result to `.agents/discussion_log.json`.
 If the file does not exist, create it. Preserve old records and append new session entries.
 
-### Step 13: Update State
-Update `.agents/state.json` if it exists or if the broader workflow expects it.
-Suggested updates:
-- add the dimension to covered dimensions
-- record discussion progress
-- update linked checker issue status if the issue was genuinely addressed
-Do not mark an issue resolved merely because it was discussed.
+### Step 13: Workflow State
+Use `vibepaper_workflow_set_phase` only for phase-level updates such as marking `discussion` as `in_progress` or `complete`, and only after explicit user confirmation.
+The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`; do not substitute a prompt-only note or manual file edit.
+
+The current OpenCode plugin does not expose a dedicated tool for discussion metadata or checker issue resolution status. Do not manually edit `.agents/state.json` for those fields in plugin-based workflows; report the limitation instead.
 
 ## Checker-Priority Strategy
 When unresolved checker issues exist:

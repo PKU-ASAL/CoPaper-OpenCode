@@ -1,0 +1,41 @@
+{
+  "name": "@vibepaper/opencode",
+  "version": "0.1.0",
+  "description": "OpenCode integration plugin for VibePaper",
+  "type": "module",
+  "bin": {
+    "vibepaper-opencode": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:cli": "bun test tests/cli.test.ts",
+    "test:package": "bun test tests/package-smoke.test.ts",
+    "dev:install": "bun scripts/dev-install.ts",
+    "dev:reset": "bun scripts/dev-reset.ts",
+    "dev:watch": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.14.29",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "bun-types": "^1.3.13",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "license": "MIT"
+}

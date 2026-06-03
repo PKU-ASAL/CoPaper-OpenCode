@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,39 @@ _STATUS_DISPLAY = {
     PhaseStatus.SKIPPED: "[skip]",
     PhaseStatus.NOT_STARTED: "[    ]",
 }
+
+
+def _load_env_file(env_path: Path) -> int:
+    """Best-effort KEY=VALUE loader for ``.env``. Returns count of vars set.
+
+    Skips silently if the file is missing. Existing environment variables
+    take precedence — a value already in ``os.environ`` is never overwritten.
+    """
+    if not env_path.exists() or not env_path.is_file():
+        return 0
+    count = 0
+    try:
+        text = env_path.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("export "):
+            line = line[len("export ") :].lstrip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        os.environ[key] = value
+        count += 1
+    return count
 
 
 def _load_state_manager_or_exit(root: str) -> StateManager:
@@ -82,6 +116,11 @@ def main(ctx: click.Context, root: str) -> None:
     """VibePaper - AI-assisted academic writing framework."""
     ctx.ensure_object(dict)
     ctx.obj["root"] = root
+
+    root_path = Path(root)
+    for candidate in (root_path / ".env", Path.cwd() / ".env"):
+        if _load_env_file(candidate):
+            break
 
 
 @main.command()
@@ -288,6 +327,156 @@ def relatedwork_status(ctx: click.Context, as_json: bool) -> None:
         )
 
 
+@relatedwork_group.command(name="search")
+@click.option(
+    "--query",
+    "queries",
+    multiple=True,
+    help="Search query (repeatable).",
+)
+@click.option(
+    "--queries-file",
+    "queries_file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Text file with one query per line (lines starting with # ignored).",
+)
+@click.option(
+    "--limit",
+    default=20,
+    show_default=True,
+    type=click.IntRange(1, 100),
+    help="Results per query (max 100).",
+)
+@click.option(
+    "--year",
+    default=None,
+    help="Year or year range, e.g. '2023' or '2020-2024'.",
+)
+@click.option(
+    "--fields-of-study",
+    "fields_of_study",
+    default="Computer Science",
+    show_default=True,
+    help=(
+        "Comma-separated S2 fields of study. Pass an empty string "
+        "(--fields-of-study '') to disable the filter."
+    ),
+)
+@click.option(
+    "--venue",
+    default=None,
+    help="Comma-separated venue filter (e.g. 'CVPR,NeurIPS').",
+)
+@click.option(
+    "--open-access/--no-open-access",
+    "open_access_only",
+    default=False,
+    show_default=True,
+    help="Restrict results to papers with a public PDF (off by default).",
+)
+@click.option(
+    "--cache-path",
+    "cache_path",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Override cache path (default: <root>/relatedwork/search_cache.json).",
+)
+@click.option(
+    "--api-base",
+    "api_base",
+    default=None,
+    help="Override S2 base URL (env: S2_API_BASE). Use to point at a proxy.",
+)
+@click.pass_context
+def relatedwork_search_cmd(
+    ctx: click.Context,
+    queries: tuple[str, ...],
+    queries_file: Path | None,
+    limit: int,
+    year: str | None,
+    fields_of_study: str | None,
+    venue: str | None,
+    open_access_only: bool,
+    cache_path: Path | None,
+    api_base: str | None,
+) -> None:
+    """Search Semantic Scholar and write metadata to relatedwork/search_cache.json."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.relatedwork_search import (
+        SemanticScholarError,
+        _read_queries_file,
+        resolve_api_key,
+        resolve_base_url,
+        run as run_search,
+    )
+
+    collected: list[str] = list(queries)
+    if queries_file is not None:
+        collected.extend(_read_queries_file(queries_file))
+
+    if not collected:
+        click.echo(
+            "Error: provide at least one --query or a --queries-file with entries.",
+            err=True,
+        )
+        sys.exit(1)
+
+    api_key = resolve_api_key()
+    base_url = resolve_base_url(api_base)
+
+    try:
+        outcome = run_search(
+            root,
+            queries=collected,
+            limit=limit,
+            year=year,
+            fields_of_study=fields_of_study,
+            open_access_only=open_access_only,
+            venue=venue,
+            cache_path=cache_path,
+            api_key=api_key,
+            base_url=base_url,
+        )
+    except SemanticScholarError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "search_relatedwork_metadata",
+        "user",
+        "success",
+        phase="literature",
+        queries=outcome.queries,
+        papers_found=len(outcome.papers),
+        cache_path=outcome.cache_path,
+        api_key_used=outcome.api_key_used,
+        endpoint=base_url,
+    )
+
+    click.echo(
+        f"Searched {len(outcome.queries)} queries, "
+        f"found {len(outcome.papers)} unique papers."
+    )
+    click.echo(f"Cache written to {outcome.cache_path}")
+    click.echo(f"Endpoint: {base_url}")
+    click.echo(
+        f"Next: vibe --root {root} relatedwork import --input {outcome.cache_path}"
+    )
+    if not outcome.api_key_used:
+        click.echo(
+            "Hint: set S2_API_KEY (or SEMANTIC_SCHOLAR_API_KEY) in .env "
+            "for higher rate limits."
+        )
+
+
 @relatedwork_group.command(name="import")
 @click.option(
     "--input",
@@ -491,6 +680,270 @@ def relatedwork_build_index(ctx: click.Context) -> None:
         f"State updated: {summary['counts']['summaries_done']} summaries, "
         f"cross_index_built={summary['counts']['cross_index_built']}"
     )
+
+
+@relatedwork_group.command(name="keywords")
+@click.option(
+    "--from",
+    "source",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Source file (default: storyline.md, falling back to paper.md).",
+)
+@click.option(
+    "--count",
+    type=click.IntRange(1, 30),
+    default=8,
+    show_default=True,
+    help="Number of queries to extract.",
+)
+@click.option(
+    "--out",
+    "out_path",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Output file (default: <root>/relatedwork/queries.txt).",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override VIBEPAPER_MODEL.",
+)
+@click.pass_context
+def relatedwork_keywords_cmd(
+    ctx: click.Context,
+    source: Path | None,
+    count: int,
+    out_path: Path | None,
+    model: str | None,
+) -> None:
+    """Extract related-work search queries from storyline.md via the LLM."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.llm_client import LLMConfigError
+    from vibepaper.relatedwork_keywords import extract_keywords
+
+    try:
+        outcome = extract_keywords(
+            root,
+            source=source,
+            count=count,
+            output=out_path,
+            model=model,
+        )
+    except LLMConfigError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "extract_relatedwork_keywords",
+        "user",
+        "success",
+        phase="literature",
+        model=outcome.model,
+        count=len(outcome.queries),
+        output_path=outcome.output_path,
+    )
+
+    click.echo(
+        f"Extracted {len(outcome.queries)} queries using {outcome.model}."
+    )
+    click.echo(f"Written to {outcome.output_path}")
+    for query in outcome.queries:
+        click.echo(f"  - {query}")
+    click.echo(
+        f"Next: vibe --root {root} relatedwork search "
+        f"--queries-file {outcome.output_path}"
+    )
+
+
+@relatedwork_group.command(name="summarize")
+@click.option("--paper-id", default=None, help="Limit to one paper.")
+@click.option(
+    "--storyline",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Storyline file (default: storyline.md).",
+)
+@click.option(
+    "--template",
+    default=None,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Summary template (default: .agents/skills/relatedwork-finder/template.md).",
+)
+@click.option("--model", default=None, help="Override VIBEPAPER_MODEL.")
+@click.option(
+    "--qps",
+    type=float,
+    default=16.0,
+    show_default=True,
+    help="Requests per second cap.",
+)
+@click.option(
+    "--concurrency",
+    type=click.IntRange(1, 64),
+    default=8,
+    show_default=True,
+    help="Max concurrent worker threads.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Re-summarize papers that already have a summary.",
+)
+@click.option(
+    "--max-pdf-bytes",
+    type=int,
+    default=50 * 1024 * 1024,
+    show_default=True,
+    help="Reject PDFs larger than this (bytes).",
+)
+@click.pass_context
+def relatedwork_summarize_cmd(
+    ctx: click.Context,
+    paper_id: str | None,
+    storyline: Path | None,
+    template: Path | None,
+    model: str | None,
+    qps: float,
+    concurrency: int,
+    force: bool,
+    max_pdf_bytes: int,
+) -> None:
+    """Summarize downloaded PDFs via the LLM, writing relatedwork/papers/<id>.md."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.llm_client import LLMConfigError
+    from vibepaper.relatedwork_summarize import summarize_papers
+
+    try:
+        outcome = summarize_papers(
+            root,
+            paper_id=paper_id,
+            storyline=storyline,
+            template=template,
+            model=model,
+            qps=qps,
+            concurrency=concurrency,
+            force=force,
+            max_pdf_bytes=max_pdf_bytes,
+        )
+    except LLMConfigError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    catalog = LiteratureCatalog(root)
+    catalog.load()
+    summary = _sync_literature_phase_state(sm, catalog)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "summarize_relatedwork_papers",
+        "user",
+        "success",
+        phase="literature",
+        processed=outcome.processed,
+        succeeded=outcome.succeeded,
+        failed=outcome.failed,
+        skipped=outcome.skipped,
+        paper_id=paper_id,
+    )
+
+    for result in outcome.results:
+        if result.success:
+            click.echo(f"[ok]   {result.paper_id} -> {result.summary_path}")
+        else:
+            click.echo(f"[fail] {result.paper_id} -> {result.error}")
+
+    click.echo(
+        f"Processed {outcome.processed} papers: "
+        f"{outcome.succeeded} succeeded, "
+        f"{outcome.failed} failed, "
+        f"{outcome.skipped} skipped."
+    )
+    click.echo(
+        f"Catalog summaries: {summary['counts']['summaries_done']} done."
+    )
+
+
+@relatedwork_group.command(name="clean")
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip the confirmation prompt.",
+)
+@click.option(
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    help="List the paths that would be removed without deleting them.",
+)
+@click.pass_context
+def relatedwork_clean_cmd(
+    ctx: click.Context,
+    yes: bool,
+    dry_run: bool,
+) -> None:
+    """Wipe relatedwork progress and reset the literature phase counters."""
+    root = ctx.obj["root"]
+    sm = _load_state_manager_or_exit(root)
+
+    from vibepaper.relatedwork_clean import clean_relatedwork, plan_targets
+
+    targets = [path for path in plan_targets(root) if path.exists()]
+    if not targets:
+        click.echo(
+            "Nothing to clean. relatedwork/ and cross_index.json are already absent."
+        )
+        return
+
+    click.echo("Will remove (to trash if available):")
+    for path in targets:
+        click.echo(f"  - {path}")
+    click.echo("Then reset the literature phase counters in .agents/state.json.")
+
+    if dry_run:
+        click.echo("(--dry-run) No changes made.")
+        return
+
+    if not yes and not click.confirm("Proceed?", default=False):
+        click.echo("Aborted.")
+        return
+
+    outcome = clean_relatedwork(root)
+
+    log_path = str(sm.project_root / ".agents" / "events.jsonl")
+    el = EventLogger(log_path)
+    el.log(
+        "clean_relatedwork",
+        "user",
+        "success",
+        phase="literature",
+        removed=outcome.removed,
+        used_trash=outcome.used_trash,
+        state_reset=outcome.state_reset,
+    )
+
+    for path in outcome.removed:
+        click.echo(f"[cleaned] {path}")
+    if outcome.state_reset:
+        click.echo("Literature phase counters reset to not_started.")
+    if not outcome.used_trash:
+        click.echo(
+            "Note: `trash` CLI not available — items were permanently deleted."
+        )
 
 
 @main.command(name="set-phase")

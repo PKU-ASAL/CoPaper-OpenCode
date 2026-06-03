@@ -6,6 +6,7 @@ description: Reviews and improves markdown academic paper content following Vibe
 # Markdown Review Skill
 
 This skill provides comprehensive review of markdown content for computer science research papers by running all available checkers sequentially. It follows the VibePaper structure rules.
+When the OpenCode plugin injects `@vibepaper-reviewer`, route checker execution summaries and issue explanations through that read-only reviewer subagent. The reviewer may call `vibepaper_checker_status` and prepare checker-record metadata, but it must not edit `paper.md` or write checker records directly.
 
 ## When to Use This Skill
 
@@ -18,9 +19,10 @@ This skill provides comprehensive review of markdown content for computer scienc
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target; read to understand paper content for all 7 checkers |
-| `.agents/state.json` | Write target | After each checker completes | Persist checker results via CheckerTracker; this skill writes but does not read checker state for content |
+| Checker status | Optional | Step 1 and after checker execution | Use `vibepaper_checker_status` for read-only existing checker status, severity counts, stale signals, and precheck evidence |
 
-Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly and writes checker results to `.agents/state.json`.
+Additional files (such as `writingrules.md`, `relatedwork/papers/*.md`, `.agents/cross_index.json`) are read indirectly by the individual checker sub-skills, not by `markdown-review` itself. This orchestrator only reads `paper.md` directly. If existing checker status is needed, call `vibepaper_checker_status` instead of reading `.agents/state.json` or `.agents/precheck_report.md` directly. If the user wants durable checker summaries, restate the checker, status, Critical/Major/Minor counts, summary, evidence, and reason, wait for confirmation, then route the record action to `@vibepaper-recorder` so it can call `vibepaper_checker_record`.
+Use `@vibepaper-reviewer` for the read-only review explanation step when available; use `@vibepaper-recorder` only for confirmed persistence.
 
 ## Review Workflow
 
@@ -54,7 +56,8 @@ This skill runs **seven specialized checkers** in sequence, each focusing on a d
 
 First, read the essential files:
 1. Read `paper.md` to understand the paper content
-2. Do NOT read additional context files directly here. Related-work context, cross-index context, and structure rules are handled indirectly by the individual checker sub-skills.
+2. Call `vibepaper_checker_status` to see whether prior checker results or precheck evidence exist and whether they are stale.
+3. Do NOT read additional context files directly here. Related-work context, cross-index context, and structure rules are handled indirectly by the individual checker sub-skills.
 
 ### Step 2: Run Problem Checker
 
@@ -143,6 +146,8 @@ First, read the essential files:
 ### Step 9: Generate Comprehensive Report
 
 After all checkers complete, generate a summary report aggregating all findings.
+
+If the user asks to persist checker results, do not edit `.agents/state.json` manually. For each confirmed checker summary, route to `@vibepaper-recorder` and call `vibepaper_checker_record` with actual checker output. This records run-level summary only; it does not mark individual issues resolved.
 
 ## Output Format
 
@@ -385,6 +390,7 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 4. **AI-generated comments**: All comments are AI analysis, clearly marked to distinguish from human reviewer feedback
 5. **Reproducible review**: Run this skill multiple times as you fix issues to track progress
 6. **Author responsibility**: Authors should review all AI suggestions critically before implementing
+7. **Plugin tool boundary**: Use `vibepaper_checker_status` for read-only checker status, severity counts, stale signals, and precheck evidence. Use `vibepaper_checker_record` only after explicit user confirmation to persist actual checker summaries. Use `vibepaper_init_apply` for confirmed core-file initialization requests. Report checker findings in the response even when a summary is recorded.
 
 ## Usage Examples
 

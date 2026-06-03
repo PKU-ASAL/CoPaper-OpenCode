@@ -78,3 +78,10 @@ The system prioritizes structural integrity, reproducible workflow state, and sk
 - `current_phase` is derived from actual phase statuses during CLI status updates instead of staying fixed at the init-time default.
 - Canonical per-paper literature metadata now lives in `relatedwork/literature.json`; `.agents/state.json` keeps only aggregate literature progress counters.
 - The packaged scaffold lives in `vibepaper/scaffold/` and must stay synchronized with the source assets in this repository.
+
+## Repository Map
+###### Project architecture index
+<!-- description: Codemap discovery guidance -->
+- A full codemap is available at `codemap.md` in the project root.
+- Before working on implementation tasks, read `codemap.md` to understand architecture, entry points, data flow, and subsystem boundaries.
+- For deep work on a specific folder, also read that folder's `codemap.md`.

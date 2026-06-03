@@ -28,9 +28,9 @@ Typical triggers:
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | Conditional | Step 1 and Step 7 | Target template and section structure; if missing, initialize project first |
-| `*.pptx` | **Required** | Step 2 | Source research content |
-| `.agents/state.json` | Optional | Step 8 | Update storyline phase progress |
+| `storyline.md` | Conditional | Step 1, Step 3, and Step 7 | Target template and section structure; inspect through `vibepaper_storyline_structure_status` |
+| `*.pptx` | **Required** | Step 2 | Source research content; extract through `vibepaper_ppt_extract` |
+| `.agents/state.json` | Optional | Step 8 | Updated only through `vibepaper_workflow_set_phase` |
 | `relatedwork/` | Optional | Step 4 | Cross-check paper names/citations if needed |
 
 Preferred source example for this project:
@@ -58,21 +58,20 @@ Path safety rule:
 
 ## Extraction Strategy
 
-Use this fallback order:
+Call `vibepaper_ppt_extract` for source extraction when the OpenCode plugin tool is available.
 
-1. Prefer `python-pptx` for structured extraction.
-2. If unavailable, use ZIP/XML fallback:
-   - unzip `.pptx`
-   - read `ppt/slides/slide*.xml`
-   - extract visible text by slide order
-3. Keep slide index references for traceability.
+This tool is read-only and requires an explicit `.pptx` path. It validates path safety, file existence, supported extension, file size, and readable slide content. It does not scan directories, guess source files, write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
 
-For each slide, capture:
+Use the tool output to capture:
 - slide number
 - title text (if any)
 - bullet/body text
-- figure/table captions written as text
-- speaker notes only if explicitly requested
+- source hash for traceability
+- speaker notes only if explicitly requested through the tool argument
+
+Do not replace `vibepaper_ppt_extract` with prompt-only extraction instructions, shell existence checks, shell unzip commands, `python-pptx`, or directory scans when the plugin tool is available.
+
+For target structure, call `vibepaper_storyline_structure_status`. This tool is read-only and reports whether `storyline.md` is present, safe, and structurally fillable. Do not manually infer storyline section readiness from prompt-only scans when the plugin tool is available.
 
 ## Mapping Rules (Slide -> Storyline)
 
@@ -99,25 +98,28 @@ If one slide supports multiple sections, split its points conservatively.
    - `请提供要转换的 PPTX 文件路径（例如：target/example_project/research_slides.pptx）。`
 3. Do not scan the filesystem for PPT/PPTX candidates when the path is missing.
 4. Wait for user-provided absolute or relative path.
-5. Confirm source `.pptx` exists.
-6. If missing, stop and report exact missing path.
-7. Check whether `storyline.md` exists:
-   - if yes, continue normal mapping and in-place update flow
-   - if no, continue conversion in draft mode and initialize project at Step 7 before final write
+5. Do not run a separate shell/file existence check for the `.pptx`; `vibepaper_ppt_extract` performs this validation in Step 2.
+6. Call `vibepaper_storyline_structure_status` to check whether `storyline.md` exists and is structurally safe:
+   - if the tool succeeds, continue normal mapping and in-place update flow
+   - if the tool reports missing `storyline.md`, continue conversion in draft mode and initialize project at Step 7 before final write
+   - if the tool reports an unsafe path or unreadable file, stop and report the tool error
 
 ### Step 2: Extract slide text
 
-1. Extract all slide text in order.
-2. Build an intermediate note like:
+1. Call `vibepaper_ppt_extract` with the explicit user-provided `.pptx` path.
+2. If the tool returns an error, stop and report the error; do not retry by scanning directories or using shell/Python extraction.
+3. Use the returned slides in order.
+4. Build an intermediate note like:
    - `Slide 03: [Title]`
    - bullets...
-3. Keep extraction artifacts concise and traceable.
+5. Keep extraction artifacts concise and traceable.
 
 ### Step 3: Build section evidence map
 
-1. Scan all `#####` sections in `storyline.md`.
-2. For each section, attach supporting slide snippets.
-3. Mark section status:
+1. Use the `vibepaper_storyline_structure_status` result from Step 1, or call it again if `storyline.md` was initialized or changed.
+2. Use the returned `sections`, `nextSection`, and `summary`; do not manually scan `storyline.md` to decide section readiness.
+3. For each section, attach supporting slide snippets.
+4. Mark section status:
    - `grounded`: sufficient slide evidence
    - `partial`: some evidence
    - `missing`: no evidence
@@ -157,16 +159,19 @@ Then validate:
 1. `<project-dir>/.agents/skills/` exists and is non-empty
 2. `<project-dir>/storyline.md` exists
 
-If either check fails:
+If `storyline.md` is missing:
 
 1. Ask for:
    - project `name`
    - project `domain`
-2. Run initialization first:
-```bash
-vibe --root <project-dir> init --name "<name>" --domain "<domain>"
-```
-3. Then apply the accepted converted content into the initialized `storyline.md`.
+2. Restate the project directory, project `name`, and project `domain`.
+3. Wait for explicit user confirmation.
+4. Call `vibepaper_init_apply` with `name` and `domain`; the tool initializes OpenCode-managed VibePaper core files and refuses conflicts.
+5. Then apply the accepted converted content into the initialized `storyline.md`.
+
+Do not manually create `storyline.md`, `paper.md`, `writingrules.md`, `AGENTS.md`, `.agents/state.json`, or `.agents/events.jsonl` when `vibepaper_init_apply` is available.
+
+If only `.agents/skills/` is missing or incomplete, report that the current OpenCode plugin initialization writes core project files only and does not install the skill library. Do not claim `vibepaper_init_apply` can repair missing skills. Continue only if `storyline.md` exists and the current skill instructions are available in the active agent context.
 
 ### Step 8: Update workflow status
 
@@ -174,13 +179,9 @@ After accepted edits:
 - If at least one storyline section is filled, set storyline phase to `in_progress`.
 - If all storyline sections are materially filled, set storyline phase to `complete`.
 
-Prefer CLI updates:
-```bash
-vibe --root <project-dir> set-phase storyline --status in_progress
-vibe --root <project-dir> set-phase storyline --status complete
-```
+Use `vibepaper_workflow_set_phase` for this update. Before calling it, restate the target phase and status and wait for explicit user confirmation. The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
 
-If CLI is unavailable, update `.agents/state.json` carefully and preserve unrelated fields.
+Do not run `vibe set-phase` and do not manually edit `.agents/state.json` when the OpenCode plugin tool is available.
 
 ## Output Requirements
 

@@ -21,7 +21,7 @@ This skill validates evaluation data authenticity by detecting bogus/placeholder
 | `paper.md` | **Required** | Step 1 (start) | Primary analysis target — scan for bogus markers, tables, figures |
 | `scripts/` | Conditional | Step 4-6 | Verify reproduction scripts exist and run correctly |
 | Data files | Conditional | Step 6 | Verify script dependencies exist |
-| `.agents/state.json` | Write-only | Final step | Persist checker results |
+| `.agents/state.json` | Tool gap | Final step | Checker-result persistence is not currently exposed by the OpenCode plugin; do not edit state directly in plugin-based workflows |
 
 Do NOT read `writingrules.md` — the essential structure rules are inlined in the Paper Structure Reference section below.
 

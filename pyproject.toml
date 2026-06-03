@@ -16,6 +16,8 @@ dependencies = [
     "click>=8.0",
     "pyyaml>=6.0",
     "gitpython>=3.1",
+    "openai>=1.40",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]

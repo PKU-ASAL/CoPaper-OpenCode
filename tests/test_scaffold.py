@@ -141,27 +141,13 @@ class TestScaffoldProject:
         assert (tmp_path / "AGENTS.md").exists()
         assert (tmp_path / "templates" / "latex" / "README.md").exists()
 
-        skill_dirs = [
-            d.name for d in (tmp_path / ".agents" / "skills").iterdir() if d.is_dir()
-        ]
-        source_skills_path = (
-            Path(__file__).resolve().parent.parent / ".agents" / "skills"
+        scaffold_skills_dir = (
+            Path(__file__).resolve().parent.parent / "vibepaper" / "scaffold" / "skills"
         )
-        source_skill_dirs = [d.name for d in source_skills_path.iterdir() if d.is_dir()]
-        assert len(skill_dirs) == len(source_skill_dirs)
-
-
-class TestCopyTemplates:
-    def test_creates_latex_template_dropin_dir(self, tmp_path: Path) -> None:
-        dst = copy_templates(tmp_path)
-        assert dst == tmp_path / "templates"
-        assert (tmp_path / "templates" / "latex" / "README.md").exists()
-
-    def test_does_not_overwrite_existing_template_readme(self, tmp_path: Path) -> None:
-        existing = tmp_path / "templates" / "latex" / "README.md"
-        existing.parent.mkdir(parents=True)
-        existing.write_text("custom template instructions", encoding="utf-8")
-
-        _ = copy_templates(tmp_path)
-
-        assert existing.read_text(encoding="utf-8") == "custom template instructions"
+        expected_skill_dirs = {
+            d.name for d in scaffold_skills_dir.iterdir() if d.is_dir()
+        }
+        skill_dirs = {
+            d.name for d in (tmp_path / ".agents" / "skills").iterdir() if d.is_dir()
+        }
+        assert skill_dirs == expected_skill_dirs

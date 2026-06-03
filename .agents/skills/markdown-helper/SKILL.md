@@ -27,11 +27,11 @@ Do NOT read `writingrules.md` — the essential structure rules are inlined abov
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `paper.md` | **Required** | State 0 (outline), State 1 (scan), State 2 (subagent prompt) | Primary writing target; scan for empty sections, read for context |
+| `paper.md` | **Required** | State 0 (outline), State 1 (structure status), State 2 (subagent prompt) | Primary writing target; call `vibepaper_paper_structure_status` to identify empty Level 5 sections, then read targeted context as needed |
 | `storyline.md` | **Required** | State 0 (outline) and State 2 (subagent prompt) | Core research narrative, insights, and method for grounding |
 | `.agents/cross_index.json` | Optional but preferred | State 1 (before reading relatedwork summaries) | Cross-reference index; consult FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section |
 | `relatedwork/papers/*.md` | Optional | State 1 (only the summaries identified via cross-index) | Individual literature summaries; read ONLY the specific files identified through `.agents/cross_index.json` lookup |
-| `.agents/state.json` | Conditional | State 1 (when writing experiment sections) | Check `experiments` phase status and `data_files` list; read experiment data files only if experiments are `complete` |
+| `.agents/state.json` | Conditional | State 1 (when writing experiment sections) | Use `vibepaper_workflow_status` for read-only phase status/current phase/next-step context; read state directly only for fields not exposed by plugin tools, such as `data_files` |
 | `fig/` | Conditional | State 2 (when writing sections that reference visuals) | Available figures; list paths so the subagent can reference them |
 
 When the orchestrator needs literature context in State 1, it MUST:
@@ -52,11 +52,14 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 6. **STOP AND WAIT** for user confirmation. Once the user approves the outline, proceed to draft paragraphs one by one.
 
 ### Step 2: Scan & Propose Paragraph (WAIT FOR USER)
-1. Read `paper.md` from top to bottom.
-2. Locate the **FIRST Level 5 node (#####) or deeper that has NO Level 6 child nodes yet**.
-3. Extract its `description` metadata (and reference its approved Level 6 title from Step 1).
-4. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph based on our approved outline?"*
-5. **STOP AND WAIT** for user confirmation. Do not proceed.
+1. Call `vibepaper_paper_structure_status` instead of manually scanning `paper.md`.
+2. Use the tool's `nextTarget` as the next Level 5 section to draft. If `nextTarget` is `null`, report that no incomplete Level 5 writing target remains.
+3. Use the tool's `violations` to warn the user about structural issues before drafting.
+4. Read only the targeted region of `paper.md` if you need its `description` metadata or local context for the selected section.
+5. **Announce and Ask**: Tell the user which section is next and its description. Ask: *"I found section **[Level 5 Title]** is next. Shall I launch a writing subagent to draft this paragraph based on our approved outline?"*
+6. **STOP AND WAIT** for user confirmation. Do not proceed.
+
+`vibepaper_paper_structure_status` is read-only. It does not write `paper.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases. Do not replace it with prompt-only heading scans, shell parsing, or manual completion inference when the plugin tool is available.
 
 ### Step 3: Delegate to Subagent
 1. Once confirmed, use the `task` or `runSubagent` tool to launch an independent subagent for writing (`category="writing"`, `run_in_background=false`).
@@ -67,7 +70,7 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
    - "Read `storyline.md` for core narrative."
    - "Read `paper.md` to understand context and what has been written so far."
    - "Read `.agents/cross_index.json` FIRST to identify which `relatedwork/papers/*.md` files are relevant to the current section's technical points. Then read ONLY those specific summaries — do NOT read all files under `relatedwork/papers/` indiscriminately."
-   - "If `.agents/state.json` shows experiments phase is `complete`, read the experiment data files from `state.json`'s `data_files` field and use them as context for experiment-related sections."
+   - "Call `vibepaper_workflow_status` to check workflow phase status, current phase, and next-step recommendation. Use its phase table to verify whether `experiments` is `complete`. If it is complete and experiment data paths are still needed, read `.agents/state.json` only for `data_files` because the current plugin does not expose a dedicated data-file lookup tool."
    - "Check `fig/` directory with `Glob('fig/*')`. If relevant figures exist, reference them in your writing using markdown image syntax."
    - "Output ONLY the drafted Level 6 node (###### Title + Content). DO NOT edit `paper.md` yourself."
    - "**Writing Style Instructions**: 
@@ -84,23 +87,15 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 3. **STOP AND WAIT** for user confirmation.
 
 ### Step 5: Apply or Iterate
-- If **Accept**: The Orchestrator uses the `Edit` tool to safely insert the drafted Level 6 node under the target Level 5 node in `paper.md`. Log the insertion action to `.agents/events.jsonl` (see Action Logging). Then loop back to Step 2.
+- If **Accept**: The Orchestrator uses the `Edit` tool to safely insert the drafted Level 6 node under the target Level 5 node in `paper.md`. Then loop back to Step 2.
 - If **Modify/Rewrite**: Launch the subagent again (passing the context and user's feedback). Repeat Step 4.
 
-## Action Logging (REQUIRED)
+## Action Logging
 
-Whenever you perform an action (generating an outline, reading reference files, or writing content into `paper.md`), you MUST log the activity to VibePaper's event system. Append a JSON object to `.agents/events.jsonl` using the `run_in_terminal` tool:
+Use plugin tools for workflow events whenever possible. The current OpenCode plugin only appends events for supported tool actions such as `vibepaper_workflow_set_phase` and `vibepaper_artifact_record`; it does not expose a generic event-append tool for paragraph insertion logs.
 
-```bash
-# Example for logging file reads / tool calls
-echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"read_context\",\"result\":\"success\",\"metadata\":{\"files\":[\".agents/cross_index.json\", \"storyline.md\"]}}" >> .agents/events.jsonl
-
-# Example for logging outline generation
-echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"generate_outline\",\"result\":\"success\"}" >> .agents/events.jsonl
-
-# Example for logging a paragraph insertion
-echo "{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S+00:00")\",\"operator\":\"ai\",\"phase\":\"writing\",\"action\":\"insert_paragraph\",\"result\":\"success\",\"metadata\":{\"target_section\":\"<Level_5_Title>\"}}" >> .agents/events.jsonl
-```
+Do not append to `.agents/events.jsonl` manually when using the plugin-based workflow. Report this limitation if the user asks for paragraph-level event logging.
+If the user asks to inspect workflow event history, call `vibepaper_workflow_log` for read-only querying instead of reading `.agents/events.jsonl` directly.
 
 ## Crucial Anti-Patterns
 - **NEVER** write multiple paragraphs at once without user interactive review.

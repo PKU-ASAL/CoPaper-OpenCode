@@ -18,9 +18,9 @@ This skill guides users through constructing their research storyline in `storyl
 
 | File | Required | When to Read | Purpose |
 |------|----------|-------------|---------|
-| `storyline.md` | **Required** | Step 1 (start) | Primary target file; scan for empty/filled sections, read for context |
+| `storyline.md` | **Required** | Step 1 (structure status) | Primary target file; inspect through `vibepaper_storyline_structure_status` for empty/partial/filled sections |
 | `paper.md` | Conditional | Reverse-extraction mode only | Source for reverse-extracting storyline content when `storyline.md` is sparse |
-| `.agents/state.json` | Write-only | Step 5 (after applying edits) | Update `phases.storyline.status` to `in_progress` or `complete`; no read needed for content |
+| `.agents/state.json` | Tool-managed | Step 5 (after applying edits) | Update storyline phase through `vibepaper_workflow_set_phase`; do not edit the file directly |
 
 Do NOT read `writingrules.md` — this skill works with the existing `storyline.md` structure directly.
 
@@ -53,6 +53,10 @@ Do NOT read `writingrules.md` — this skill works with the existing `storyline.
 
 ## Section Detection Logic
 
+Use `vibepaper_storyline_structure_status` for section readiness whenever the plugin tool is available. The tool is read-only and validates that `storyline.md` is present, safe, and structurally readable. It does not write `storyline.md`, update `.agents/state.json`, append `.agents/events.jsonl`, or advance workflow phases.
+
+The tool classifies sections using this logic:
+
 A section is considered **empty** if, after its `#####` header line, the content contains only:
 - `TODO` placeholders (any line containing `TODO`)
 - Blank lines
@@ -60,12 +64,16 @@ A section is considered **empty** if, after its `#####` header line, the content
 
 A section is considered **filled** if it contains substantive content beyond TODO placeholders and instructional text.
 
+Do not replace `vibepaper_storyline_structure_status` with prompt-only section scans, shell existence checks, shell parsing, or manual completion inference when the plugin tool is available.
+
 ## State Management
 
-This skill updates `.agents/state.json` to track progress:
-- When the first section is filled: set `phases.storyline.status` to `"in_progress"`
-- When all sections are filled: set `phases.storyline.status` to `"complete"`
-- There is currently no dedicated `vibe` CLI command for these storyline progress transitions; in automation, use `StateManager.set_phase_status("storyline", status)` directly and preserve the rest of the state structure.
+This skill updates workflow progress through the OpenCode plugin tool:
+- When the first section is filled: call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "in_progress"`.
+- When all sections are filled: call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "complete"`.
+- Before calling the tool, restate the phase/status update and wait for explicit user confirmation.
+- The tool call writes `.agents/state.json` and appends the workflow event to `.agents/events.jsonl`.
+- Do not call `vibe set-phase`, use `StateManager.set_phase_status`, or manually edit `.agents/state.json` when the plugin tool is available.
 
 ## Reverse Extraction Mode (`paper.md` → `storyline.md`)
 
@@ -94,17 +102,18 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 
 ### Step 1: Scan & Present (WAIT FOR USER)
 
-1. Read `storyline.md` from top to bottom.
-2. Identify all `#####` sections and classify each as **empty** or **filled** using the detection logic above.
-3. Compile a list of empty sections with their section numbers and titles.
-4. **Present to the user**: Show the list of empty sections and ask which one they want to work on next. Example:
+1. Call `vibepaper_storyline_structure_status`.
+2. If the tool reports missing, unsafe, or unreadable `storyline.md`, stop and report the tool error instead of manually scanning files.
+3. Use the returned `sections`, `nextSection`, and `summary` to identify empty, partial, and filled storyline sections.
+4. Compile a list of empty or partial sections with their section numbers and titles.
+5. **Present to the user**: Show the list of empty sections and ask which one they want to work on next. Example:
    > "I found the following empty sections in your storyline:
    > 1. 问题描述
    > 2. 问题重要性
    > 5. 解决问题的现有相关方法
    > ...
    > Which section would you like to work on? You can also say 'next' to start from the first empty section."
-5. **STOP AND WAIT** for user selection. Do not proceed.
+6. **STOP AND WAIT** for user selection. Do not proceed.
 
 ### Step 2: Show Section Guidance & Collect Input (WAIT FOR USER)
 
@@ -139,9 +148,11 @@ The Orchestrator MUST follow this interactive, sequential workflow strictly. **N
 ### Step 5: Apply or Iterate
 
 - If **Accept**: The Orchestrator uses the `Edit` tool to replace the section content in `storyline.md` under the correct `#####` header. Then:
-  1. Update `.agents/state.json`: set `phases.storyline.status` to `"in_progress"` if not already.
-  2. Re-scan `storyline.md` to check if all sections are now filled. If so, set `phases.storyline.status` to `"complete"`.
-  3. Ask the user: *"Section **[Section Title]** has been filled. Would you like to continue with the next empty section?"* If yes, loop back to Step 2 with the next empty section.
+  1. Call `vibepaper_storyline_structure_status` again to check whether all sections are now filled.
+  2. Restate the intended workflow update and wait for user confirmation.
+  3. Call `vibepaper_workflow_set_phase` with `phase: "storyline"` and `status: "in_progress"` if any section is filled, or `status: "complete"` if all sections are filled.
+  4. Treat the tool output as the audit record because it writes state and appends the workflow event.
+  5. Ask the user: *"Section **[Section Title]** has been filled. Would you like to continue with the next empty section?"* If yes, loop back to Step 2 with the next empty section.
 - If **Modify/Rewrite**: Launch the subagent again (use `session_id` to continue its context), passing the user's feedback. Repeat Step 4.
 
 ## Crucial Anti-Patterns
